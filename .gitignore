@@ -1,0 +1,9 @@
+# Build binaries
+agystatusline
+agystatusline.exe
+
+# Logs
+*.log
+
+# OS metadata
+.DS_Store
