@@ -40,3 +40,22 @@ func TestRenderOsc8Link(t *testing.T) {
 		t.Errorf("Expected '%q', got '%q'", expected, actual)
 	}
 }
+
+func TestTruncateStyledText(t *testing.T) {
+	tests := []struct {
+		input    string
+		width    int
+		expected string
+	}{
+		{"Hello World", 8, "Hello..."},
+		{"\x1b[31mHello\x1b[0m World", 8, "\x1b[31mHello\x1b[0m..."},
+		{"\x1b]8;;http://x.com\x1b\\Hello\x1b]8;;\x1b\\", 8, "\x1b]8;;http://x.com\x1b\\Hello\x1b]8;;\x1b\\"}, // fits
+	}
+
+	for _, tc := range tests {
+		actual := TruncateStyledText(tc.input, tc.width)
+		if actual != tc.expected {
+			t.Errorf("For input '%q' with width %d, expected '%q', got '%q'", tc.input, tc.width, tc.expected, actual)
+		}
+	}
+}
