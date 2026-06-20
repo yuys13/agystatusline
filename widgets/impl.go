@@ -26,21 +26,12 @@ func (m *ModelWidget) Render(item types.WidgetItem, ctx types.RenderContext, set
 		return "", nil
 	}
 
-	// Remove parenthesized suffixes e.g. "Claude 3.5 Sonnet (New)" -> "Claude 3.5 Sonnet"
-	// but keep (Medium) if present
-	re := regexp.MustCompile(`\s*(\(.*\))$`)
-	matches := re.FindStringSubmatch(displayName)
-	var shortName string
-	if len(matches) > 1 && matches[1] == "(Medium)" {
-		shortName = strings.TrimSpace(displayName)
-	} else {
-		shortName = strings.TrimSpace(re.ReplaceAllString(displayName, ""))
-	}
+	modelName := strings.TrimSpace(displayName)
 
 	if item.RawValue != nil && *item.RawValue {
-		return shortName, nil
+		return modelName, nil
 	}
-	return "Model: " + shortName, nil
+	return "Model: " + modelName, nil
 }
 
 // ContextLengthWidget displays total input tokens.

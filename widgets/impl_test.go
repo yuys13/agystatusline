@@ -57,7 +57,7 @@ func TestModelWidget(t *testing.T) {
 		t.Errorf("Expected '%s', got '%s'", expectedRaw, outputRaw)
 	}
 
-	// Test parenthesized suffixes: (New) should be stripped, but (Medium) should be kept.
+	// Test that parenthesized suffixes (or any part of the DisplayName) are not stripped and are kept as-is.
 	ctxWithNew := types.RenderContext{
 		Data: types.StatusJSON{
 			Model: types.ModelInfo{
@@ -70,7 +70,7 @@ func TestModelWidget(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Render error: %v", err)
 	}
-	expectedNew := "Model: Claude 3.5 Sonnet"
+	expectedNew := "Model: Claude 3.5 Sonnet (New)"
 	if outputNew != expectedNew {
 		t.Errorf("Expected '%s', got '%s'", expectedNew, outputNew)
 	}
