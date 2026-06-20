@@ -68,4 +68,3 @@ func RegisterAll() {
 	RegisterWidget("context-remaining-pct", &ContextRemainingPctWidget{})
 	RegisterWidget("quota", &QuotaWidget{})
 }
-

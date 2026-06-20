@@ -109,10 +109,7 @@ func RenderStatusLines(settings types.Settings, ctx types.RenderContext) []strin
 					}
 				}
 
-				totalSpace := termWidth - visibleWidth
-				if totalSpace < 0 {
-					totalSpace = 0
-				}
+				totalSpace := max(termWidth-visibleWidth, 0)
 				spacePerFlex := totalSpace / len(pendingFlex)
 				extraSpace := totalSpace % len(pendingFlex)
 
@@ -322,4 +319,3 @@ func renderPowerline(rendered []PreRenderedWidget, settings types.Settings, ctx 
 
 	return builder.String()
 }
-

@@ -119,4 +119,3 @@ func TestParseStatusJSON_Quota(t *testing.T) {
 		t.Errorf("Expected 3p-weekly RemainingFraction 1.0, got %v", p3w.RemainingFraction)
 	}
 }
-

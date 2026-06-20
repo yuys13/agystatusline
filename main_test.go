@@ -11,7 +11,7 @@ import (
 func TestParseConfigArg(t *testing.T) {
 	// Dummy initial path
 	settingsPath = "default_settings.json"
-	
+
 	args := []string{"./agystatusline", "--config", "/tmp/custom.json"}
 	path, remaining := parseConfigArg(args)
 
@@ -69,7 +69,7 @@ func TestLoadSettings_InvalidJSON(t *testing.T) {
 	if len(settings.Lines) != 3 {
 		t.Errorf("Expected 3 fallback lines, got %d", len(settings.Lines))
 	}
-	
+
 	// Error should be stored
 	if lastLoadError == "" {
 		t.Errorf("Expected load error to be recorded, got empty")

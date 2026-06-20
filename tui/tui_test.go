@@ -83,7 +83,6 @@ func TestTUI_LivePreviewContextPercentages(t *testing.T) {
 	}
 }
 
-
 func TestTUI_LayoutAndBorders(t *testing.T) {
 	widgets.RegisterAll()
 	settings := types.DefaultSettings()
@@ -332,7 +331,7 @@ func TestTUI_AddWidget(t *testing.T) {
 
 	// 2. Select a widget type and add it
 	m = newModel
-	for i := 0; i < 4; i++ {
+	for range 4 {
 		updatedModel, _ = m.Update(tea.KeyMsg{Type: tea.KeyDown})
 		m = updatedModel.(Model)
 	}
@@ -372,7 +371,7 @@ func TestTUI_AddContextPctWidgets(t *testing.T) {
 
 	// Navigate to the bottom (where Context Used % is at index 6)
 	m = newModel
-	for i := 0; i < 6; i++ {
+	for range 6 {
 		updatedModel, _ = m.Update(tea.KeyMsg{Type: tea.KeyDown})
 		m = updatedModel.(Model)
 	}
@@ -911,6 +910,3 @@ func TestTUI_SelectEndCapMenu(t *testing.T) {
 		t.Errorf("Expected end cap to remain '\\uE0B0', got %v", mCancelled.settings.Powerline.EndCaps)
 	}
 }
-
-
-

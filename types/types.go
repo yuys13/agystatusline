@@ -72,20 +72,20 @@ type EffortInfo struct {
 }
 
 type CostInfo struct {
-	TotalCostUSD        *float64 `json:"total_cost_usd,omitempty"`
-	TotalDurationMS     *float64 `json:"total_duration_ms,omitempty"`
-	TotalAPIDurationMS  *float64 `json:"total_api_duration_ms,omitempty"`
-	TotalLinesAdded     *float64 `json:"total_lines_added,omitempty"`
-	TotalLinesRemoved   *float64 `json:"total_lines_removed,omitempty"`
+	TotalCostUSD       *float64 `json:"total_cost_usd,omitempty"`
+	TotalDurationMS    *float64 `json:"total_duration_ms,omitempty"`
+	TotalAPIDurationMS *float64 `json:"total_api_duration_ms,omitempty"`
+	TotalLinesAdded    *float64 `json:"total_lines_added,omitempty"`
+	TotalLinesRemoved  *float64 `json:"total_lines_removed,omitempty"`
 }
 
 type ContextWindowInfo struct {
-	ContextWindowSize    *float64      `json:"context_window_size,omitempty"`
-	TotalInputTokens     *float64      `json:"total_input_tokens,omitempty"`
-	TotalOutputTokens    *float64      `json:"total_output_tokens,omitempty"`
-	CurrentUsage         *ContextUsage `json:"current_usage,omitempty"`
-	UsedPercentage       *float64      `json:"used_percentage,omitempty"`
-	RemainingPercentage  *float64      `json:"remaining_percentage,omitempty"`
+	ContextWindowSize   *float64      `json:"context_window_size,omitempty"`
+	TotalInputTokens    *float64      `json:"total_input_tokens,omitempty"`
+	TotalOutputTokens   *float64      `json:"total_output_tokens,omitempty"`
+	CurrentUsage        *ContextUsage `json:"current_usage,omitempty"`
+	UsedPercentage      *float64      `json:"used_percentage,omitempty"`
+	RemainingPercentage *float64      `json:"remaining_percentage,omitempty"`
 }
 
 type VimInfo struct {
@@ -106,10 +106,10 @@ type RateLimitPeriod struct {
 }
 
 type RateLimitsInfo struct {
-	FiveHour        *RateLimitPeriod `json:"five_hour,omitempty"`
-	SevenDay        *RateLimitPeriod `json:"seven_day,omitempty"`
-	SevenDaySonnet  *RateLimitPeriod `json:"seven_day_sonnet,omitempty"`
-	SevenDayOpus    *RateLimitPeriod `json:"seven_day_opus,omitempty"`
+	FiveHour       *RateLimitPeriod `json:"five_hour,omitempty"`
+	SevenDay       *RateLimitPeriod `json:"seven_day,omitempty"`
+	SevenDaySonnet *RateLimitPeriod `json:"seven_day_sonnet,omitempty"`
+	SevenDayOpus   *RateLimitPeriod `json:"seven_day_opus,omitempty"`
 }
 
 type QuotaInfo struct {
@@ -120,22 +120,22 @@ type QuotaInfo struct {
 
 // StatusJSON defines the schema for telemetry input streamed on stdin.
 type StatusJSON struct {
-	HookEventName  string             `json:"hook_event_name"`
-	SessionID      string             `json:"session_id"`
-	TranscriptPath string             `json:"transcript_path"`
-	CWD            string             `json:"cwd"`
-	Model          ModelInfo          `json:"model"`
-	Workspace      *WorkspaceInfo     `json:"workspace,omitempty"`
-	Version        string             `json:"version"`
-	OutputStyle    *OutputStyleInfo   `json:"output_style,omitempty"`
-	Effort         *EffortInfo        `json:"effort,omitempty"`
-	Cost           *CostInfo          `json:"cost,omitempty"`
-	ContextWindow  *ContextWindowInfo `json:"context_window,omitempty"`
-	Vim            *VimInfo           `json:"vim,omitempty"`
-	Worktree       *WorktreeInfo      `json:"worktree,omitempty"`
-	RateLimits     *RateLimitsInfo    `json:"rate_limits,omitempty"`
+	HookEventName  string               `json:"hook_event_name"`
+	SessionID      string               `json:"session_id"`
+	TranscriptPath string               `json:"transcript_path"`
+	CWD            string               `json:"cwd"`
+	Model          ModelInfo            `json:"model"`
+	Workspace      *WorkspaceInfo       `json:"workspace,omitempty"`
+	Version        string               `json:"version"`
+	OutputStyle    *OutputStyleInfo     `json:"output_style,omitempty"`
+	Effort         *EffortInfo          `json:"effort,omitempty"`
+	Cost           *CostInfo            `json:"cost,omitempty"`
+	ContextWindow  *ContextWindowInfo   `json:"context_window,omitempty"`
+	Vim            *VimInfo             `json:"vim,omitempty"`
+	Worktree       *WorktreeInfo        `json:"worktree,omitempty"`
+	RateLimits     *RateLimitsInfo      `json:"rate_limits,omitempty"`
 	Quota          map[string]QuotaInfo `json:"quota,omitempty"`
-	TerminalWidth  *int               `json:"terminal_width,omitempty"`
+	TerminalWidth  *int                 `json:"terminal_width,omitempty"`
 }
 
 // WidgetItem configures a single widget in the statusline.
@@ -145,7 +145,7 @@ type WidgetItem struct {
 	Color           string            `json:"color,omitempty"`
 	BackgroundColor string            `json:"backgroundColor,omitempty"`
 	Bold            *bool             `json:"bold,omitempty"`
-	Dim             interface{}       `json:"dim,omitempty"` // bool or string ("parens")
+	Dim             any               `json:"dim,omitempty"` // bool or string ("parens")
 	Character       string            `json:"character,omitempty"`
 	RawValue        *bool             `json:"rawValue,omitempty"`
 	CustomText      string            `json:"customText,omitempty"`
@@ -154,20 +154,20 @@ type WidgetItem struct {
 	MaxWidth        *int              `json:"maxWidth,omitempty"`
 	PreserveColors  *bool             `json:"preserveColors,omitempty"`
 	Timeout         *int              `json:"timeout,omitempty"`
-	Merge           interface{}       `json:"merge,omitempty"` // bool or string ("no-padding")
+	Merge           any               `json:"merge,omitempty"` // bool or string ("no-padding")
 	Hide            *bool             `json:"hide,omitempty"`
 	Metadata        map[string]string `json:"metadata,omitempty"`
 }
 
 type PowerlineConfig struct {
-	Enabled                    bool     `json:"enabled"`
-	Separators                 []string `json:"separators"`
-	SeparatorInvertBackground  []bool   `json:"separatorInvertBackground"`
-	StartCaps                  []string `json:"startCaps"`
-	EndCaps                    []string `json:"endCaps"`
-	Theme                      string   `json:"theme,omitempty"`
-	AutoAlign                  bool     `json:"autoAlign"`
-	ContinueThemeAcrossLines   bool     `json:"continueThemeAcrossLines"`
+	Enabled                   bool     `json:"enabled"`
+	Separators                []string `json:"separators"`
+	SeparatorInvertBackground []bool   `json:"separatorInvertBackground"`
+	StartCaps                 []string `json:"startCaps"`
+	EndCaps                   []string `json:"endCaps"`
+	Theme                     string   `json:"theme,omitempty"`
+	AutoAlign                 bool     `json:"autoAlign"`
+	ContinueThemeAcrossLines  bool     `json:"continueThemeAcrossLines"`
 }
 
 type UpdateMessage struct {

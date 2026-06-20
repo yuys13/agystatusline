@@ -56,9 +56,9 @@ var startCapsList = []struct {
 	{name: "Round (\uE0B6)", value: "\uE0B6"},
 	{name: "Lower Triangle (\uE0BA)", value: "\uE0BA"},
 	{name: "Diagonal (\uE0BE)", value: "\uE0BE"},
-	{name: "Flame (\uE0C2)", value: "\uE0C2"},
-	{name: "Hexagon (\uE0C7)", value: "\uE0C7"},
-	{name: "Slanted (\uE0C9)", value: "\uE0C9"},
+	{name: "Flame (\uE0C2)", value: "\uE0C2 "},
+	{name: "Hexagon (\uE0C7)", value: "\uE0C7 "},
+	{name: "Slanted (\uE0CA)", value: "\uE0CA "},
 	{name: "Slash (\uE0CD)", value: "\uE0CD"},
 }
 
@@ -76,7 +76,6 @@ var endCapsList = []struct {
 	{name: "Slanted (\uE0C8)", value: "\uE0C8"},
 	{name: "Slash (\uE0CC)", value: "\uE0CC"},
 }
-
 
 var widgetTypes = []struct {
 	name            string
@@ -107,7 +106,6 @@ var widgetTypes = []struct {
 	{name: "Quota Reset: 3P 5h", wType: "quota", color: "brightBlack", metadata: map[string]string{"key": "3p-5h", "display": "reset"}},
 	{name: "Quota Reset: 3P Weekly", wType: "quota", color: "brightBlack", metadata: map[string]string{"key": "3p-weekly", "display": "reset"}},
 }
-
 
 func NewModel(settings types.Settings, configPath string) Model {
 	initialThemeIndex := 0
@@ -645,7 +643,6 @@ func (m Model) View() string {
 		},
 	}
 
-
 	previewSettings := m.settings
 	if m.activeMenu == "select_theme" {
 		if m.cursor >= 0 && m.cursor < len(themesList) {
@@ -950,7 +947,6 @@ func saveSettings(path string, settings types.Settings) error {
 
 	return os.Rename(tempPath, path)
 }
-
 
 // RunTUI launches the Bubble Tea program to edit settings interactively.
 func RunTUI(settings types.Settings, configPath string) error {

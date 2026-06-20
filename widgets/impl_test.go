@@ -515,5 +515,3 @@ func TestQuotaWidget(t *testing.T) {
 		t.Errorf("Expected empty string for nil quota map, got '%s'", outputNil)
 	}
 }
-
-

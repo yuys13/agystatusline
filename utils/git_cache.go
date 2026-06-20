@@ -41,10 +41,10 @@ type PersistentGitCacheInternal struct {
 const GitCacheSchemaVersion = 1
 
 var (
-	cacheDir          = ""
-	cacheDirMutex     sync.RWMutex
-	gitCommandCache   = make(map[string]GitCacheEntryInternal)
-	gitCacheMutex     sync.Mutex
+	cacheDir        = ""
+	cacheDirMutex   sync.RWMutex
+	gitCommandCache = make(map[string]GitCacheEntryInternal)
+	gitCacheMutex   sync.Mutex
 )
 
 // SetCacheDir sets the root cache directory (primarily for testing).

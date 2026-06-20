@@ -51,7 +51,7 @@ func TestRenderStatusLines_FlexSeparator(t *testing.T) {
 	settings.Powerline.Enabled = false
 	settings.DefaultSeparator = " "
 	settings.DefaultPadding = ""
-	
+
 	// Set custom lines with a flex-separator: [model, flex-separator, context-length]
 	settings.Lines = [][]types.WidgetItem{
 		{
@@ -180,4 +180,3 @@ func TestRenderStatusLines_PowerlineCaps(t *testing.T) {
 		t.Errorf("Expected end cap to be colored with %q, but got '%q'", expectedEndCapFg, firstLine)
 	}
 }
-

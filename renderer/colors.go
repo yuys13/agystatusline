@@ -183,7 +183,7 @@ func applyParensDim(text string, bold bool) string {
 }
 
 // ApplyColors applies foreground, background, bold, and dim styling to text.
-func ApplyColors(text string, fgColor, bgColor string, bold *bool, colorLevel string, dim interface{}) string {
+func ApplyColors(text string, fgColor, bgColor string, bold *bool, colorLevel string, dim any) string {
 	isBold := bold != nil && *bold
 	isDim := dim == true
 
@@ -351,10 +351,10 @@ type PowerlineThemeColors struct {
 }
 
 type PowerlineTheme struct {
-	Name       string
-	Colors16   *PowerlineThemeColors
-	Colors256  *PowerlineThemeColors
-	Truecolor  *PowerlineThemeColors
+	Name      string
+	Colors16  *PowerlineThemeColors
+	Colors256 *PowerlineThemeColors
+	Truecolor *PowerlineThemeColors
 }
 
 var powerlineThemes = map[string]*PowerlineTheme{

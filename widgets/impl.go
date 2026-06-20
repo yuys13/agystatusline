@@ -238,10 +238,7 @@ func (q *QuotaWidget) Render(item types.WidgetItem, ctx types.RenderContext, set
 
 	var resetStr string
 	if quota.ResetInSeconds != nil {
-		secs := int(*quota.ResetInSeconds)
-		if secs < 0 {
-			secs = 0
-		}
+		secs := max(int(*quota.ResetInSeconds), 0)
 		if secs < 60 {
 			resetStr = fmt.Sprintf("%ds", secs)
 		} else if secs < 3600 {
@@ -308,5 +305,3 @@ func (q *QuotaWidget) Render(item types.WidgetItem, ctx types.RenderContext, set
 	}
 	return fmt.Sprintf("%s: %s", label, valueStr), nil
 }
-
-

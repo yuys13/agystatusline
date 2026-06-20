@@ -31,7 +31,7 @@ func TestResolveGitCwd(t *testing.T) {
 
 func TestGitCache_TTLAndMtime(t *testing.T) {
 	tempDir := t.TempDir()
-	
+
 	// Create a dummy git repo directory structure
 	gitDir := filepath.Join(tempDir, ".git")
 	err := os.Mkdir(gitDir, 0755)
@@ -60,7 +60,7 @@ func TestGitCache_TTLAndMtime(t *testing.T) {
 		GitCacheTTLSeconds: 5,
 	}
 
-	// Call git command wrapper (which will invoke git, but since git isn't a mock, 
+	// Call git command wrapper (which will invoke git, but since git isn't a mock,
 	// we will test the caching mechanism directly on top of raw outputs)
 	cacheKey := "status --porcelain"
 	now := time.Now().UnixNano() / int64(time.Millisecond)
@@ -85,7 +85,7 @@ func TestGitCache_TTLAndMtime(t *testing.T) {
 
 	// Reset cache and update file mtime to test mtime invalidation
 	SetCacheEntry(tempDir, cacheKey, output, time.Now().UnixNano()/int64(time.Millisecond), ctx.GitCacheTTLSeconds)
-	
+
 	// Change mtime of HEAD
 	newTime := time.Now().Add(1 * time.Hour)
 	err = os.Chtimes(headPath, newTime, newTime)

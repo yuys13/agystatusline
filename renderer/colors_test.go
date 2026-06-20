@@ -34,7 +34,7 @@ func TestApplyColors(t *testing.T) {
 	// Bold and red foreground
 	bold := true
 	actual := ApplyColors(text, "red", "", &bold, "ansi16", nil)
-	
+
 	// Expect \x1b[1m (bold) + \x1b[31m (red) + Test + \x1b[39m (fg reset) + \x1b[22m (bold reset)
 	// Order could depend on implementation, but let's verify containment and resets.
 	if !strings.Contains(actual, "Test") {

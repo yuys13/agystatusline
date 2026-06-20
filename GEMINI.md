@@ -8,6 +8,8 @@ This file guides AI agents and developers on how to work with the `agystatusline
 - **Build the executable binary**: `go build -o agystatusline`
 - **Run local manual integration tests**: `cat test_data.json | ./agystatusline`
 - **Run interactive configuration menu (TUI)**: `./agystatusline` (without piping data)
+- **Format codebase**: `go fmt ./...`
+- **Fix deprecated APIs**: `go fix ./...`
 
 ## TDD & Commit Guidelines
 

@@ -6,6 +6,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 
 	"github.com/mattn/go-isatty"
@@ -55,7 +56,7 @@ func parseConfigArg(args []string) (string, []string) {
 
 func loadSettings() (types.Settings, error) {
 	lastLoadError = ""
-	
+
 	// Read file
 	data, err := os.ReadFile(settingsPath)
 	if err != nil {
@@ -67,12 +68,12 @@ func loadSettings() (types.Settings, error) {
 			if err != nil {
 				return defaults, err
 			}
-			
+
 			bytes, err := json.MarshalIndent(defaults, "", "  ")
 			if err != nil {
 				return defaults, err
 			}
-			
+
 			err = os.WriteFile(settingsPath, bytes, 0644)
 			if err != nil {
 				return defaults, err
@@ -134,7 +135,7 @@ func main() {
 			fmt.Fprintln(os.Stderr, "Failed to load settings:", err)
 			os.Exit(1)
 		}
-		
+
 		err = tui.RunTUI(settings, settingsPath)
 		if err != nil {
 			fmt.Fprintln(os.Stderr, "TUI error:", err)
@@ -189,10 +190,5 @@ func main() {
 }
 
 func contains(slice []string, val string) bool {
-	for _, item := range slice {
-		if item == val {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(slice, val)
 }
