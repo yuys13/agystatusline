@@ -761,8 +761,8 @@ func TestTUI_SelectSeparatorMenu(t *testing.T) {
 	if mConfirmed.cursor != 3 {
 		t.Errorf("Expected main menu cursor to remain 3, got %d", mConfirmed.cursor)
 	}
-	if len(mConfirmed.settings.Powerline.Separators) != 1 || mConfirmed.settings.Powerline.Separators[0] != "\uE0B4 " {
-		t.Errorf("Expected separator to be updated to '\\uE0B4 ', got %v", mConfirmed.settings.Powerline.Separators)
+	if len(mConfirmed.settings.Powerline.Separators) != 1 || mConfirmed.settings.Powerline.Separators[0] != "\uE0B4" {
+		t.Errorf("Expected separator to be updated to '\\uE0B4', got %v", mConfirmed.settings.Powerline.Separators)
 	}
 	if mConfirmed.separatorIndex != 2 {
 		t.Errorf("Expected separatorIndex to be updated to 2, got %d", mConfirmed.separatorIndex)

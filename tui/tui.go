@@ -46,13 +46,13 @@ var separatorsList = []struct {
 	name  string
 	value string
 }{
-	{name: "None", value: " "},
-	{name: "Arrow (\uE0B0)", value: "\uE0B0 "},
-	{name: "Round (\uE0B4)", value: "\uE0B4 "},
-	{name: "Flame (\uE0C0)", value: "\uE0C0 "},
-	{name: "Hexagon (\uE0C6)", value: "\uE0C6 "},
-	{name: "Slanted (\uE0C8)", value: "\uE0C8 "},
-	{name: "Slash (\uE0CC)", value: "\uE0CC "},
+	{name: "None", value: ""},
+	{name: "Arrow (\uE0B0)", value: "\uE0B0"},
+	{name: "Round (\uE0B4)", value: "\uE0B4"},
+	{name: "Flame (\uE0C0)", value: "\uE0C0"},
+	{name: "Hexagon (\uE0C6)", value: "\uE0C6"},
+	{name: "Slanted (\uE0C8)", value: "\uE0C8"},
+	{name: "Slash (\uE0CC)", value: "\uE0CC"},
 	{name: "Slash ASCII (/)", value: "/"},
 	{name: "Bar ASCII (|)", value: "|"},
 }
@@ -66,9 +66,9 @@ var startCapsList = []struct {
 	{name: "Round (\uE0B6)", value: "\uE0B6"},
 	{name: "Lower Triangle (\uE0BA)", value: "\uE0BA"},
 	{name: "Diagonal (\uE0BE)", value: "\uE0BE"},
-	{name: "Flame (\uE0C2)", value: "\uE0C2 "},
-	{name: "Hexagon (\uE0C7)", value: "\uE0C7 "},
-	{name: "Slanted (\uE0CA)", value: "\uE0CA "},
+	{name: "Flame (\uE0C2)", value: "\uE0C2"},
+	{name: "Hexagon (\uE0C7)", value: "\uE0C7"},
+	{name: "Slanted (\uE0CA)", value: "\uE0CA"},
 	{name: "Slash (\uE0CD)", value: "\uE0CD"},
 }
 
