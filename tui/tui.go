@@ -106,28 +106,8 @@ func (m Model) View() string {
 	}
 
 	var s stringsBuilder
-	s.WriteString(lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("39")).Render("agystatusline Configuration Menu"))
-	s.WriteString("\n\n")
 
-	menuItems := []string{
-		fmt.Sprintf("Toggle Minimalist Mode      [%t]", m.settings.MinimalistMode),
-		fmt.Sprintf("Toggle Powerline Mode       [%t]", m.settings.Powerline.Enabled),
-		fmt.Sprintf("Select Powerline Theme      [%s]", m.settings.Powerline.Theme),
-		"Save & Exit",
-		"Discard & Exit",
-	}
-
-	for i, item := range menuItems {
-		cursorStr := " "
-		style := lipgloss.NewStyle()
-		if m.cursor == i {
-			cursorStr = ">"
-			style = style.Bold(true).Foreground(lipgloss.Color("226"))
-		}
-		s.WriteString(fmt.Sprintf("%s %s\n", cursorStr, style.Render(item)))
-	}
-
-	s.WriteString("\n")
+	// Render Live Preview at the top
 	s.WriteString(lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("244")).Render("--- Live Preview ---"))
 	s.WriteString("\n")
 
@@ -150,14 +130,32 @@ func (m Model) View() string {
 	}
 
 	previewLines := renderer.RenderStatusLines(m.settings, previewCtx)
-	previewBoxStyle := lipgloss.NewStyle().
-		Border(lipgloss.NormalBorder()).
-		BorderForeground(lipgloss.Color("239")).
-		Padding(0, 1)
-
 	for _, line := range previewLines {
-		s.WriteString(previewBoxStyle.Render("\x1b[0m" + line))
+		s.WriteString("\x1b[0m" + line)
 		s.WriteString("\n")
+	}
+	s.WriteString("\n")
+
+	// Render Configuration Menu below the preview
+	s.WriteString(lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("39")).Render("agystatusline Configuration Menu"))
+	s.WriteString("\n\n")
+
+	menuItems := []string{
+		fmt.Sprintf("Toggle Minimalist Mode      [%t]", m.settings.MinimalistMode),
+		fmt.Sprintf("Toggle Powerline Mode       [%t]", m.settings.Powerline.Enabled),
+		fmt.Sprintf("Select Powerline Theme      [%s]", m.settings.Powerline.Theme),
+		"Save & Exit",
+		"Discard & Exit",
+	}
+
+	for i, item := range menuItems {
+		cursorStr := " "
+		style := lipgloss.NewStyle()
+		if m.cursor == i {
+			cursorStr = ">"
+			style = style.Bold(true).Foreground(lipgloss.Color("226"))
+		}
+		s.WriteString(fmt.Sprintf("%s %s\n", cursorStr, style.Render(item)))
 	}
 
 	s.WriteString("\n(Use arrows/jk to navigate, Enter to toggle/select, q to quit)\n")

@@ -51,3 +51,34 @@ func TestTUI_LivePreviewModelName(t *testing.T) {
 		t.Errorf("Expected live preview to contain model name %q, but it did not. View output:\n%s", expectedModelName, viewStr)
 	}
 }
+
+func TestTUI_LayoutAndBorders(t *testing.T) {
+	widgets.RegisterAll()
+	settings := types.DefaultSettings()
+	m := NewModel(settings, "/tmp/settings.json")
+
+	viewStr := m.View()
+
+	// 1. Verify preview is at the top (i.e. "--- Live Preview ---" is shown before "Configuration Menu")
+	previewIdx := strings.Index(viewStr, "--- Live Preview ---")
+	menuIdx := strings.Index(viewStr, "Configuration Menu")
+
+	if previewIdx == -1 {
+		t.Fatalf("Expected view to contain '--- Live Preview ---'")
+	}
+	if menuIdx == -1 {
+		t.Fatalf("Expected view to contain 'Configuration Menu'")
+	}
+	if previewIdx > menuIdx {
+		t.Errorf("Expected '--- Live Preview ---' to appear before 'Configuration Menu'")
+	}
+
+	// 2. Verify that there are no border characters around the preview
+	borderChars := []string{"│", "─", "┌", "┐", "└", "┘"}
+	for _, char := range borderChars {
+		if strings.Contains(viewStr, char) {
+			t.Errorf("Expected no border character %q in the view output, but found one", char)
+		}
+	}
+}
+
