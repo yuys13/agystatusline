@@ -196,3 +196,82 @@ func TestGitChangesWidget(t *testing.T) {
 		t.Errorf("Expected '(+13,-5)', got '%s'", output)
 	}
 }
+
+func TestContextUsedPctWidget(t *testing.T) {
+	RegisterAll()
+	w := GetWidget("context-used-pct")
+	if w == nil {
+		t.Fatalf("Context used percentage widget not found")
+	}
+
+	settings := types.DefaultSettings()
+	usedPct := 0.014019012451171875
+	ctx := types.RenderContext{
+		Data: types.StatusJSON{
+			ContextWindow: &types.ContextWindowInfo{
+				UsedPercentage: &usedPct,
+			},
+		},
+	}
+	item := types.WidgetItem{Type: "context-used-pct"}
+
+	// Normal render
+	output, err := w.Render(item, ctx, settings)
+	if err != nil {
+		t.Fatalf("Render error: %v", err)
+	}
+	if output != "Used: 0.01%" {
+		t.Errorf("Expected 'Used: 0.01%%', got '%s'", output)
+	}
+
+	// RawValue render
+	rawVal := true
+	itemRaw := types.WidgetItem{Type: "context-used-pct", RawValue: &rawVal}
+	outputRaw, err := w.Render(itemRaw, ctx, settings)
+	if err != nil {
+		t.Fatalf("Render error: %v", err)
+	}
+	if outputRaw != "0.01%" {
+		t.Errorf("Expected '0.01%%', got '%s'", outputRaw)
+	}
+}
+
+func TestContextRemainingPctWidget(t *testing.T) {
+	RegisterAll()
+	w := GetWidget("context-remaining-pct")
+	if w == nil {
+		t.Fatalf("Context remaining percentage widget not found")
+	}
+
+	settings := types.DefaultSettings()
+	remainingPct := 99.98598098754883
+	ctx := types.RenderContext{
+		Data: types.StatusJSON{
+			ContextWindow: &types.ContextWindowInfo{
+				RemainingPercentage: &remainingPct,
+			},
+		},
+	}
+	item := types.WidgetItem{Type: "context-remaining-pct"}
+
+	// Normal render
+	output, err := w.Render(item, ctx, settings)
+	if err != nil {
+		t.Fatalf("Render error: %v", err)
+	}
+	if output != "Remaining: 99.99%" {
+		t.Errorf("Expected 'Remaining: 99.99%%', got '%s'", output)
+	}
+
+	// RawValue render
+	rawVal := true
+	itemRaw := types.WidgetItem{Type: "context-remaining-pct", RawValue: &rawVal}
+	outputRaw, err := w.Render(itemRaw, ctx, settings)
+	if err != nil {
+		t.Fatalf("Render error: %v", err)
+	}
+	if outputRaw != "99.99%" {
+		t.Errorf("Expected '99.99%%', got '%s'", outputRaw)
+	}
+}
+

@@ -64,4 +64,7 @@ func RegisterAll() {
 	RegisterWidget("context-length", &ContextLengthWidget{})
 	RegisterWidget("git-branch", &GitBranchWidget{})
 	RegisterWidget("git-changes", &GitChangesWidget{})
+	RegisterWidget("context-used-pct", &ContextUsedPctWidget{})
+	RegisterWidget("context-remaining-pct", &ContextRemainingPctWidget{})
 }
+

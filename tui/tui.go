@@ -41,7 +41,10 @@ var widgetTypes = []struct {
 	{name: "Git Changes", wType: "git-changes", color: "yellow"},
 	{name: "Separator", wType: "separator"},
 	{name: "Custom Text", wType: "custom-text", color: "white", customText: "Custom Text"},
+	{name: "Context Used %", wType: "context-used-pct", color: "brightBlack"},
+	{name: "Context Remaining %", wType: "context-remaining-pct", color: "brightBlack"},
 }
+
 
 func NewModel(settings types.Settings, configPath string) Model {
 	initialThemeIndex := 0

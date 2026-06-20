@@ -326,4 +326,43 @@ func TestTUI_AddWidget(t *testing.T) {
 	}
 }
 
+func TestTUI_AddContextPctWidgets(t *testing.T) {
+	settings := types.DefaultSettings()
+	m := NewModel(settings, "/tmp/settings.json")
+	m.activeMenu = "items"
+	m.selectedLine = 0
+	m.cursor = 0
+
+	// Press "a" to trigger Add Widget screen
+	msg := tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("a")}
+	updatedModel, _ := m.Update(msg)
+	newModel := updatedModel.(Model)
+
+	// Navigate to the bottom (where Context Used % is at index 6)
+	m = newModel
+	for i := 0; i < 6; i++ {
+		updatedModel, _ = m.Update(tea.KeyMsg{Type: tea.KeyDown})
+		m = updatedModel.(Model)
+	}
+	if m.cursor != 6 {
+		t.Fatalf("Expected cursor to be 6, got %d", m.cursor)
+	}
+
+	// Press Enter to add
+	updatedModel, _ = m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("\n")})
+	newModel = updatedModel.(Model)
+
+	if newModel.activeMenu != "items" {
+		t.Errorf("Expected activeMenu to return to 'items', got %q", newModel.activeMenu)
+	}
+	addedWidget := newModel.settings.Lines[0][1]
+	if addedWidget.Type != "context-used-pct" {
+		t.Errorf("Expected added widget type to be 'context-used-pct', got %q", addedWidget.Type)
+	}
+	if addedWidget.Color != "brightBlack" {
+		t.Errorf("Expected added widget color to be 'brightBlack', got %q", addedWidget.Color)
+	}
+}
+
+
 

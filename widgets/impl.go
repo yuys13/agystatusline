@@ -165,3 +165,44 @@ func formatTokens(count float64, decimals int) string {
 	}
 	return fmt.Sprintf("%.0f", count)
 }
+
+// ContextUsedPctWidget displays context window used percentage.
+type ContextUsedPctWidget struct{}
+
+func (c *ContextUsedPctWidget) GetDefaultColor() string { return "brightBlack" }
+func (c *ContextUsedPctWidget) GetDisplayName() string  { return "Context Used %" }
+
+func (c *ContextUsedPctWidget) Render(item types.WidgetItem, ctx types.RenderContext, settings types.Settings) (string, error) {
+	var pct float64
+	if ctx.Data.ContextWindow != nil && ctx.Data.ContextWindow.UsedPercentage != nil {
+		pct = *ctx.Data.ContextWindow.UsedPercentage
+	} else {
+		return "", nil
+	}
+
+	if item.RawValue != nil && *item.RawValue {
+		return fmt.Sprintf("%.2f%%", pct), nil
+	}
+	return fmt.Sprintf("Used: %.2f%%", pct), nil
+}
+
+// ContextRemainingPctWidget displays context window remaining percentage.
+type ContextRemainingPctWidget struct{}
+
+func (c *ContextRemainingPctWidget) GetDefaultColor() string { return "brightBlack" }
+func (c *ContextRemainingPctWidget) GetDisplayName() string  { return "Context Remaining %" }
+
+func (c *ContextRemainingPctWidget) Render(item types.WidgetItem, ctx types.RenderContext, settings types.Settings) (string, error) {
+	var pct float64
+	if ctx.Data.ContextWindow != nil && ctx.Data.ContextWindow.RemainingPercentage != nil {
+		pct = *ctx.Data.ContextWindow.RemainingPercentage
+	} else {
+		return "", nil
+	}
+
+	if item.RawValue != nil && *item.RawValue {
+		return fmt.Sprintf("%.2f%%", pct), nil
+	}
+	return fmt.Sprintf("Remaining: %.2f%%", pct), nil
+}
+
