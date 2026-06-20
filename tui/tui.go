@@ -48,6 +48,10 @@ var widgetTypes = []struct {
 	{name: "Quota: Gemini Weekly", wType: "quota", color: "brightBlack", metadata: map[string]string{"key": "gemini-weekly"}},
 	{name: "Quota: 3P 5h", wType: "quota", color: "brightBlack", metadata: map[string]string{"key": "3p-5h"}},
 	{name: "Quota: 3P Weekly", wType: "quota", color: "brightBlack", metadata: map[string]string{"key": "3p-weekly"}},
+	{name: "Quota Reset: Gemini 5h", wType: "quota", color: "brightBlack", metadata: map[string]string{"key": "gemini-5h", "display": "reset"}},
+	{name: "Quota Reset: Gemini Weekly", wType: "quota", color: "brightBlack", metadata: map[string]string{"key": "gemini-weekly", "display": "reset"}},
+	{name: "Quota Reset: 3P 5h", wType: "quota", color: "brightBlack", metadata: map[string]string{"key": "3p-5h", "display": "reset"}},
+	{name: "Quota Reset: 3P Weekly", wType: "quota", color: "brightBlack", metadata: map[string]string{"key": "3p-weekly", "display": "reset"}},
 }
 
 

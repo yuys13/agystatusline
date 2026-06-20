@@ -401,19 +401,35 @@ func TestTUI_AddQuotaWidgets(t *testing.T) {
 		t.Fatalf("Expected activeMenu to be 'add_widget', got %s", newModel.activeMenu)
 	}
 
-	// 2. ウィジェット追加リストにクォータウィジェットが含まれているか確認
+	// 2. ウィジェット追加リストにクォータウィジェット（通常・リセット両方）が含まれているか確認
 	var foundG5h, foundGwk, found3p5h, found3pwk bool
+	var foundG5hR, foundGwkR, found3p5hR, found3pwkR bool
 	for _, wt := range widgetTypes {
 		if wt.wType == "quota" {
-			switch wt.metadata["key"] {
-			case "gemini-5h":
-				foundG5h = true
-			case "gemini-weekly":
-				foundGwk = true
-			case "3p-5h":
-				found3p5h = true
-			case "3p-weekly":
-				found3pwk = true
+			key := wt.metadata["key"]
+			display := wt.metadata["display"]
+			if display == "reset" {
+				switch key {
+				case "gemini-5h":
+					foundG5hR = true
+				case "gemini-weekly":
+					foundGwkR = true
+				case "3p-5h":
+					found3p5hR = true
+				case "3p-weekly":
+					found3pwkR = true
+				}
+			} else {
+				switch key {
+				case "gemini-5h":
+					foundG5h = true
+				case "gemini-weekly":
+					foundGwk = true
+				case "3p-5h":
+					found3p5h = true
+				case "3p-weekly":
+					found3pwk = true
+				}
 			}
 		}
 	}
@@ -421,11 +437,15 @@ func TestTUI_AddQuotaWidgets(t *testing.T) {
 		t.Errorf("Expected all 4 quota presets in widgetTypes, got Gemini 5h:%t, Gemini Weekly:%t, 3P 5h:%t, 3P Weekly:%t",
 			foundG5h, foundGwk, found3p5h, found3pwk)
 	}
+	if !foundG5hR || !foundGwkR || !found3p5hR || !found3pwkR {
+		t.Errorf("Expected all 4 quota reset presets in widgetTypes, got Gemini 5h Reset:%t, Gemini Weekly Reset:%t, 3P 5h Reset:%t, 3P Weekly Reset:%t",
+			foundG5hR, foundGwkR, found3p5hR, found3pwkR)
+	}
 
 	// 3. 実際に Gemini 5h クォータウィジェットを追加してみる。
 	targetIdx := -1
 	for i, wt := range widgetTypes {
-		if wt.wType == "quota" && wt.metadata["key"] == "gemini-5h" {
+		if wt.wType == "quota" && wt.metadata["key"] == "gemini-5h" && wt.metadata["display"] != "reset" {
 			targetIdx = i
 			break
 		}
@@ -451,8 +471,40 @@ func TestTUI_AddQuotaWidgets(t *testing.T) {
 	if addedWidget.Type != "quota" {
 		t.Errorf("Expected widget type 'quota', got '%s'", addedWidget.Type)
 	}
-	if addedWidget.Metadata == nil || addedWidget.Metadata["key"] != "gemini-5h" {
-		t.Errorf("Expected widget metadata key 'gemini-5h', got %v", addedWidget.Metadata)
+	if addedWidget.Metadata == nil || addedWidget.Metadata["key"] != "gemini-5h" || addedWidget.Metadata["display"] == "reset" {
+		t.Errorf("Expected widget metadata key 'gemini-5h' and no display reset, got %v", addedWidget.Metadata)
+	}
+
+	// 4. 実際に Gemini 5h クォータリセットウィジェットを追加してみる。
+	m = finalModel
+	m.activeMenu = "items"
+	m.cursor = 1
+
+	// "a" キーで追加画面に遷移
+	updatedModel, _ = m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("a")})
+	m = updatedModel.(Model)
+
+	targetResetIdx := -1
+	for i, wt := range widgetTypes {
+		if wt.wType == "quota" && wt.metadata["key"] == "gemini-5h" && wt.metadata["display"] == "reset" {
+			targetResetIdx = i
+			break
+		}
+	}
+	if targetResetIdx == -1 {
+		t.Fatalf("Gemini 5h quota reset widget type not found in widgetTypes")
+	}
+
+	m.cursor = targetResetIdx
+	updatedModel, _ = m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("\n")})
+	finalResetModel := updatedModel.(Model)
+
+	addedResetWidget := finalResetModel.settings.Lines[0][2]
+	if addedResetWidget.Type != "quota" {
+		t.Errorf("Expected widget type 'quota', got '%s'", addedResetWidget.Type)
+	}
+	if addedResetWidget.Metadata == nil || addedResetWidget.Metadata["key"] != "gemini-5h" || addedResetWidget.Metadata["display"] != "reset" {
+		t.Errorf("Expected widget metadata key 'gemini-5h' and display 'reset', got %v", addedResetWidget.Metadata)
 	}
 }
 
