@@ -1,6 +1,7 @@
 package renderer
 
 import (
+	"fmt"
 	"strings"
 
 	"github.com/yuys13/agystatusline/types"
@@ -54,7 +55,7 @@ func RenderStatusLines(settings types.Settings, ctx types.RenderContext) []strin
 				continue
 			}
 
-			colored := content
+			colored := fmt.Sprintf(" %s ", content)
 			if !settings.Powerline.Enabled {
 				bold := false
 				if settings.GlobalBold || (item.Bold != nil && *item.Bold) {
