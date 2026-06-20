@@ -622,6 +622,7 @@ func TestTUI_PowerlineSeparator(t *testing.T) {
 
 func TestTUI_SelectThemeMenu(t *testing.T) {
 	settings := types.DefaultSettings()
+	settings.Powerline.Enabled = true
 	// Let's set default theme to "nord" (index 0)
 	settings.Powerline.Theme = "nord"
 	m := NewModel(settings, "/tmp/settings.json")
@@ -644,6 +645,27 @@ func TestTUI_SelectThemeMenu(t *testing.T) {
 	mTheme = updatedModel.(Model)
 	if mTheme.cursor != 1 {
 		t.Errorf("Expected cursor to move to 1, got %d", mTheme.cursor)
+	}
+
+	// Verify that preview changes dynamically when cursor moves in select_theme menu
+	mTheme0 := NewModel(settings, "/tmp/settings.json")
+	mTheme0.activeMenu = "select_theme"
+	mTheme0.cursor = 0
+	viewNord := mTheme0.View()
+
+	viewNordAurora := mTheme.View()
+
+	linesNord := strings.Split(viewNord, "\n")
+	linesNordAurora := strings.Split(viewNordAurora, "\n")
+
+	if len(linesNord) < 5 || len(linesNordAurora) < 5 {
+		t.Fatalf("Expected view outputs to have enough lines")
+	}
+	previewNordPart := strings.Join(linesNord[:4], "\n")
+	previewNordAuroraPart := strings.Join(linesNordAurora[:4], "\n")
+
+	if previewNordPart == previewNordAuroraPart {
+		t.Errorf("Expected Live Preview to be updated dynamically for theme cursor (previewNordPart should differ from previewNordAuroraPart)")
 	}
 
 	// Press Enter to confirm selection
@@ -682,6 +704,7 @@ func TestTUI_SelectThemeMenu(t *testing.T) {
 
 func TestTUI_SelectSeparatorMenu(t *testing.T) {
 	settings := types.DefaultSettings()
+	settings.Powerline.Enabled = true
 	// Let's set default separator to Arrow (index 1)
 	settings.Powerline.Separators = []string{"\uE0B0"}
 	m := NewModel(settings, "/tmp/settings.json")
@@ -704,6 +727,17 @@ func TestTUI_SelectSeparatorMenu(t *testing.T) {
 	mSep = updatedModel.(Model)
 	if mSep.cursor != 2 {
 		t.Errorf("Expected cursor to move to 2, got %d", mSep.cursor)
+	}
+
+	// Verify preview shows Round separator (\uE0B4) before confirmation
+	viewSepSelected := mSep.View()
+	if !strings.Contains(viewSepSelected, "\uE0B4") {
+		t.Errorf("Expected Live Preview to show temporary Round separator '\\uE0B4' while in select_separator menu, but it did not. View:\n%s", viewSepSelected)
+	}
+	linesSep := strings.Split(viewSepSelected, "\n")
+	previewSepPart := strings.Join(linesSep[:4], "\n")
+	if strings.Contains(previewSepPart, "\uE0B0") {
+		t.Errorf("Expected Live Preview to NOT show Arrow separator '\\uE0B0' when cursor is at Round, but it did. Preview:\n%s", previewSepPart)
 	}
 
 	// Press Enter to confirm selection

@@ -498,7 +498,18 @@ func (m Model) View() string {
 	}
 
 
-	previewLines := renderer.RenderStatusLines(m.settings, previewCtx)
+	previewSettings := m.settings
+	if m.activeMenu == "select_theme" {
+		if m.cursor >= 0 && m.cursor < len(themesList) {
+			previewSettings.Powerline.Theme = themesList[m.cursor]
+		}
+	} else if m.activeMenu == "select_separator" {
+		if m.cursor >= 0 && m.cursor < len(separatorsList) {
+			previewSettings.Powerline.Separators = []string{separatorsList[m.cursor].value}
+		}
+	}
+
+	previewLines := renderer.RenderStatusLines(previewSettings, previewCtx)
 	for _, line := range previewLines {
 		s.WriteString("\x1b[0m" + line)
 		s.WriteString("\n")
