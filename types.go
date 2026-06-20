@@ -234,3 +234,21 @@ type RenderContext struct {
 	Minimalist         bool
 	GitCacheTTLSeconds int
 }
+
+func (r RenderContext) GetCwd() string {
+	return r.Data.CWD
+}
+
+func (r RenderContext) GetWorkspaceCurrentDir() string {
+	if r.Data.Workspace != nil {
+		return r.Data.Workspace.CurrentDir
+	}
+	return ""
+}
+
+func (r RenderContext) GetWorkspaceProjectDir() string {
+	if r.Data.Workspace != nil {
+		return r.Data.Workspace.ProjectDir
+	}
+	return ""
+}
