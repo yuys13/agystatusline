@@ -56,6 +56,10 @@ var startCapsList = []struct {
 	{name: "Round (\uE0B6)", value: "\uE0B6"},
 	{name: "Lower Triangle (\uE0BA)", value: "\uE0BA"},
 	{name: "Diagonal (\uE0BE)", value: "\uE0BE"},
+	{name: "Flame (\uE0C2)", value: "\uE0C2"},
+	{name: "Hexagon (\uE0C7)", value: "\uE0C7"},
+	{name: "Slanted (\uE0C9)", value: "\uE0C9"},
+	{name: "Slash (\uE0CD)", value: "\uE0CD"},
 }
 
 var endCapsList = []struct {
@@ -67,6 +71,10 @@ var endCapsList = []struct {
 	{name: "Round (\uE0B4)", value: "\uE0B4"},
 	{name: "Lower Triangle (\uE0B8)", value: "\uE0B8"},
 	{name: "Diagonal (\uE0BC)", value: "\uE0BC"},
+	{name: "Flame (\uE0C0)", value: "\uE0C0"},
+	{name: "Hexagon (\uE0C6)", value: "\uE0C6"},
+	{name: "Slanted (\uE0C8)", value: "\uE0C8"},
+	{name: "Slash (\uE0CC)", value: "\uE0CC"},
 }
 
 
