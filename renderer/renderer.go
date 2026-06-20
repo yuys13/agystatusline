@@ -252,6 +252,20 @@ func renderPowerline(rendered []PreRenderedWidget, settings types.Settings, ctx 
 		colorLevel = "truecolor"
 	}
 
+	// Prepend StartCap if configured
+	startCaps := settings.Powerline.StartCaps
+	if len(startCaps) > 0 && startCaps[0] != "" {
+		startCap := startCaps[0]
+		firstEl := elements[0]
+		if firstEl.bgColor != "" {
+			capFg := BgToFg(firstEl.bgColor)
+			fgCode := GetColorAnsiCode(capFg, colorLevel, false)
+			builder.WriteString(fgCode + startCap + "\x1b[39m")
+		} else {
+			builder.WriteString(startCap)
+		}
+	}
+
 	for i, el := range elements {
 		bold := false
 		if settings.GlobalBold {
@@ -292,5 +306,20 @@ func renderPowerline(rendered []PreRenderedWidget, settings types.Settings, ctx 
 		}
 	}
 
+	// Append EndCap if configured
+	endCaps := settings.Powerline.EndCaps
+	if len(endCaps) > 0 && endCaps[0] != "" {
+		endCap := endCaps[0]
+		lastEl := elements[len(elements)-1]
+		if lastEl.bgColor != "" {
+			capFg := BgToFg(lastEl.bgColor)
+			fgCode := GetColorAnsiCode(capFg, colorLevel, false)
+			builder.WriteString(fgCode + endCap + "\x1b[39m")
+		} else {
+			builder.WriteString(endCap)
+		}
+	}
+
 	return builder.String()
 }
+

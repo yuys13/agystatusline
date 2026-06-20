@@ -125,3 +125,59 @@ func TestRenderStatusLines_PowerlineMode(t *testing.T) {
 		t.Errorf("Expected ANSI color escapes in powerline output, got '%q'", firstLine)
 	}
 }
+
+func TestRenderStatusLines_PowerlineCaps(t *testing.T) {
+	widgets.RegisterAll()
+
+	settings := types.DefaultSettings()
+	settings.Powerline.Enabled = true
+	settings.Powerline.Theme = "nord"
+	settings.Powerline.StartCaps = []string{"\uE0B2"}
+	settings.Powerline.EndCaps = []string{"\uE0B0"}
+	settings.Lines = [][]types.WidgetItem{
+		{
+			{ID: "1", Type: "model"},
+			{ID: "2", Type: "context-length"},
+		},
+	}
+
+	inputTokens := float64(1000)
+	ctx := types.RenderContext{
+		Data: types.StatusJSON{
+			Model: types.ModelInfo{
+				ID: "Claude",
+			},
+			ContextWindow: &types.ContextWindowInfo{
+				TotalInputTokens: &inputTokens,
+			},
+		},
+	}
+
+	lines := RenderStatusLines(settings, ctx)
+	firstLine := lines[0]
+
+	// Start cap (\uE0B2) should be present at the beginning of the rendered string
+	if !strings.Contains(firstLine, "\uE0B2") {
+		t.Errorf("Expected start cap '\\uE0B2' in output, got '%q'", firstLine)
+	}
+
+	// End cap (\uE0B0) should be present at the end of the rendered string
+	if !strings.Contains(firstLine, "\uE0B0") {
+		t.Errorf("Expected end cap '\\uE0B0' in output, got '%q'", firstLine)
+	}
+
+	// Start cap should use first widget's background color as foreground
+	// Since colorLevel is 2 (256-color) by default, the first widget background is ansi256:73
+	expectedStartCapFg := "\x1b[38;5;73m"
+	if !strings.Contains(firstLine, expectedStartCapFg+"\uE0B2") {
+		t.Errorf("Expected start cap to be colored with %q, but got '%q'", expectedStartCapFg, firstLine)
+	}
+
+	// End cap should use last widget's background color as foreground
+	// In Nord, the second widget (context-length) is index 1 -> ansi256:239
+	expectedEndCapFg := "\x1b[38;5;239m"
+	if !strings.Contains(firstLine, expectedEndCapFg+"\uE0B0") {
+		t.Errorf("Expected end cap to be colored with %q, but got '%q'", expectedEndCapFg, firstLine)
+	}
+}
+

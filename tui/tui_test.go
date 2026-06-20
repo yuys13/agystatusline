@@ -762,8 +762,8 @@ func TestTUI_SelectSeparatorMenu(t *testing.T) {
 	if mConfirmed.cursor != 3 {
 		t.Errorf("Expected main menu cursor to remain 3, got %d", mConfirmed.cursor)
 	}
-	if len(mConfirmed.settings.Powerline.Separators) != 1 || mConfirmed.settings.Powerline.Separators[0] != "\uE0B4" {
-		t.Errorf("Expected separator to be updated to '\\uE0B4', got %v", mConfirmed.settings.Powerline.Separators)
+	if len(mConfirmed.settings.Powerline.Separators) != 1 || mConfirmed.settings.Powerline.Separators[0] != "\uE0B4 " {
+		t.Errorf("Expected separator to be updated to '\\uE0B4 ', got %v", mConfirmed.settings.Powerline.Separators)
 	}
 	if mConfirmed.separatorIndex != 2 {
 		t.Errorf("Expected separatorIndex to be updated to 2, got %d", mConfirmed.separatorIndex)
@@ -785,5 +785,132 @@ func TestTUI_SelectSeparatorMenu(t *testing.T) {
 		t.Errorf("Expected separator to remain '\\uE0B0', got %v", mCancelled.settings.Powerline.Separators)
 	}
 }
+
+func TestTUI_SelectStartCapMenu(t *testing.T) {
+	settings := types.DefaultSettings()
+	settings.Powerline.Enabled = true
+	settings.Powerline.StartCaps = []string{"\uE0B2"}
+	m := NewModel(settings, "/tmp/settings.json")
+	m.activeMenu = "main"
+	m.cursor = 4 // Select Powerline Start Cap
+
+	// Enter opens start cap selection
+	updatedModel, _ := m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("\n")})
+	mCap := updatedModel.(Model)
+
+	if mCap.activeMenu != "select_start_cap" {
+		t.Fatalf("Expected activeMenu to transition to 'select_start_cap', got %q", mCap.activeMenu)
+	}
+	if mCap.cursor != 1 { // index of \uE0B2 in presets
+		t.Errorf("Expected cursor to start at current start cap index 1, got %d", mCap.cursor)
+	}
+
+	// Move cursor to "Round" (index 2, \uE0B6)
+	updatedModel, _ = mCap.Update(tea.KeyMsg{Type: tea.KeyDown})
+	mCap = updatedModel.(Model)
+	if mCap.cursor != 2 {
+		t.Errorf("Expected cursor to move to 2, got %d", mCap.cursor)
+	}
+
+	// Verify preview shows Round start cap (\uE0B6) before confirmation
+	viewCapSelected := mCap.View()
+	if !strings.Contains(viewCapSelected, "\uE0B6") {
+		t.Errorf("Expected Live Preview to show temporary Round start cap '\\uE0B6' while in select_start_cap menu. View:\n%s", viewCapSelected)
+	}
+
+	// Press Enter to confirm selection
+	updatedModel, _ = mCap.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("\n")})
+	mConfirmed := updatedModel.(Model)
+
+	if mConfirmed.activeMenu != "main" {
+		t.Errorf("Expected activeMenu to return to 'main', got %q", mConfirmed.activeMenu)
+	}
+	if mConfirmed.cursor != 4 {
+		t.Errorf("Expected main menu cursor to remain 4, got %d", mConfirmed.cursor)
+	}
+	if len(mConfirmed.settings.Powerline.StartCaps) != 1 || mConfirmed.settings.Powerline.StartCaps[0] != "\uE0B6" {
+		t.Errorf("Expected start cap to be updated to '\\uE0B6', got %v", mConfirmed.settings.Powerline.StartCaps)
+	}
+	if mConfirmed.startCapIndex != 2 {
+		t.Errorf("Expected startCapIndex to be updated to 2, got %d", mConfirmed.startCapIndex)
+	}
+
+	// Test Esc key to cancel selection
+	mCancel := mCap // cursor at 2 (Round)
+	updatedModel, _ = mCancel.Update(tea.KeyMsg{Type: tea.KeyEsc})
+	mCancelled := updatedModel.(Model)
+
+	if mCancelled.activeMenu != "main" {
+		t.Errorf("Expected activeMenu to return to 'main' on Esc, got %q", mCancelled.activeMenu)
+	}
+	// Settings should not have changed
+	if len(mCancelled.settings.Powerline.StartCaps) != 1 || mCancelled.settings.Powerline.StartCaps[0] != "\uE0B2" {
+		t.Errorf("Expected start cap to remain '\\uE0B2', got %v", mCancelled.settings.Powerline.StartCaps)
+	}
+}
+
+func TestTUI_SelectEndCapMenu(t *testing.T) {
+	settings := types.DefaultSettings()
+	settings.Powerline.Enabled = true
+	settings.Powerline.EndCaps = []string{"\uE0B0"}
+	m := NewModel(settings, "/tmp/settings.json")
+	m.activeMenu = "main"
+	m.cursor = 5 // Select Powerline End Cap
+
+	// Enter opens end cap selection
+	updatedModel, _ := m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("\n")})
+	mCap := updatedModel.(Model)
+
+	if mCap.activeMenu != "select_end_cap" {
+		t.Fatalf("Expected activeMenu to transition to 'select_end_cap', got %q", mCap.activeMenu)
+	}
+	if mCap.cursor != 1 { // index of \uE0B0 in presets
+		t.Errorf("Expected cursor to start at current end cap index 1, got %d", mCap.cursor)
+	}
+
+	// Move cursor to "Round" (index 2, \uE0B4)
+	updatedModel, _ = mCap.Update(tea.KeyMsg{Type: tea.KeyDown})
+	mCap = updatedModel.(Model)
+	if mCap.cursor != 2 {
+		t.Errorf("Expected cursor to move to 2, got %d", mCap.cursor)
+	}
+
+	// Verify preview shows Round end cap (\uE0B4) before confirmation
+	viewCapSelected := mCap.View()
+	if !strings.Contains(viewCapSelected, "\uE0B4") {
+		t.Errorf("Expected Live Preview to show temporary Round end cap '\\uE0B4' while in select_end_cap menu. View:\n%s", viewCapSelected)
+	}
+
+	// Press Enter to confirm selection
+	updatedModel, _ = mCap.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("\n")})
+	mConfirmed := updatedModel.(Model)
+
+	if mConfirmed.activeMenu != "main" {
+		t.Errorf("Expected activeMenu to return to 'main', got %q", mConfirmed.activeMenu)
+	}
+	if mConfirmed.cursor != 5 {
+		t.Errorf("Expected main menu cursor to remain 5, got %d", mConfirmed.cursor)
+	}
+	if len(mConfirmed.settings.Powerline.EndCaps) != 1 || mConfirmed.settings.Powerline.EndCaps[0] != "\uE0B4" {
+		t.Errorf("Expected end cap to be updated to '\\uE0B4', got %v", mConfirmed.settings.Powerline.EndCaps)
+	}
+	if mConfirmed.endCapIndex != 2 {
+		t.Errorf("Expected endCapIndex to be updated to 2, got %d", mConfirmed.endCapIndex)
+	}
+
+	// Test Esc key to cancel selection
+	mCancel := mCap // cursor at 2 (Round)
+	updatedModel, _ = mCancel.Update(tea.KeyMsg{Type: tea.KeyEsc})
+	mCancelled := updatedModel.(Model)
+
+	if mCancelled.activeMenu != "main" {
+		t.Errorf("Expected activeMenu to return to 'main' on Esc, got %q", mCancelled.activeMenu)
+	}
+	// Settings should not have changed
+	if len(mCancelled.settings.Powerline.EndCaps) != 1 || mCancelled.settings.Powerline.EndCaps[0] != "\uE0B0" {
+		t.Errorf("Expected end cap to remain '\\uE0B0', got %v", mCancelled.settings.Powerline.EndCaps)
+	}
+}
+
 
 

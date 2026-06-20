@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
@@ -22,6 +23,8 @@ type Model struct {
 	saved          bool
 	themeIndex     int
 	separatorIndex int
+	startCapIndex  int
+	endCapIndex    int
 	selectedLine   int
 	itemIndex      int
 	moveMode       bool
@@ -33,15 +36,37 @@ var separatorsList = []struct {
 	name  string
 	value string
 }{
-	{name: "None", value: ""},
-	{name: "Arrow (\uE0B0)", value: "\uE0B0"},
-	{name: "Round (\uE0B4)", value: "\uE0B4"},
-	{name: "Flame (\uE0C0)", value: "\uE0C0"},
-	{name: "Hexagon (\uE0C6)", value: "\uE0C6"},
-	{name: "Slanted (\uE0C8)", value: "\uE0C8"},
-	{name: "Slash (\uE0CC)", value: "\uE0CC"},
+	{name: "None", value: " "},
+	{name: "Arrow (\uE0B0)", value: "\uE0B0 "},
+	{name: "Round (\uE0B4)", value: "\uE0B4 "},
+	{name: "Flame (\uE0C0)", value: "\uE0C0 "},
+	{name: "Hexagon (\uE0C6)", value: "\uE0C6 "},
+	{name: "Slanted (\uE0C8)", value: "\uE0C8 "},
+	{name: "Slash (\uE0CC)", value: "\uE0CC "},
 	{name: "Slash ASCII (/)", value: "/"},
 	{name: "Bar ASCII (|)", value: "|"},
+}
+
+var startCapsList = []struct {
+	name  string
+	value string
+}{
+	{name: "None", value: ""},
+	{name: "Triangle (\uE0B2)", value: "\uE0B2"},
+	{name: "Round (\uE0B6)", value: "\uE0B6"},
+	{name: "Lower Triangle (\uE0BA)", value: "\uE0BA"},
+	{name: "Diagonal (\uE0BE)", value: "\uE0BE"},
+}
+
+var endCapsList = []struct {
+	name  string
+	value string
+}{
+	{name: "None", value: ""},
+	{name: "Triangle (\uE0B0)", value: "\uE0B0"},
+	{name: "Round (\uE0B4)", value: "\uE0B4"},
+	{name: "Lower Triangle (\uE0B8)", value: "\uE0B8"},
+	{name: "Diagonal (\uE0BC)", value: "\uE0BC"},
 }
 
 
@@ -91,7 +116,7 @@ func NewModel(settings types.Settings, configPath string) Model {
 		currentSep = settings.Powerline.Separators[0]
 	}
 	for i, s := range separatorsList {
-		if s.value == currentSep {
+		if strings.TrimRight(s.value, " ") == strings.TrimRight(currentSep, " ") {
 			initialSeparatorIndex = i
 			break
 		}
@@ -104,6 +129,44 @@ func NewModel(settings types.Settings, configPath string) Model {
 		initialSeparatorIndex = len(separatorsList) - 1
 	}
 
+	initialStartCapIndex := -1
+	currentStartCap := ""
+	if len(settings.Powerline.StartCaps) > 0 {
+		currentStartCap = settings.Powerline.StartCaps[0]
+	}
+	for i, s := range startCapsList {
+		if s.value == currentStartCap {
+			initialStartCapIndex = i
+			break
+		}
+	}
+	if initialStartCapIndex == -1 {
+		startCapsList = append(startCapsList, struct {
+			name  string
+			value string
+		}{name: fmt.Sprintf("Custom (%s)", currentStartCap), value: currentStartCap})
+		initialStartCapIndex = len(startCapsList) - 1
+	}
+
+	initialEndCapIndex := -1
+	currentEndCap := ""
+	if len(settings.Powerline.EndCaps) > 0 {
+		currentEndCap = settings.Powerline.EndCaps[0]
+	}
+	for i, s := range endCapsList {
+		if s.value == currentEndCap {
+			initialEndCapIndex = i
+			break
+		}
+	}
+	if initialEndCapIndex == -1 {
+		endCapsList = append(endCapsList, struct {
+			name  string
+			value string
+		}{name: fmt.Sprintf("Custom (%s)", currentEndCap), value: currentEndCap})
+		initialEndCapIndex = len(endCapsList) - 1
+	}
+
 	return Model{
 		settings:       settings,
 		configPath:     configPath,
@@ -111,6 +174,8 @@ func NewModel(settings types.Settings, configPath string) Model {
 		cursor:         0,
 		themeIndex:     initialThemeIndex,
 		separatorIndex: initialSeparatorIndex,
+		startCapIndex:  initialStartCapIndex,
+		endCapIndex:    initialEndCapIndex,
 	}
 }
 
@@ -145,6 +210,10 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m.updateSelectTheme(msg)
 		case "select_separator":
 			return m.updateSelectSeparator(msg)
+		case "select_start_cap":
+			return m.updateSelectStartCap(msg)
+		case "select_end_cap":
+			return m.updateSelectEndCap(msg)
 		}
 	}
 	return m, nil
@@ -158,7 +227,7 @@ func (m Model) updateMain(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		}
 
 	case "down", "j":
-		maxItems := 6
+		maxItems := 8
 		if m.cursor < maxItems-1 {
 			m.cursor++
 		}
@@ -181,7 +250,15 @@ func (m Model) updateMain(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			m.activeMenu = "select_separator"
 			m.cursor = m.separatorIndex
 
-		case 4: // Save & Exit
+		case 4: // Select Powerline Start Cap
+			m.activeMenu = "select_start_cap"
+			m.cursor = m.startCapIndex
+
+		case 5: // Select Powerline End Cap
+			m.activeMenu = "select_end_cap"
+			m.cursor = m.endCapIndex
+
+		case 6: // Save & Exit
 			err := saveSettings(m.configPath, m.settings)
 			if err == nil {
 				m.saved = true
@@ -189,7 +266,7 @@ func (m Model) updateMain(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			m.quitting = true
 			return m, tea.Quit
 
-		case 5: // Discard & Exit
+		case 7: // Discard & Exit
 			m.quitting = true
 			return m, tea.Quit
 		}
@@ -440,6 +517,64 @@ func (m Model) updateSelectSeparator(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
+func (m Model) updateSelectStartCap(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	switch msg.String() {
+	case "up", "k":
+		if m.cursor > 0 {
+			m.cursor--
+		}
+
+	case "down", "j":
+		if m.cursor < len(startCapsList)-1 {
+			m.cursor++
+		}
+
+	case "enter", "\n":
+		m.startCapIndex = m.cursor
+		if startCapsList[m.startCapIndex].value == "" {
+			m.settings.Powerline.StartCaps = []string{}
+		} else {
+			m.settings.Powerline.StartCaps = []string{startCapsList[m.startCapIndex].value}
+		}
+		m.activeMenu = "main"
+		m.cursor = 4
+
+	case "esc":
+		m.activeMenu = "main"
+		m.cursor = 4
+	}
+	return m, nil
+}
+
+func (m Model) updateSelectEndCap(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	switch msg.String() {
+	case "up", "k":
+		if m.cursor > 0 {
+			m.cursor--
+		}
+
+	case "down", "j":
+		if m.cursor < len(endCapsList)-1 {
+			m.cursor++
+		}
+
+	case "enter", "\n":
+		m.endCapIndex = m.cursor
+		if endCapsList[m.endCapIndex].value == "" {
+			m.settings.Powerline.EndCaps = []string{}
+		} else {
+			m.settings.Powerline.EndCaps = []string{endCapsList[m.endCapIndex].value}
+		}
+		m.activeMenu = "main"
+		m.cursor = 5
+
+	case "esc":
+		m.activeMenu = "main"
+		m.cursor = 5
+	}
+	return m, nil
+}
+
 func (m Model) View() string {
 	if m.quitting {
 		if m.saved {
@@ -512,6 +647,22 @@ func (m Model) View() string {
 		if m.cursor >= 0 && m.cursor < len(separatorsList) {
 			previewSettings.Powerline.Separators = []string{separatorsList[m.cursor].value}
 		}
+	} else if m.activeMenu == "select_start_cap" {
+		if m.cursor >= 0 && m.cursor < len(startCapsList) {
+			if startCapsList[m.cursor].value == "" {
+				previewSettings.Powerline.StartCaps = []string{}
+			} else {
+				previewSettings.Powerline.StartCaps = []string{startCapsList[m.cursor].value}
+			}
+		}
+	} else if m.activeMenu == "select_end_cap" {
+		if m.cursor >= 0 && m.cursor < len(endCapsList) {
+			if endCapsList[m.cursor].value == "" {
+				previewSettings.Powerline.EndCaps = []string{}
+			} else {
+				previewSettings.Powerline.EndCaps = []string{endCapsList[m.cursor].value}
+			}
+		}
 	}
 
 	previewLines := renderer.RenderStatusLines(previewSettings, previewCtx)
@@ -535,6 +686,10 @@ func (m Model) View() string {
 		m.viewSelectTheme(&s)
 	case "select_separator":
 		m.viewSelectSeparator(&s)
+	case "select_start_cap":
+		m.viewSelectStartCap(&s)
+	case "select_end_cap":
+		m.viewSelectEndCap(&s)
 	}
 
 	return s.String()
@@ -549,6 +704,8 @@ func (m Model) viewMain(s *stringsBuilder) {
 		fmt.Sprintf("Toggle Powerline Mode       [%t]", m.settings.Powerline.Enabled),
 		fmt.Sprintf("Select Powerline Theme      [%s]", m.settings.Powerline.Theme),
 		fmt.Sprintf("Select Powerline Separator  [%s]", separatorsList[m.separatorIndex].name),
+		fmt.Sprintf("Select Powerline Start Cap  [%s]", startCapsList[m.startCapIndex].name),
+		fmt.Sprintf("Select Powerline End Cap    [%s]", endCapsList[m.endCapIndex].name),
 		"Save & Exit",
 		"Discard & Exit",
 	}
@@ -688,6 +845,56 @@ func (m Model) viewSelectSeparator(s *stringsBuilder) {
 			sepStr += " (active)"
 		}
 		s.WriteString(fmt.Sprintf("%s %s\n", cursorStr, style.Render(sepStr)))
+	}
+
+	s.WriteString("\n(Use arrows/jk to navigate, Enter to select, Esc: cancel)\n")
+}
+
+func (m Model) viewSelectStartCap(s *stringsBuilder) {
+	s.WriteString(lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("39")).Render("Select Powerline Start Cap"))
+	s.WriteString("\n\n")
+
+	for i, capVal := range startCapsList {
+		cursorStr := " "
+		style := lipgloss.NewStyle()
+		if m.cursor == i {
+			cursorStr = ">"
+			style = style.Bold(true).Foreground(lipgloss.Color("226"))
+		}
+		capStr := capVal.name
+		currentCap := ""
+		if len(m.settings.Powerline.StartCaps) > 0 {
+			currentCap = m.settings.Powerline.StartCaps[0]
+		}
+		if capVal.value == currentCap {
+			capStr += " (active)"
+		}
+		s.WriteString(fmt.Sprintf("%s %s\n", cursorStr, style.Render(capStr)))
+	}
+
+	s.WriteString("\n(Use arrows/jk to navigate, Enter to select, Esc: cancel)\n")
+}
+
+func (m Model) viewSelectEndCap(s *stringsBuilder) {
+	s.WriteString(lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("39")).Render("Select Powerline End Cap"))
+	s.WriteString("\n\n")
+
+	for i, capVal := range endCapsList {
+		cursorStr := " "
+		style := lipgloss.NewStyle()
+		if m.cursor == i {
+			cursorStr = ">"
+			style = style.Bold(true).Foreground(lipgloss.Color("226"))
+		}
+		capStr := capVal.name
+		currentCap := ""
+		if len(m.settings.Powerline.EndCaps) > 0 {
+			currentCap = m.settings.Powerline.EndCaps[0]
+		}
+		if capVal.value == currentCap {
+			capStr += " (active)"
+		}
+		s.WriteString(fmt.Sprintf("%s %s\n", cursorStr, style.Render(capStr)))
 	}
 
 	s.WriteString("\n(Use arrows/jk to navigate, Enter to select, Esc: cancel)\n")
