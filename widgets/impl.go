@@ -230,47 +230,68 @@ func (q *QuotaWidget) Render(item types.WidgetItem, ctx types.RenderContext, set
 	displayMode := item.Metadata["display"]
 	var valueStr string
 
-	if displayMode == "reset" {
-		if quota.ResetInSeconds == nil {
-			return "", nil
-		}
+	var pctStr string
+	if quota.RemainingFraction != nil {
+		pct := (*quota.RemainingFraction) * 100.0
+		pctStr = fmt.Sprintf("%.2f%%", pct)
+	}
+
+	var resetStr string
+	if quota.ResetInSeconds != nil {
 		secs := int(*quota.ResetInSeconds)
 		if secs < 0 {
 			secs = 0
 		}
 		if secs < 60 {
-			valueStr = fmt.Sprintf("%ds", secs)
+			resetStr = fmt.Sprintf("%ds", secs)
 		} else if secs < 3600 {
 			m := secs / 60
 			s := secs % 60
 			if s > 0 {
-				valueStr = fmt.Sprintf("%dm %ds", m, s)
+				resetStr = fmt.Sprintf("%dm %ds", m, s)
 			} else {
-				valueStr = fmt.Sprintf("%dm", m)
+				resetStr = fmt.Sprintf("%dm", m)
 			}
 		} else if secs < 86400 {
 			h := secs / 3600
 			m := (secs % 3600) / 60
 			if m > 0 {
-				valueStr = fmt.Sprintf("%dh %dm", h, m)
+				resetStr = fmt.Sprintf("%dh %dm", h, m)
 			} else {
-				valueStr = fmt.Sprintf("%dh", h)
+				resetStr = fmt.Sprintf("%dh", h)
 			}
 		} else {
 			d := secs / 86400
 			h := (secs % 86400) / 3600
 			if h > 0 {
-				valueStr = fmt.Sprintf("%dd %dh", d, h)
+				resetStr = fmt.Sprintf("%dd %dh", d, h)
 			} else {
-				valueStr = fmt.Sprintf("%dd", d)
+				resetStr = fmt.Sprintf("%dd", d)
 			}
 		}
-	} else {
-		if quota.RemainingFraction == nil {
+	}
+
+	if displayMode == "reset" {
+		if resetStr == "" {
 			return "", nil
 		}
-		pct := (*quota.RemainingFraction) * 100.0
-		valueStr = fmt.Sprintf("%.2f%%", pct)
+		valueStr = resetStr
+	} else if displayMode == "quota" {
+		if pctStr == "" {
+			return "", nil
+		}
+		valueStr = pctStr
+	} else {
+		// Default: quota % + reset countdown
+		if pctStr != "" && resetStr != "" {
+			valueStr = fmt.Sprintf("%s (%s)", pctStr, resetStr)
+		} else if pctStr != "" {
+			valueStr = pctStr
+		} else if resetStr != "" {
+			valueStr = resetStr
+		} else {
+			return "", nil
+		}
 	}
 
 	if item.RawValue != nil && *item.RawValue {

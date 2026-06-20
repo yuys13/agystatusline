@@ -309,7 +309,7 @@ func TestQuotaWidget(t *testing.T) {
 	}
 	settings := types.DefaultSettings()
 
-	// Case 1: Labeled Percentage (default)
+	// Case 1: Labeled Percentage + Reset (default)
 	item1 := types.WidgetItem{
 		Type: "quota",
 		Metadata: map[string]string{
@@ -320,11 +320,11 @@ func TestQuotaWidget(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Render error: %v", err)
 	}
-	if output1 != "gemini-5h: 50.19%" {
-		t.Errorf("Expected 'gemini-5h: 50.19%%', got '%s'", output1)
+	if output1 != "gemini-5h: 50.19% (2h 28m)" {
+		t.Errorf("Expected 'gemini-5h: 50.19%% (2h 28m)', got '%s'", output1)
 	}
 
-	// Case 2: Raw Percentage (rawValue = true)
+	// Case 2: Raw Percentage + Reset (rawValue = true, default)
 	rawVal := true
 	item2 := types.WidgetItem{
 		Type: "quota",
@@ -337,11 +337,11 @@ func TestQuotaWidget(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Render error: %v", err)
 	}
-	if output2 != "50.19%" {
-		t.Errorf("Expected '50.19%%', got '%s'", output2)
+	if output2 != "50.19% (2h 28m)" {
+		t.Errorf("Expected '50.19%% (2h 28m)', got '%s'", output2)
 	}
 
-	// Case 3: Custom Text label
+	// Case 3: Custom Text label + Reset
 	item3 := types.WidgetItem{
 		Type: "quota",
 		Metadata: map[string]string{
@@ -353,8 +353,41 @@ func TestQuotaWidget(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Render error: %v", err)
 	}
-	if output3 != "Gemini Q: 50.19%" {
-		t.Errorf("Expected 'Gemini Q: 50.19%%', got '%s'", output3)
+	if output3 != "Gemini Q: 50.19% (2h 28m)" {
+		t.Errorf("Expected 'Gemini Q: 50.19%% (2h 28m)', got '%s'", output3)
+	}
+
+	// Case 3b: display="quota" (Percentage only, labeled)
+	itemQuotaOnly := types.WidgetItem{
+		Type: "quota",
+		Metadata: map[string]string{
+			"key":     "gemini-5h",
+			"display": "quota",
+		},
+	}
+	outputQuotaOnly, err := w.Render(itemQuotaOnly, ctx, settings)
+	if err != nil {
+		t.Fatalf("Render error: %v", err)
+	}
+	if outputQuotaOnly != "gemini-5h: 50.19%" {
+		t.Errorf("Expected 'gemini-5h: 50.19%%', got '%s'", outputQuotaOnly)
+	}
+
+	// Case 3c: display="quota" (Percentage only, raw)
+	itemQuotaOnlyRaw := types.WidgetItem{
+		Type: "quota",
+		Metadata: map[string]string{
+			"key":     "gemini-5h",
+			"display": "quota",
+		},
+		RawValue: &rawVal,
+	}
+	outputQuotaOnlyRaw, err := w.Render(itemQuotaOnlyRaw, ctx, settings)
+	if err != nil {
+		t.Fatalf("Render error: %v", err)
+	}
+	if outputQuotaOnlyRaw != "50.19%" {
+		t.Errorf("Expected '50.19%%', got '%s'", outputQuotaOnlyRaw)
 	}
 
 	// Case 4: Reset time labeled

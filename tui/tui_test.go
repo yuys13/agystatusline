@@ -401,8 +401,9 @@ func TestTUI_AddQuotaWidgets(t *testing.T) {
 		t.Fatalf("Expected activeMenu to be 'add_widget', got %s", newModel.activeMenu)
 	}
 
-	// 2. ウィジェット追加リストにクォータウィジェット（通常・リセット両方）が含まれているか確認
+	// 2. ウィジェット追加リストにクォータウィジェット（通常・%・リセット）が含まれているか確認
 	var foundG5h, foundGwk, found3p5h, found3pwk bool
+	var foundG5hP, foundGwkP, found3p5hP, found3pwkP bool
 	var foundG5hR, foundGwkR, found3p5hR, found3pwkR bool
 	for _, wt := range widgetTypes {
 		if wt.wType == "quota" {
@@ -418,6 +419,17 @@ func TestTUI_AddQuotaWidgets(t *testing.T) {
 					found3p5hR = true
 				case "3p-weekly":
 					found3pwkR = true
+				}
+			} else if display == "quota" {
+				switch key {
+				case "gemini-5h":
+					foundG5hP = true
+				case "gemini-weekly":
+					foundGwkP = true
+				case "3p-5h":
+					found3p5hP = true
+				case "3p-weekly":
+					found3pwkP = true
 				}
 			} else {
 				switch key {
@@ -437,15 +449,19 @@ func TestTUI_AddQuotaWidgets(t *testing.T) {
 		t.Errorf("Expected all 4 quota presets in widgetTypes, got Gemini 5h:%t, Gemini Weekly:%t, 3P 5h:%t, 3P Weekly:%t",
 			foundG5h, foundGwk, found3p5h, found3pwk)
 	}
+	if !foundG5hP || !foundGwkP || !found3p5hP || !found3pwkP {
+		t.Errorf("Expected all 4 quota percent presets in widgetTypes, got Gemini 5h Percent:%t, Gemini Weekly Percent:%t, 3P 5h Percent:%t, 3P Weekly Percent:%t",
+			foundG5hP, foundGwkP, found3p5hP, found3pwkP)
+	}
 	if !foundG5hR || !foundGwkR || !found3p5hR || !found3pwkR {
 		t.Errorf("Expected all 4 quota reset presets in widgetTypes, got Gemini 5h Reset:%t, Gemini Weekly Reset:%t, 3P 5h Reset:%t, 3P Weekly Reset:%t",
 			foundG5hR, foundGwkR, found3p5hR, found3pwkR)
 	}
 
-	// 3. 実際に Gemini 5h クォータウィジェットを追加してみる。
+	// 3. 実際に Gemini 5h クォータウィジェットを追加してみる（デフォルト: display指定なし）。
 	targetIdx := -1
 	for i, wt := range widgetTypes {
-		if wt.wType == "quota" && wt.metadata["key"] == "gemini-5h" && wt.metadata["display"] != "reset" {
+		if wt.wType == "quota" && wt.metadata["key"] == "gemini-5h" && wt.metadata["display"] == "" {
 			targetIdx = i
 			break
 		}
@@ -471,11 +487,11 @@ func TestTUI_AddQuotaWidgets(t *testing.T) {
 	if addedWidget.Type != "quota" {
 		t.Errorf("Expected widget type 'quota', got '%s'", addedWidget.Type)
 	}
-	if addedWidget.Metadata == nil || addedWidget.Metadata["key"] != "gemini-5h" || addedWidget.Metadata["display"] == "reset" {
-		t.Errorf("Expected widget metadata key 'gemini-5h' and no display reset, got %v", addedWidget.Metadata)
+	if addedWidget.Metadata == nil || addedWidget.Metadata["key"] != "gemini-5h" || addedWidget.Metadata["display"] != "" {
+		t.Errorf("Expected widget metadata key 'gemini-5h' and no display format, got %v", addedWidget.Metadata)
 	}
 
-	// 4. 実際に Gemini 5h クォータリセットウィジェットを追加してみる。
+	// 4. 実際に Gemini 5h クォータ % ウィジェットを追加してみる。
 	m = finalModel
 	m.activeMenu = "items"
 	m.cursor = 1
@@ -484,27 +500,27 @@ func TestTUI_AddQuotaWidgets(t *testing.T) {
 	updatedModel, _ = m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("a")})
 	m = updatedModel.(Model)
 
-	targetResetIdx := -1
+	targetPercentIdx := -1
 	for i, wt := range widgetTypes {
-		if wt.wType == "quota" && wt.metadata["key"] == "gemini-5h" && wt.metadata["display"] == "reset" {
-			targetResetIdx = i
+		if wt.wType == "quota" && wt.metadata["key"] == "gemini-5h" && wt.metadata["display"] == "quota" {
+			targetPercentIdx = i
 			break
 		}
 	}
-	if targetResetIdx == -1 {
-		t.Fatalf("Gemini 5h quota reset widget type not found in widgetTypes")
+	if targetPercentIdx == -1 {
+		t.Fatalf("Gemini 5h quota percent widget type not found in widgetTypes")
 	}
 
-	m.cursor = targetResetIdx
+	m.cursor = targetPercentIdx
 	updatedModel, _ = m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("\n")})
-	finalResetModel := updatedModel.(Model)
+	finalPercentModel := updatedModel.(Model)
 
-	addedResetWidget := finalResetModel.settings.Lines[0][2]
-	if addedResetWidget.Type != "quota" {
-		t.Errorf("Expected widget type 'quota', got '%s'", addedResetWidget.Type)
+	addedPercentWidget := finalPercentModel.settings.Lines[0][2]
+	if addedPercentWidget.Type != "quota" {
+		t.Errorf("Expected widget type 'quota', got '%s'", addedPercentWidget.Type)
 	}
-	if addedResetWidget.Metadata == nil || addedResetWidget.Metadata["key"] != "gemini-5h" || addedResetWidget.Metadata["display"] != "reset" {
-		t.Errorf("Expected widget metadata key 'gemini-5h' and display 'reset', got %v", addedResetWidget.Metadata)
+	if addedPercentWidget.Metadata == nil || addedPercentWidget.Metadata["key"] != "gemini-5h" || addedPercentWidget.Metadata["display"] != "quota" {
+		t.Errorf("Expected widget metadata key 'gemini-5h' and display 'quota', got %v", addedPercentWidget.Metadata)
 	}
 }
 
@@ -517,28 +533,22 @@ func TestTUI_LivePreviewQuota(t *testing.T) {
 			ID:   "test_quota_g5h",
 			Type: "quota",
 			Metadata: map[string]string{
-				"key": "gemini-5h",
+				"key": "gemini-5h", // default (percentage + reset)
+			},
+		},
+		types.WidgetItem{
+			ID:   "test_quota_g5h_pct",
+			Type: "quota",
+			Metadata: map[string]string{
+				"key":     "gemini-5h",
+				"display": "quota", // quota % only
 			},
 		},
 		types.WidgetItem{
 			ID:   "test_quota_3p",
 			Type: "quota",
 			Metadata: map[string]string{
-				"key": "3p-5h",
-			},
-		},
-		types.WidgetItem{
-			ID:   "test_quota_g_wk",
-			Type: "quota",
-			Metadata: map[string]string{
-				"key": "gemini-weekly",
-			},
-		},
-		types.WidgetItem{
-			ID:   "test_quota_3p_wk",
-			Type: "quota",
-			Metadata: map[string]string{
-				"key": "3p-weekly",
+				"key": "3p-5h", // default (percentage + reset)
 			},
 		},
 	)
@@ -546,17 +556,16 @@ func TestTUI_LivePreviewQuota(t *testing.T) {
 
 	viewStr := m.View()
 	// previewCtx のダミーデータから、それぞれ適切な値が表示されることを検証
+	// default (both): gemini-5h: 50.19% (2h 28m), 3p-5h: 100.00% (4h 59m)
+	// display:quota (% only): gemini-5h: 50.19%
+	if !strings.Contains(viewStr, "gemini-5h: 50.19% (2h 28m)") {
+		t.Errorf("Expected live preview to contain 'gemini-5h: 50.19%% (2h 28m)', but it did not. View:\n%s", viewStr)
+	}
 	if !strings.Contains(viewStr, "gemini-5h: 50.19%") {
 		t.Errorf("Expected live preview to contain 'gemini-5h: 50.19%%', but it did not. View:\n%s", viewStr)
 	}
-	if !strings.Contains(viewStr, "3p-5h: 100.00%") {
-		t.Errorf("Expected live preview to contain '3p-5h: 100.00%%', but it did not. View:\n%s", viewStr)
-	}
-	if !strings.Contains(viewStr, "gemini-weekly: 90.91%") {
-		t.Errorf("Expected live preview to contain 'gemini-weekly: 90.91%%', but it did not. View:\n%s", viewStr)
-	}
-	if !strings.Contains(viewStr, "3p-weekly: 100.00%") {
-		t.Errorf("Expected live preview to contain '3p-weekly: 100.00%%', but it did not. View:\n%s", viewStr)
+	if !strings.Contains(viewStr, "3p-5h: 100.00% (4h 59m)") {
+		t.Errorf("Expected live preview to contain '3p-5h: 100.00%% (4h 59m)', but it did not. View:\n%s", viewStr)
 	}
 }
 
