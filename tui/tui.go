@@ -52,7 +52,6 @@ var separatorsList = []struct {
 	{name: "Flame (\uE0C0)", value: "\uE0C0"},
 	{name: "Hexagon (\uE0C6)", value: "\uE0C6"},
 	{name: "Slanted (\uE0C8)", value: "\uE0C8"},
-	{name: "Slash (\uE0CC)", value: "\uE0CC"},
 	{name: "Slash ASCII (/)", value: "/"},
 	{name: "Bar ASCII (|)", value: "|"},
 }
@@ -69,7 +68,6 @@ var startCapsList = []struct {
 	{name: "Flame (\uE0C2)", value: "\uE0C2 "},
 	{name: "Hexagon (\uE0C7)", value: "\uE0C7 "},
 	{name: "Slanted (\uE0CA)", value: "\uE0CA "},
-	{name: "Slash (\uE0CD)", value: "\uE0CD"},
 }
 
 var endCapsList = []struct {
@@ -84,7 +82,6 @@ var endCapsList = []struct {
 	{name: "Flame (\uE0C0)", value: "\uE0C0"},
 	{name: "Hexagon (\uE0C6)", value: "\uE0C6"},
 	{name: "Slanted (\uE0C8)", value: "\uE0C8"},
-	{name: "Slash (\uE0CC)", value: "\uE0CC"},
 }
 
 var widgetTypes = []struct {
