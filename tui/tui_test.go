@@ -573,15 +573,22 @@ func TestTUI_PowerlineSeparator(t *testing.T) {
 	// 1. Default Separator Test
 	settings := types.DefaultSettings()
 	m := NewModel(settings, "/tmp/settings.json")
-	if m.separatorIndex != 0 {
-		t.Errorf("Expected default separatorIndex to be 0, got %d", m.separatorIndex)
+	if m.separatorIndex != 1 {
+		t.Errorf("Expected default separatorIndex to be 1, got %d", m.separatorIndex)
 	}
 
 	// 2. Custom Separator (exists in list) Test
 	settings.Powerline.Separators = []string{"\uE0B4"} // Round
 	m2 := NewModel(settings, "/tmp/settings.json")
-	if m2.separatorIndex != 1 {
-		t.Errorf("Expected separatorIndex to be 1 for '\\uE0B4', got %d", m2.separatorIndex)
+	if m2.separatorIndex != 2 {
+		t.Errorf("Expected separatorIndex to be 2 for '\\uE0B4', got %d", m2.separatorIndex)
+	}
+
+	// 2.5. None Separator Test
+	settings.Powerline.Separators = []string{""}
+	mNone := NewModel(settings, "/tmp/settings.json")
+	if mNone.separatorIndex != 0 {
+		t.Errorf("Expected separatorIndex to be 0 for None, got %d", mNone.separatorIndex)
 	}
 
 	// 3. Custom Separator (NOT in list) Test

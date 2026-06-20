@@ -33,6 +33,7 @@ var separatorsList = []struct {
 	name  string
 	value string
 }{
+	{name: "None", value: ""},
 	{name: "Arrow (\uE0B0)", value: "\uE0B0"},
 	{name: "Round (\uE0B4)", value: "\uE0B4"},
 	{name: "Flame (\uE0C0)", value: "\uE0C0"},
