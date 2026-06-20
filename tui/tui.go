@@ -14,19 +14,35 @@ import (
 )
 
 type Model struct {
-	settings     types.Settings
-	configPath   string
-	activeMenu   string
-	cursor       int
-	quitting     bool
-	saved        bool
-	themeIndex   int
-	selectedLine int
-	itemIndex    int
-	moveMode     bool
+	settings       types.Settings
+	configPath     string
+	activeMenu     string
+	cursor         int
+	quitting       bool
+	saved          bool
+	themeIndex     int
+	separatorIndex int
+	selectedLine   int
+	itemIndex      int
+	moveMode       bool
 }
 
 var themesList = []string{"nord", "nord-aurora", "monokai", "solarized", "minimal", "dracula", "catppuccin", "gruvbox", "onedark", "tokyonight"}
+
+var separatorsList = []struct {
+	name  string
+	value string
+}{
+	{name: "Arrow (\uE0B0)", value: "\uE0B0"},
+	{name: "Round (\uE0B4)", value: "\uE0B4"},
+	{name: "Flame (\uE0C0)", value: "\uE0C0"},
+	{name: "Hexagon (\uE0C6)", value: "\uE0C6"},
+	{name: "Slanted (\uE0C8)", value: "\uE0C8"},
+	{name: "Slash (\uE0CC)", value: "\uE0CC"},
+	{name: "Slash ASCII (/)", value: "/"},
+	{name: "Bar ASCII (|)", value: "|"},
+}
+
 
 var widgetTypes = []struct {
 	name            string
@@ -68,12 +84,32 @@ func NewModel(settings types.Settings, configPath string) Model {
 		}
 	}
 
+	initialSeparatorIndex := -1
+	currentSep := "\uE0B0"
+	if len(settings.Powerline.Separators) > 0 {
+		currentSep = settings.Powerline.Separators[0]
+	}
+	for i, s := range separatorsList {
+		if s.value == currentSep {
+			initialSeparatorIndex = i
+			break
+		}
+	}
+	if initialSeparatorIndex == -1 {
+		separatorsList = append(separatorsList, struct {
+			name  string
+			value string
+		}{name: fmt.Sprintf("Custom (%s)", currentSep), value: currentSep})
+		initialSeparatorIndex = len(separatorsList) - 1
+	}
+
 	return Model{
-		settings:   settings,
-		configPath: configPath,
-		activeMenu: "main",
-		cursor:     0,
-		themeIndex: initialThemeIndex,
+		settings:       settings,
+		configPath:     configPath,
+		activeMenu:     "main",
+		cursor:         0,
+		themeIndex:     initialThemeIndex,
+		separatorIndex: initialSeparatorIndex,
 	}
 }
 
@@ -112,7 +148,7 @@ func (m Model) updateMain(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		}
 
 	case "down", "j":
-		maxItems := 5
+		maxItems := 6
 		if m.cursor < maxItems-1 {
 			m.cursor++
 		}
@@ -131,7 +167,11 @@ func (m Model) updateMain(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			m.themeIndex = (m.themeIndex + 1) % len(themesList)
 			m.settings.Powerline.Theme = themesList[m.themeIndex]
 
-		case 3: // Save & Exit
+		case 3: // Select Powerline Separator
+			m.separatorIndex = (m.separatorIndex + 1) % len(separatorsList)
+			m.settings.Powerline.Separators = []string{separatorsList[m.separatorIndex].value}
+
+		case 4: // Save & Exit
 			err := saveSettings(m.configPath, m.settings)
 			if err == nil {
 				m.saved = true
@@ -139,7 +179,7 @@ func (m Model) updateMain(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			m.quitting = true
 			return m, tea.Quit
 
-		case 4: // Discard & Exit
+		case 5: // Discard & Exit
 			m.quitting = true
 			return m, tea.Quit
 		}
@@ -433,6 +473,7 @@ func (m Model) viewMain(s *stringsBuilder) {
 		"Edit Lines",
 		fmt.Sprintf("Toggle Powerline Mode       [%t]", m.settings.Powerline.Enabled),
 		fmt.Sprintf("Select Powerline Theme      [%s]", m.settings.Powerline.Theme),
+		fmt.Sprintf("Select Powerline Separator  [%s]", separatorsList[m.separatorIndex].name),
 		"Save & Exit",
 		"Discard & Exit",
 	}

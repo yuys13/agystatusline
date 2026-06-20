@@ -569,6 +569,54 @@ func TestTUI_LivePreviewQuota(t *testing.T) {
 	}
 }
 
+func TestTUI_PowerlineSeparator(t *testing.T) {
+	// 1. Default Separator Test
+	settings := types.DefaultSettings()
+	m := NewModel(settings, "/tmp/settings.json")
+	if m.separatorIndex != 0 {
+		t.Errorf("Expected default separatorIndex to be 0, got %d", m.separatorIndex)
+	}
+
+	// 2. Custom Separator (exists in list) Test
+	settings.Powerline.Separators = []string{"\uE0B4"} // Round
+	m2 := NewModel(settings, "/tmp/settings.json")
+	if m2.separatorIndex != 1 {
+		t.Errorf("Expected separatorIndex to be 1 for '\\uE0B4', got %d", m2.separatorIndex)
+	}
+
+	// 3. Custom Separator (NOT in list) Test
+	settings.Powerline.Separators = []string{"♦"}
+	m3 := NewModel(settings, "/tmp/settings.json")
+	if m3.separatorIndex == -1 {
+		t.Errorf("Expected new custom separator to be added to list, but got index -1")
+	}
+	customSepName := "Custom (♦)"
+	if separatorsList[m3.separatorIndex].name != customSepName {
+		t.Errorf("Expected custom separator name to be %q, got %q", customSepName, separatorsList[m3.separatorIndex].name)
+	}
+
+	// 4. Test Navigation and Toggle behavior in main menu
+	m4 := NewModel(settings, "/tmp/settings.json")
+	m4.activeMenu = "main"
+	m4.cursor = 3 // Select Powerline Separator index
+
+	// Simulate pressing Enter to change separator
+	msg := tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("\n")}
+	updatedModel, _ := m4.Update(msg)
+	newModel := updatedModel.(Model)
+
+	expectedNextIdx := (m4.separatorIndex + 1) % len(separatorsList)
+	if newModel.separatorIndex != expectedNextIdx {
+		t.Errorf("Expected separatorIndex to transition to %d, got %d", expectedNextIdx, newModel.separatorIndex)
+	}
+
+	expectedNextVal := separatorsList[expectedNextIdx].value
+	if len(newModel.settings.Powerline.Separators) != 1 || newModel.settings.Powerline.Separators[0] != expectedNextVal {
+		t.Errorf("Expected Powerline.Separators to be updated to %q, got %v", expectedNextVal, newModel.settings.Powerline.Separators)
+	}
+}
+
+
 
 
 
