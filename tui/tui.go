@@ -140,8 +140,8 @@ func (m Model) View() string {
 		Minimalist:    m.settings.MinimalistMode,
 		Data: types.StatusJSON{
 			Model: types.ModelInfo{
-				ID:          "claude-3-5-sonnet",
-				DisplayName: "Claude 3.5 Sonnet",
+				ID:          "gemini-3.5-flash-medium",
+				DisplayName: "Gemini 3.5 Flash (Medium)",
 			},
 			ContextWindow: &types.ContextWindowInfo{
 				TotalInputTokens: &inputTokens,
