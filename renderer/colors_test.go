@@ -68,21 +68,48 @@ func TestBgToFg(t *testing.T) {
 }
 
 func TestGetPowerlineTheme(t *testing.T) {
-	theme := GetPowerlineTheme("nord")
-	if theme == nil {
-		t.Fatalf("Expected 'nord' theme to exist, got nil")
+	tests := []struct {
+		id   string
+		name string
+	}{
+		{"nord", "Nord"},
+		{"nord-aurora", "Nord Aurora"},
+		{"monokai", "Monokai"},
+		{"solarized", "Solarized"},
+		{"minimal", "Minimal"},
+		{"dracula", "Dracula"},
+		{"catppuccin", "Catppuccin"},
+		{"gruvbox", "Gruvbox"},
+		{"onedark", "One Dark"},
+		{"tokyonight", "Tokyo Night"},
 	}
 
-	if theme.Name != "Nord" {
-		t.Errorf("Expected Nord theme name, got '%s'", theme.Name)
-	}
+	for _, tc := range tests {
+		t.Run(tc.id, func(t *testing.T) {
+			theme := GetPowerlineTheme(tc.id)
+			if theme == nil {
+				t.Fatalf("Expected '%s' theme to exist, got nil", tc.id)
+			}
+			if theme.Name != tc.name {
+				t.Errorf("Expected %s theme name, got '%s'", tc.name, theme.Name)
+			}
+			if theme.Colors16 == nil {
+				t.Errorf("Expected Colors16 defined for '%s'", tc.id)
+			} else if len(theme.Colors16.Fg) != 5 || len(theme.Colors16.Bg) != 5 {
+				t.Errorf("Expected 5 Colors16 levels for '%s', got Fg:%d, Bg:%d", tc.id, len(theme.Colors16.Fg), len(theme.Colors16.Bg))
+			}
 
-	colors256 := theme.Colors256
-	if colors256 == nil {
-		t.Fatalf("Expected Colors256 Nord definitions, got nil")
-	}
+			if theme.Colors256 == nil {
+				t.Errorf("Expected Colors256 defined for '%s'", tc.id)
+			} else if len(theme.Colors256.Fg) != 5 || len(theme.Colors256.Bg) != 5 {
+				t.Errorf("Expected 5 Colors256 levels for '%s', got Fg:%d, Bg:%d", tc.id, len(theme.Colors256.Fg), len(theme.Colors256.Bg))
+			}
 
-	if len(colors256.Fg) == 0 || len(colors256.Bg) == 0 {
-		t.Errorf("Expected Nord colors256 to have fg/bg entries")
+			if theme.Truecolor == nil {
+				t.Errorf("Expected Truecolor defined for '%s'", tc.id)
+			} else if len(theme.Truecolor.Fg) != 5 || len(theme.Truecolor.Bg) != 5 {
+				t.Errorf("Expected 5 Truecolor levels for '%s', got Fg:%d, Bg:%d", tc.id, len(theme.Truecolor.Fg), len(theme.Truecolor.Bg))
+			}
+		})
 	}
 }

@@ -373,6 +373,141 @@ var powerlineThemes = map[string]*PowerlineTheme{
 			Bg: []string{"hex:88c0d0", "hex:4c566a", "hex:5e81ac", "hex:b48ead", "hex:a3be8c"},
 		},
 	},
+	"nord-aurora": {
+		Name: "Nord Aurora",
+		Colors16: &PowerlineThemeColors{
+			Fg: []string{"brightWhite", "black", "black", "black", "black"},
+			Bg: []string{"bgRed", "bgBrightYellow", "bgBrightBlue", "bgGreen", "bgBrightMagenta"},
+		},
+		Colors256: &PowerlineThemeColors{
+			Fg: []string{"ansi256:231", "ansi256:16", "ansi256:231", "ansi256:16", "ansi256:16"},
+			Bg: []string{"ansi256:131", "ansi256:220", "ansi256:68", "ansi256:108", "ansi256:176"},
+		},
+		Truecolor: &PowerlineThemeColors{
+			Fg: []string{"hex:ECEFF4", "hex:2E3440", "hex:FDF6E3", "hex:2E3440", "hex:2E3440"},
+			Bg: []string{"hex:BF616A", "hex:EBCB8B", "hex:5E81AC", "hex:A3BE8C", "hex:B48EAD"},
+		},
+	},
+	"monokai": {
+		Name: "Monokai",
+		Colors16: &PowerlineThemeColors{
+			Fg: []string{"black", "brightWhite", "black", "white", "black"},
+			Bg: []string{"bgBrightGreen", "bgBrightBlack", "bgBrightYellow", "bgMagenta", "bgBrightCyan"},
+		},
+		Colors256: &PowerlineThemeColors{
+			Fg: []string{"ansi256:235", "ansi256:255", "ansi256:235", "ansi256:16", "ansi256:235"},
+			Bg: []string{"ansi256:148", "ansi256:238", "ansi256:186", "ansi256:141", "ansi256:81"},
+		},
+		Truecolor: &PowerlineThemeColors{
+			Fg: []string{"hex:272822", "hex:F8F8F2", "hex:272822", "hex:272822", "hex:272822"},
+			Bg: []string{"hex:A6E22E", "hex:49483E", "hex:E6DB74", "hex:AE81FF", "hex:66D9EF"},
+		},
+	},
+	"solarized": {
+		Name: "Solarized",
+		Colors16: &PowerlineThemeColors{
+			Fg: []string{"brightWhite", "black", "brightWhite", "black", "black"},
+			Bg: []string{"bgBlue", "bgBrightYellow", "bgBrightBlack", "bgCyan", "bgBrightWhite"},
+		},
+		Colors256: &PowerlineThemeColors{
+			Fg: []string{"ansi256:231", "ansi256:234", "ansi256:254", "ansi256:16", "ansi256:234"},
+			Bg: []string{"ansi256:33", "ansi256:136", "ansi256:240", "ansi256:37", "ansi256:254"},
+		},
+		Truecolor: &PowerlineThemeColors{
+			Fg: []string{"hex:073642", "hex:073642", "hex:FDF6E3", "hex:073642", "hex:073642"},
+			Bg: []string{"hex:268BD2", "hex:B58900", "hex:586E75", "hex:2AA198", "hex:EEE8D5"},
+		},
+	},
+	"minimal": {
+		Name: "Minimal",
+		Colors16: &PowerlineThemeColors{
+			Fg: []string{"brightWhite", "black", "white", "black", "black"},
+			Bg: []string{"bgBrightBlack", "bgBrightWhite", "bgBlack", "bgWhite", "bgBrightWhite"},
+		},
+		Colors256: &PowerlineThemeColors{
+			Fg: []string{"ansi256:255", "ansi256:232", "ansi256:255", "ansi256:232", "ansi256:252"},
+			Bg: []string{"ansi256:240", "ansi256:251", "ansi256:233", "ansi256:248", "ansi256:236"},
+		},
+		Truecolor: &PowerlineThemeColors{
+			Fg: []string{"hex:FFFFFF", "hex:1C1C1C", "hex:FFFFFF", "hex:1C1C1C", "hex:E4E4E4"},
+			Bg: []string{"hex:585858", "hex:D0D0D0", "hex:1A1A1A", "hex:A8A8A8", "hex:303030"},
+		},
+	},
+	"dracula": {
+		Name: "Dracula",
+		Colors16: &PowerlineThemeColors{
+			Fg: []string{"brightWhite", "black", "brightWhite", "black", "white"},
+			Bg: []string{"bgMagenta", "bgBrightWhite", "bgRed", "bgBrightCyan", "bgBrightBlack"},
+		},
+		Colors256: &PowerlineThemeColors{
+			Fg: []string{"ansi256:235", "ansi256:235", "ansi256:235", "ansi256:235", "ansi256:231"},
+			Bg: []string{"ansi256:141", "ansi256:253", "ansi256:204", "ansi256:117", "ansi256:236"},
+		},
+		Truecolor: &PowerlineThemeColors{
+			Fg: []string{"hex:282A36", "hex:282A36", "hex:282A36", "hex:282A36", "hex:F8F8F2"},
+			Bg: []string{"hex:BD93F9", "hex:F8F8F2", "hex:FF5555", "hex:8BE9FD", "hex:44475A"},
+		},
+	},
+	"catppuccin": {
+		Name: "Catppuccin",
+		Colors16: &PowerlineThemeColors{
+			Fg: []string{"black", "brightWhite", "black", "brightWhite", "black"},
+			Bg: []string{"bgBrightMagenta", "bgBrightBlack", "bgBrightGreen", "bgBlue", "bgBrightYellow"},
+		},
+		Colors256: &PowerlineThemeColors{
+			Fg: []string{"ansi256:235", "ansi256:255", "ansi256:235", "ansi256:235", "ansi256:235"},
+			Bg: []string{"ansi256:176", "ansi256:238", "ansi256:150", "ansi256:210", "ansi256:111"},
+		},
+		Truecolor: &PowerlineThemeColors{
+			Fg: []string{"hex:1E1E2E", "hex:CDD6F4", "hex:1E1E2E", "hex:1E1E2E", "hex:CDD6F4"},
+			Bg: []string{"hex:CBA6F7", "hex:45475A", "hex:A6E3A1", "hex:F38BA8", "hex:585B70"},
+		},
+	},
+	"gruvbox": {
+		Name: "Gruvbox",
+		Colors16: &PowerlineThemeColors{
+			Fg: []string{"brightWhite", "black", "black", "brightWhite", "black"},
+			Bg: []string{"bgRed", "bgBrightYellow", "bgBrightWhite", "bgBlue", "bgBrightGreen"},
+		},
+		Colors256: &PowerlineThemeColors{
+			Fg: []string{"ansi256:16", "ansi256:235", "ansi256:235", "ansi256:16", "ansi256:235"},
+			Bg: []string{"ansi256:167", "ansi256:214", "ansi256:246", "ansi256:109", "ansi256:142"},
+		},
+		Truecolor: &PowerlineThemeColors{
+			Fg: []string{"hex:EBDBB2", "hex:282828", "hex:282828", "hex:FDF6E3", "hex:282828"},
+			Bg: []string{"hex:CC241D", "hex:FABD2F", "hex:A89984", "hex:458588", "hex:98971A"},
+		},
+	},
+	"onedark": {
+		Name: "One Dark",
+		Colors16: &PowerlineThemeColors{
+			Fg: []string{"black", "brightWhite", "black", "brightWhite", "black"},
+			Bg: []string{"bgBrightBlue", "bgBrightBlack", "bgBrightGreen", "bgRed", "bgBrightYellow"},
+		},
+		Colors256: &PowerlineThemeColors{
+			Fg: []string{"ansi256:235", "ansi256:251", "ansi256:235", "ansi256:16", "ansi256:235"},
+			Bg: []string{"ansi256:75", "ansi256:237", "ansi256:114", "ansi256:204", "ansi256:180"},
+		},
+		Truecolor: &PowerlineThemeColors{
+			Fg: []string{"hex:282C34", "hex:ABB2BF", "hex:282C34", "hex:282C34", "hex:282C34"},
+			Bg: []string{"hex:61AFEF", "hex:3E4452", "hex:98C379", "hex:E06C75", "hex:E5C07B"},
+		},
+	},
+	"tokyonight": {
+		Name: "Tokyo Night",
+		Colors16: &PowerlineThemeColors{
+			Fg: []string{"brightWhite", "black", "brightWhite", "black", "black"},
+			Bg: []string{"bgBlue", "bgBrightWhite", "bgMagenta", "bgBrightYellow", "bgBrightCyan"},
+		},
+		Colors256: &PowerlineThemeColors{
+			Fg: []string{"ansi256:16", "ansi256:234", "ansi256:16", "ansi256:234", "ansi256:234"},
+			Bg: []string{"ansi256:111", "ansi256:248", "ansi256:176", "ansi256:221", "ansi256:80"},
+		},
+		Truecolor: &PowerlineThemeColors{
+			Fg: []string{"hex:1A1B26", "hex:1A1B26", "hex:1A1B26", "hex:1A1B26", "hex:1A1B26"},
+			Bg: []string{"hex:7AA2F7", "hex:D5D6DB", "hex:BB9AF7", "hex:E0AF68", "hex:7DCFFF"},
+		},
+	},
 }
 
 // GetPowerlineTheme fetches powerline color scheme mappings.

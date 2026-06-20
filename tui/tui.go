@@ -23,7 +23,7 @@ type Model struct {
 	themeIndex int
 }
 
-var themesList = []string{"nord", "nord-aurora", "monokai", "solarized", "dracula"}
+var themesList = []string{"nord", "nord-aurora", "monokai", "solarized", "minimal", "dracula", "catppuccin", "gruvbox", "onedark", "tokyonight"}
 
 func NewModel(settings types.Settings, configPath string) Model {
 	initialThemeIndex := 0
