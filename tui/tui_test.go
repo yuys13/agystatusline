@@ -1043,3 +1043,78 @@ func TestTUI_NoHoneycombSlashSeparators(t *testing.T) {
 		}
 	}
 }
+
+func TestTUI_WidgetSliceCorruption(t *testing.T) {
+	widgets.RegisterAll()
+
+	// 1. Setup a line with multiple widgets, ensuring capacity is larger than length.
+	// This simulates slice sharing capacity.
+	originalWidgets := []types.WidgetItem{
+		{ID: "w1", Type: "model"},
+		{ID: "w2", Type: "context-length"},
+		{ID: "w3", Type: "git-branch"},
+	}
+	widgetsSlice := make([]types.WidgetItem, 3, 10)
+	copy(widgetsSlice, originalWidgets)
+
+	settings := types.DefaultSettings()
+	settings.Lines = [][]types.WidgetItem{widgetsSlice}
+
+	m := NewModel(settings, "/tmp/settings.json")
+	m.selectedLine = 0
+	m.itemIndex = 0 // Insert after index 0 (so between w1 and w2)
+
+	// --- Test 1: Live Preview should not corrupt original settings ---
+	m.activeMenu = "add_widget"
+	m.cursor = 0 // first widget type to add
+
+	// Verify pre-conditions
+	if m.settings.Lines[0][1].ID != "w2" || m.settings.Lines[0][2].ID != "w3" {
+		t.Fatalf("Pre-condition failed: settings initialized incorrectly")
+	}
+
+	// Trigger preview render (which calls View and performs a temporary insert)
+	_ = m.View()
+
+	// Verify that the original settings line was not mutated by the preview logic
+	if len(m.settings.Lines[0]) != 3 {
+		t.Errorf("Expected original settings line length to remain 3 after preview, but got %d", len(m.settings.Lines[0]))
+	}
+	if m.settings.Lines[0][1].ID != "w2" {
+		t.Errorf("Expected original widget 'w2' to be untouched, but got ID %q", m.settings.Lines[0][1].ID)
+	}
+	if m.settings.Lines[0][2].ID != "w3" {
+		t.Errorf("Expected original widget 'w3' to be untouched, but got ID %q", m.settings.Lines[0][2].ID)
+	}
+
+	// --- Test 2: Actually adding the widget should correctly insert it without corruption ---
+	enterMsg := tea.KeyMsg{Type: tea.KeyEnter}
+	updatedModel, _ := m.Update(enterMsg)
+	newModel := updatedModel.(Model)
+
+	newWidgets := newModel.settings.Lines[0]
+	if len(newWidgets) != 4 {
+		t.Fatalf("Expected new settings line length to be 4, got %d", len(newWidgets))
+	}
+
+	// Expected sequence: w1 -> new_widget -> w2 -> w3
+	if newWidgets[0].ID != "w1" {
+		t.Errorf("Expected index 0 to be 'w1', got %q", newWidgets[0].ID)
+	}
+	// The new widget should not have w2's or w3's ID
+	if newWidgets[1].ID == "w2" || newWidgets[1].ID == "w3" || newWidgets[1].ID == "w1" {
+		t.Errorf("Expected index 1 to be a newly added widget, got ID %q", newWidgets[1].ID)
+	}
+	if newWidgets[2].ID != "w2" {
+		t.Errorf("Expected index 2 to be 'w2', got %q", newWidgets[2].ID)
+	}
+	if newWidgets[3].ID != "w3" {
+		t.Errorf("Expected index 3 to be 'w3', got %q", newWidgets[3].ID)
+	}
+
+	// Check that the underlying original widgets slice was not mutated (no in-place overwrite)
+	if widgetsSlice[1].ID != "w2" {
+		t.Errorf("Expected original widgetsSlice elements to remain untouched, but index 1 got ID %q", widgetsSlice[1].ID)
+	}
+}
+

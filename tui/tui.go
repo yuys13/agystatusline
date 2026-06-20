@@ -478,12 +478,10 @@ func (m Model) updateAddWidget(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			insertIndex = m.itemIndex + 1
 		}
 
-		var newWidgets []types.WidgetItem
-		if insertIndex >= len(widgets) {
-			newWidgets = append(widgets, newWidget)
-		} else {
-			newWidgets = append(widgets[:insertIndex], append([]types.WidgetItem{newWidget}, widgets[insertIndex:]...)...)
-		}
+		newWidgets := make([]types.WidgetItem, len(widgets)+1)
+		copy(newWidgets[:insertIndex], widgets[:insertIndex])
+		newWidgets[insertIndex] = newWidget
+		copy(newWidgets[insertIndex+1:], widgets[insertIndex:])
 
 		m.settings.Lines[m.selectedLine] = newWidgets
 		m.activeMenu = "items"
@@ -745,12 +743,10 @@ func (m Model) View() string {
 				insertIndex = m.itemIndex + 1
 			}
 
-			var newWidgets []types.WidgetItem
-			if insertIndex >= len(widgets) {
-				newWidgets = append(widgets, tempWidget)
-			} else {
-				newWidgets = append(widgets[:insertIndex], append([]types.WidgetItem{tempWidget}, widgets[insertIndex:]...)...)
-			}
+			newWidgets := make([]types.WidgetItem, len(widgets)+1)
+			copy(newWidgets[:insertIndex], widgets[:insertIndex])
+			newWidgets[insertIndex] = tempWidget
+			copy(newWidgets[insertIndex+1:], widgets[insertIndex:])
 
 			// We need to create a copy of Lines slice to prevent modifying the shared layout
 			newLines := make([][]types.WidgetItem, len(previewSettings.Lines))
