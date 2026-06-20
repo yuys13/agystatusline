@@ -10,6 +10,7 @@ import (
 
 	"github.com/mattn/go-isatty"
 	"github.com/yuys13/agystatusline/renderer"
+	"github.com/yuys13/agystatusline/tui"
 	"github.com/yuys13/agystatusline/types"
 	"github.com/yuys13/agystatusline/widgets"
 )
@@ -128,9 +129,17 @@ func main() {
 	// Check if stdin is a TTY
 	if isatty.IsTerminal(os.Stdin.Fd()) {
 		// Interactive TUI mode (will launch Bubble Tea TUI)
-		fmt.Println("agystatusline TUI configuration editor is not fully loaded yet.")
-		fmt.Printf("Please edit configuration directly at: %s\n", settingsPath)
-		// We'll write the TUI logic shortly.
+		settings, err := loadSettings()
+		if err != nil {
+			fmt.Fprintln(os.Stderr, "Failed to load settings:", err)
+			os.Exit(1)
+		}
+		
+		err = tui.RunTUI(settings, settingsPath)
+		if err != nil {
+			fmt.Fprintln(os.Stderr, "TUI error:", err)
+			os.Exit(1)
+		}
 	} else {
 		// Piped non-TTY mode
 		bytes, err := io.ReadAll(os.Stdin)
