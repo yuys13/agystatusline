@@ -24,19 +24,31 @@ func TestInitialModel(t *testing.T) {
 
 func TestTUI_UpdateQuit(t *testing.T) {
 	settings := types.DefaultSettings()
-	m := NewModel(settings, "/tmp/settings.json")
 
-	// Send key event "q"
+	// 1. Send key event "q" on main menu: should exit
+	m := NewModel(settings, "/tmp/settings.json")
 	msg := tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("q")}
-	updatedModel, cmd := m.Update(msg)
-	
+	updatedModel, _ := m.Update(msg)
 	newModel := updatedModel.(Model)
 	if !newModel.quitting {
-		t.Errorf("Expected quitting to be true after pressing 'q'")
+		t.Errorf("Expected quitting to be true after pressing 'q' on main menu")
 	}
-	
-	if cmd == nil {
-		t.Log("Command is nil, which is expected for normal quitting")
+
+	// 2. Send key event "q" on lines menu: should NOT exit
+	m2 := NewModel(settings, "/tmp/settings.json")
+	m2.activeMenu = "lines"
+	updatedModel2, _ := m2.Update(msg)
+	newModel2 := updatedModel2.(Model)
+	if newModel2.quitting {
+		t.Errorf("Expected quitting to be false after pressing 'q' on lines menu")
+	}
+
+	// 3. Send key event "ctrl+c" on lines menu: should exit
+	ctrlCMsg := tea.KeyMsg{Type: tea.KeyCtrlC}
+	updatedModel3, _ := m2.Update(ctrlCMsg)
+	newModel3 := updatedModel3.(Model)
+	if !newModel3.quitting {
+		t.Errorf("Expected quitting to be true after pressing 'ctrl+c' on lines menu")
 	}
 }
 
