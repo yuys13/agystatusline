@@ -82,3 +82,248 @@ func TestTUI_LayoutAndBorders(t *testing.T) {
 	}
 }
 
+func TestTUI_NavigateToLines(t *testing.T) {
+	settings := types.DefaultSettings()
+	m := NewModel(settings, "/tmp/settings.json")
+
+	// Set cursor to 0 ("Edit Lines" or replacement for Toggle Minimalist Mode)
+	m.cursor = 0
+	msg := tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("\n")} // Enter key
+	updatedModel, _ := m.Update(msg)
+	newModel := updatedModel.(Model)
+
+	if newModel.activeMenu != "lines" {
+		t.Errorf("Expected activeMenu to be 'lines' after pressing Enter on menu item 0, got %q", newModel.activeMenu)
+	}
+	if newModel.cursor != 0 {
+		t.Errorf("Expected cursor to reset to 0, got %d", newModel.cursor)
+	}
+}
+
+func TestTUI_LinesOperations(t *testing.T) {
+	settings := types.DefaultSettings()
+	m := NewModel(settings, "/tmp/settings.json")
+	m.activeMenu = "lines"
+	m.cursor = 0
+
+	// 1. Test Add Line ("a")
+	msg := tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("a")}
+	updatedModel, _ := m.Update(msg)
+	newModel := updatedModel.(Model)
+
+	initialLinesCount := len(settings.Lines)
+	if len(newModel.settings.Lines) != initialLinesCount+1 {
+		t.Errorf("Expected lines count to be %d, got %d", initialLinesCount+1, len(newModel.settings.Lines))
+	}
+	if newModel.cursor != initialLinesCount {
+		t.Errorf("Expected cursor to be at the new line index %d, got %d", initialLinesCount, newModel.cursor)
+	}
+
+	// 2. Test Delete Line ("d")
+	m = newModel
+	msg = tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("d")}
+	updatedModel, _ = m.Update(msg)
+	newModel = updatedModel.(Model)
+
+	if len(newModel.settings.Lines) != initialLinesCount {
+		t.Errorf("Expected lines count to be %d after deletion, got %d", initialLinesCount, len(newModel.settings.Lines))
+	}
+	if newModel.cursor != initialLinesCount-1 {
+		t.Errorf("Expected cursor to adjust to %d, got %d", initialLinesCount-1, newModel.cursor)
+	}
+
+	// 3. Test Cannot Delete Last Line
+	// Delete until 1 line is left
+	for len(newModel.settings.Lines) > 1 {
+		m = newModel
+		m.cursor = len(m.settings.Lines) - 1 // Fix: delete the last line so the first line with widgets remains
+		updatedModel, _ = m.Update(msg)
+		newModel = updatedModel.(Model)
+	}
+	if len(newModel.settings.Lines) != 1 {
+		t.Fatalf("Setup failed: expected 1 line, got %d", len(newModel.settings.Lines))
+	}
+
+	// Try to delete the last line
+	m = newModel
+	m.cursor = 0
+	updatedModel, _ = m.Update(msg)
+	newModel = updatedModel.(Model)
+	if len(newModel.settings.Lines) != 1 {
+		t.Errorf("Expected lines count to remain 1, got %d", len(newModel.settings.Lines))
+	}
+
+	// 4. Test Move Line
+	// First add lines to have at least 2 lines
+	m = newModel
+	m.activeMenu = "lines"
+	updatedModel, _ = m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("a")}) // Add to 2 lines
+	newModel = updatedModel.(Model)
+
+	// Switch to move mode ("m")
+	m = newModel
+	m.cursor = 1
+	updatedModel, _ = m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("m")})
+	newModel = updatedModel.(Model)
+	if !newModel.moveMode {
+		t.Errorf("Expected moveMode to be true")
+	}
+
+	// Move up (swap line 1 and line 0)
+	m = newModel
+	upMsg := tea.KeyMsg{Type: tea.KeyUp}
+	updatedModel, _ = m.Update(upMsg)
+	newModel = updatedModel.(Model)
+
+	// Since we swapped line 1 (which was empty) and line 0 (which has widgets),
+	// line 0 should now be empty and line 1 should have widgets.
+	if len(newModel.settings.Lines[0]) != 0 {
+		t.Errorf("Expected line 0 to be empty after swapping, but got %d widgets", len(newModel.settings.Lines[0]))
+	}
+	if len(newModel.settings.Lines[1]) == 0 {
+		t.Errorf("Expected line 1 to contain widgets after swapping, but it was empty")
+	}
+	if newModel.cursor != 0 {
+		t.Errorf("Expected cursor to follow the moved item to 0, got %d", newModel.cursor)
+	}
+
+	// Toggle moveMode off using Enter
+	m = newModel
+	updatedModel, _ = m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("\n")})
+	newModel = updatedModel.(Model)
+	if newModel.moveMode {
+		t.Errorf("Expected moveMode to be false after pressing Enter")
+	}
+
+	// 5. Test Enter to navigate to widgets editor
+	m = newModel
+	m.cursor = 1
+	updatedModel, _ = m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("\n")})
+	newModel = updatedModel.(Model)
+	if newModel.activeMenu != "items" {
+		t.Errorf("Expected activeMenu to transition to 'items', got %q", newModel.activeMenu)
+	}
+	if newModel.selectedLine != 1 {
+		t.Errorf("Expected selectedLine to be 1, got %d", newModel.selectedLine)
+	}
+
+	// 6. Test Esc to go back to main menu
+	m = newModel
+	m.activeMenu = "lines"
+	updatedModel, _ = m.Update(tea.KeyMsg{Type: tea.KeyEsc})
+	newModel = updatedModel.(Model)
+	if newModel.activeMenu != "main" {
+		t.Errorf("Expected activeMenu to go back to 'main', got %q", newModel.activeMenu)
+	}
+}
+
+func TestTUI_ItemsOperations(t *testing.T) {
+	settings := types.DefaultSettings()
+	m := NewModel(settings, "/tmp/settings.json")
+	m.activeMenu = "items"
+	m.selectedLine = 0
+	m.cursor = 2 // Pointing to context-length
+
+	// 1. Delete Widget ("d")
+	msg := tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("d")}
+	updatedModel, _ := m.Update(msg)
+	newModel := updatedModel.(Model)
+
+	if len(newModel.settings.Lines[0]) != 6 {
+		t.Errorf("Expected widget count to be 6 after deletion, got %d", len(newModel.settings.Lines[0]))
+	}
+	if newModel.settings.Lines[0][2].Type != "separator" {
+		t.Errorf("Expected widget at index 2 to be 'separator', got %q", newModel.settings.Lines[0][2].Type)
+	}
+
+	// 2. Move Widget
+	m = newModel
+	m.cursor = 0 // Pointing to model
+	updatedModel, _ = m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("m")})
+	newModel = updatedModel.(Model)
+	if !newModel.moveMode {
+		t.Errorf("Expected moveMode to be true")
+	}
+
+	// Move down (swap index 0 and 1)
+	downMsg := tea.KeyMsg{Type: tea.KeyDown}
+	t.Logf("Before swap: index 0 type = %q, index 1 type = %q", newModel.settings.Lines[0][0].Type, newModel.settings.Lines[0][1].Type)
+	updatedModel, _ = newModel.Update(downMsg)
+	newModel = updatedModel.(Model)
+	t.Logf("After swap: index 0 type = %q, index 1 type = %q, cursor = %d", newModel.settings.Lines[0][0].Type, newModel.settings.Lines[0][1].Type, newModel.cursor)
+
+	if newModel.settings.Lines[0][0].Type != "separator" {
+		t.Errorf("Expected widget at index 0 to be 'separator' after swapping, got %q", newModel.settings.Lines[0][0].Type)
+	}
+	if newModel.settings.Lines[0][1].Type != "model" {
+		t.Errorf("Expected widget at index 1 to be 'model' after swapping, got %q", newModel.settings.Lines[0][1].Type)
+	}
+	if newModel.cursor != 1 {
+		t.Errorf("Expected cursor to follow the item to index 1, got %d", newModel.cursor)
+	}
+
+	// 3. Esc to go back to lines menu
+	m = newModel
+	m.activeMenu = "items"
+	m.moveMode = false
+	updatedModel, _ = m.Update(tea.KeyMsg{Type: tea.KeyEsc})
+	newModel = updatedModel.(Model)
+	if newModel.activeMenu != "lines" {
+		t.Errorf("Expected activeMenu to go back to 'lines', got %q", newModel.activeMenu)
+	}
+	if newModel.cursor != 0 {
+		t.Errorf("Expected cursor in lines menu to be the selected line (0), got %d", newModel.cursor)
+	}
+}
+
+func TestTUI_AddWidget(t *testing.T) {
+	settings := types.DefaultSettings()
+	m := NewModel(settings, "/tmp/settings.json")
+	m.activeMenu = "items"
+	m.selectedLine = 0
+	m.cursor = 1 // Pointing to separator (index 1)
+
+	// 1. Press "a" to trigger Add Widget screen
+	msg := tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("a")}
+	updatedModel, _ := m.Update(msg)
+	newModel := updatedModel.(Model)
+
+	if newModel.activeMenu != "add_widget" {
+		t.Errorf("Expected activeMenu to transition to 'add_widget', got %q", newModel.activeMenu)
+	}
+	if newModel.itemIndex != 1 {
+		t.Errorf("Expected itemIndex to save previous cursor (1), got %d", newModel.itemIndex)
+	}
+	if newModel.cursor != 0 {
+		t.Errorf("Expected cursor to reset to 0, got %d", newModel.cursor)
+	}
+
+	// 2. Select a widget type and add it
+	m = newModel
+	for i := 0; i < 4; i++ {
+		updatedModel, _ = m.Update(tea.KeyMsg{Type: tea.KeyDown})
+		m = updatedModel.(Model)
+	}
+	if m.cursor != 4 {
+		t.Fatalf("Expected cursor to be 4, got %d", m.cursor)
+	}
+
+	// Press Enter to add
+	updatedModel, _ = m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("\n")})
+	newModel = updatedModel.(Model)
+
+	if newModel.activeMenu != "items" {
+		t.Errorf("Expected activeMenu to return to 'items', got %q", newModel.activeMenu)
+	}
+	if len(newModel.settings.Lines[0]) != 8 {
+		t.Errorf("Expected 8 widgets in line 0, got %d", len(newModel.settings.Lines[0]))
+	}
+	if newModel.settings.Lines[0][2].Type != "separator" {
+		t.Errorf("Expected added widget at index 2 to be 'separator', got %q", newModel.settings.Lines[0][2].Type)
+	}
+	if newModel.cursor != 2 {
+		t.Errorf("Expected cursor to point to the newly added widget (index 2), got %d", newModel.cursor)
+	}
+}
+
+

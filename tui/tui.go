@@ -14,16 +14,34 @@ import (
 )
 
 type Model struct {
-	settings   types.Settings
-	configPath string
-	activeMenu string
-	cursor     int
-	quitting   bool
-	saved      bool
-	themeIndex int
+	settings     types.Settings
+	configPath   string
+	activeMenu   string
+	cursor       int
+	quitting     bool
+	saved        bool
+	themeIndex   int
+	selectedLine int
+	itemIndex    int
+	moveMode     bool
 }
 
 var themesList = []string{"nord", "nord-aurora", "monokai", "solarized", "minimal", "dracula", "catppuccin", "gruvbox", "onedark", "tokyonight"}
+
+var widgetTypes = []struct {
+	name            string
+	wType           string
+	color           string
+	backgroundColor string
+	customText      string
+}{
+	{name: "Model", wType: "model", color: "cyan"},
+	{name: "Context Length", wType: "context-length", color: "brightBlack"},
+	{name: "Git Branch", wType: "git-branch", color: "magenta"},
+	{name: "Git Changes", wType: "git-changes", color: "yellow"},
+	{name: "Separator", wType: "separator"},
+	{name: "Custom Text", wType: "custom-text", color: "white", customText: "Custom Text"},
+}
 
 func NewModel(settings types.Settings, configPath string) Model {
 	initialThemeIndex := 0
@@ -54,45 +72,251 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "ctrl+c", "q":
 			m.quitting = true
 			return m, tea.Quit
+		}
 
-		case "up", "k":
+		switch m.activeMenu {
+		case "main":
+			return m.updateMain(msg)
+		case "lines":
+			return m.updateLines(msg)
+		case "items":
+			return m.updateItems(msg)
+		case "add_widget":
+			return m.updateAddWidget(msg)
+		}
+	}
+	return m, nil
+}
+
+func (m Model) updateMain(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	switch msg.String() {
+	case "up", "k":
+		if m.cursor > 0 {
+			m.cursor--
+		}
+
+	case "down", "j":
+		maxItems := 5
+		if m.cursor < maxItems-1 {
+			m.cursor++
+		}
+
+	case "enter", "\n":
+		switch m.cursor {
+		case 0: // Edit Lines
+			m.activeMenu = "lines"
+			m.cursor = 0
+			m.moveMode = false
+
+		case 1: // Toggle Powerline Mode
+			m.settings.Powerline.Enabled = !m.settings.Powerline.Enabled
+
+		case 2: // Select Powerline Theme
+			m.themeIndex = (m.themeIndex + 1) % len(themesList)
+			m.settings.Powerline.Theme = themesList[m.themeIndex]
+
+		case 3: // Save & Exit
+			err := saveSettings(m.configPath, m.settings)
+			if err == nil {
+				m.saved = true
+			}
+			m.quitting = true
+			return m, tea.Quit
+
+		case 4: // Discard & Exit
+			m.quitting = true
+			return m, tea.Quit
+		}
+	}
+	return m, nil
+}
+
+func (m Model) updateLines(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	linesCount := len(m.settings.Lines)
+
+	switch msg.String() {
+	case "up", "k":
+		if m.moveMode {
+			if m.cursor > 0 && linesCount > 1 {
+				m.settings.Lines[m.cursor], m.settings.Lines[m.cursor-1] = m.settings.Lines[m.cursor-1], m.settings.Lines[m.cursor]
+				m.cursor--
+			}
+		} else {
 			if m.cursor > 0 {
 				m.cursor--
 			}
+		}
 
-		case "down", "j":
-			maxItems := 5
-			if m.cursor < maxItems-1 {
+	case "down", "j":
+		if m.moveMode {
+			if m.cursor < linesCount-1 && linesCount > 1 {
+				m.settings.Lines[m.cursor], m.settings.Lines[m.cursor+1] = m.settings.Lines[m.cursor+1], m.settings.Lines[m.cursor]
 				m.cursor++
 			}
-
-		case "enter":
-			switch m.cursor {
-			case 0: // Edit Lines / Widgets (Placeholder message in View)
-				// Interactive sub-editors can be expanded later.
-				// Currently we toggle minimalistMode as a dummy action for lines.
-				m.settings.MinimalistMode = !m.settings.MinimalistMode
-
-			case 1: // Toggle Powerline Mode
-				m.settings.Powerline.Enabled = !m.settings.Powerline.Enabled
-
-			case 2: // Select Powerline Theme
-				m.themeIndex = (m.themeIndex + 1) % len(themesList)
-				m.settings.Powerline.Theme = themesList[m.themeIndex]
-
-			case 3: // Save & Exit
-				err := saveSettings(m.configPath, m.settings)
-				if err == nil {
-					m.saved = true
-				}
-				m.quitting = true
-				return m, tea.Quit
-
-			case 4: // Discard & Exit
-				m.quitting = true
-				return m, tea.Quit
+		} else {
+			if m.cursor < linesCount-1 {
+				m.cursor++
 			}
 		}
+
+	case "a":
+		m.settings.Lines = append(m.settings.Lines, []types.WidgetItem{})
+		m.cursor = len(m.settings.Lines) - 1
+		m.moveMode = false
+
+	case "d":
+		if linesCount > 1 && m.cursor < linesCount {
+			newLines := make([][]types.WidgetItem, 0, linesCount-1)
+			newLines = append(newLines, m.settings.Lines[:m.cursor]...)
+			newLines = append(newLines, m.settings.Lines[m.cursor+1:]...)
+			m.settings.Lines = newLines
+			if m.cursor >= len(m.settings.Lines) {
+				m.cursor = len(m.settings.Lines) - 1
+			}
+			m.moveMode = false
+		}
+
+	case "m":
+		if linesCount > 1 {
+			m.moveMode = !m.moveMode
+		}
+
+	case "enter", "\n":
+		if m.moveMode {
+			m.moveMode = false
+		} else if m.cursor < linesCount {
+			m.selectedLine = m.cursor
+			m.activeMenu = "items"
+			m.cursor = 0
+			m.moveMode = false
+		}
+
+	case "esc":
+		if m.moveMode {
+			m.moveMode = false
+		} else {
+			m.activeMenu = "main"
+			m.cursor = 0
+		}
+	}
+	return m, nil
+}
+
+func (m Model) updateItems(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	widgets := m.settings.Lines[m.selectedLine]
+	widgetsCount := len(widgets)
+
+	switch msg.String() {
+	case "up", "k":
+		if m.moveMode {
+			if m.cursor > 0 && widgetsCount > 1 {
+				m.settings.Lines[m.selectedLine][m.cursor], m.settings.Lines[m.selectedLine][m.cursor-1] = m.settings.Lines[m.selectedLine][m.cursor-1], m.settings.Lines[m.selectedLine][m.cursor]
+				m.cursor--
+			}
+		} else {
+			if m.cursor > 0 {
+				m.cursor--
+			}
+		}
+
+	case "down", "j":
+		if m.moveMode {
+			if m.cursor < widgetsCount-1 && widgetsCount > 1 {
+				m.settings.Lines[m.selectedLine][m.cursor], m.settings.Lines[m.selectedLine][m.cursor+1] = m.settings.Lines[m.selectedLine][m.cursor+1], m.settings.Lines[m.selectedLine][m.cursor]
+				m.cursor++
+			}
+		} else {
+			if m.cursor < widgetsCount-1 {
+				m.cursor++
+			}
+		}
+
+	case "a":
+		m.itemIndex = m.cursor
+		m.activeMenu = "add_widget"
+		m.cursor = 0
+		m.moveMode = false
+
+	case "d":
+		if widgetsCount > 0 && m.cursor < widgetsCount {
+			newWidgets := make([]types.WidgetItem, 0, widgetsCount-1)
+			newWidgets = append(newWidgets, widgets[:m.cursor]...)
+			newWidgets = append(newWidgets, widgets[m.cursor+1:]...)
+			m.settings.Lines[m.selectedLine] = newWidgets
+			if m.cursor >= len(m.settings.Lines[m.selectedLine]) {
+				m.cursor = len(m.settings.Lines[m.selectedLine]) - 1
+			}
+			if m.cursor < 0 {
+				m.cursor = 0
+			}
+			m.moveMode = false
+		}
+
+	case "m":
+		if widgetsCount > 1 {
+			m.moveMode = !m.moveMode
+		}
+
+	case "enter", "\n":
+		if m.moveMode {
+			m.moveMode = false
+		}
+
+	case "esc":
+		if m.moveMode {
+			m.moveMode = false
+		} else {
+			m.activeMenu = "lines"
+			m.cursor = m.selectedLine
+		}
+	}
+	return m, nil
+}
+
+func (m Model) updateAddWidget(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	switch msg.String() {
+	case "up", "k":
+		if m.cursor > 0 {
+			m.cursor--
+		}
+
+	case "down", "j":
+		if m.cursor < len(widgetTypes)-1 {
+			m.cursor++
+		}
+
+	case "enter", "\n":
+		selectedType := widgetTypes[m.cursor]
+		id := fmt.Sprintf("w_%d", time.Now().UnixNano())
+		newWidget := types.WidgetItem{
+			ID:    id,
+			Type:  selectedType.wType,
+			Color: selectedType.color,
+		}
+		if selectedType.customText != "" {
+			newWidget.CustomText = selectedType.customText
+		}
+
+		widgets := m.settings.Lines[m.selectedLine]
+		insertIndex := 0
+		if len(widgets) > 0 {
+			insertIndex = m.itemIndex + 1
+		}
+
+		var newWidgets []types.WidgetItem
+		if insertIndex >= len(widgets) {
+			newWidgets = append(widgets, newWidget)
+		} else {
+			newWidgets = append(widgets[:insertIndex], append([]types.WidgetItem{newWidget}, widgets[insertIndex:]...)...)
+		}
+
+		m.settings.Lines[m.selectedLine] = newWidgets
+		m.activeMenu = "items"
+		m.cursor = insertIndex
+
+	case "esc":
+		m.activeMenu = "items"
+		m.cursor = m.itemIndex
 	}
 	return m, nil
 }
@@ -107,11 +331,10 @@ func (m Model) View() string {
 
 	var s stringsBuilder
 
-	// Render Live Preview at the top
+	// Render Live Preview at the top (rendered on all screens except maybe add_widget if we want, but let's keep it consistent)
 	s.WriteString(lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("244")).Render("--- Live Preview ---"))
 	s.WriteString("\n")
 
-	// Render preview statusline using Nord dummy data
 	width := 80
 	inputTokens := float64(14200)
 	previewCtx := types.RenderContext{
@@ -136,12 +359,27 @@ func (m Model) View() string {
 	}
 	s.WriteString("\n")
 
-	// Render Configuration Menu below the preview
+	// Render the active menu screen below the preview
+	switch m.activeMenu {
+	case "main":
+		m.viewMain(&s)
+	case "lines":
+		m.viewLines(&s)
+	case "items":
+		m.viewItems(&s)
+	case "add_widget":
+		m.viewAddWidget(&s)
+	}
+
+	return s.String()
+}
+
+func (m Model) viewMain(s *stringsBuilder) {
 	s.WriteString(lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("39")).Render("agystatusline Configuration Menu"))
 	s.WriteString("\n\n")
 
 	menuItems := []string{
-		fmt.Sprintf("Toggle Minimalist Mode      [%t]", m.settings.MinimalistMode),
+		"Edit Lines",
 		fmt.Sprintf("Toggle Powerline Mode       [%t]", m.settings.Powerline.Enabled),
 		fmt.Sprintf("Select Powerline Theme      [%s]", m.settings.Powerline.Theme),
 		"Save & Exit",
@@ -159,7 +397,87 @@ func (m Model) View() string {
 	}
 
 	s.WriteString("\n(Use arrows/jk to navigate, Enter to toggle/select, q to quit)\n")
-	return s.String()
+}
+
+func (m Model) viewLines(s *stringsBuilder) {
+	s.WriteString(lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("39")).Render("Select Line to Edit Items"))
+	s.WriteString("\n\n")
+
+	for i, line := range m.settings.Lines {
+		cursorStr := " "
+		style := lipgloss.NewStyle()
+		if m.cursor == i {
+			if m.moveMode {
+				cursorStr = "M"
+				style = style.Bold(true).Foreground(lipgloss.Color("208"))
+			} else {
+				cursorStr = ">"
+				style = style.Bold(true).Foreground(lipgloss.Color("226"))
+			}
+		}
+
+		var widgetStr string
+		if len(line) == 0 {
+			widgetStr = "(empty)"
+		} else {
+			for _, w := range line {
+				widgetStr += fmt.Sprintf("[%s] ", w.Type)
+			}
+		}
+
+		s.WriteString(fmt.Sprintf("%s Line %d: %s\n", cursorStr, i+1, style.Render(widgetStr)))
+	}
+
+	s.WriteString("\n(a: add line, d: delete line, m: toggle move mode, Enter: edit widgets, Esc: back)\n")
+}
+
+func (m Model) viewItems(s *stringsBuilder) {
+	s.WriteString(lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("39")).Render(fmt.Sprintf("Editing Line %d Items", m.selectedLine+1)))
+	s.WriteString("\n\n")
+
+	widgets := m.settings.Lines[m.selectedLine]
+	if len(widgets) == 0 {
+		s.WriteString("  (No widgets in this line)\n")
+	} else {
+		for i, w := range widgets {
+			cursorStr := " "
+			style := lipgloss.NewStyle()
+			if m.cursor == i {
+				if m.moveMode {
+					cursorStr = "M"
+					style = style.Bold(true).Foreground(lipgloss.Color("208"))
+				} else {
+					cursorStr = ">"
+					style = style.Bold(true).Foreground(lipgloss.Color("226"))
+				}
+			}
+
+			detailStr := fmt.Sprintf("[%d] %s", i+1, w.Type)
+			if w.Color != "" {
+				detailStr += fmt.Sprintf(" (color: %s)", w.Color)
+			}
+			s.WriteString(fmt.Sprintf("%s %s\n", cursorStr, style.Render(detailStr)))
+		}
+	}
+
+	s.WriteString("\n(a: add widget, d: delete widget, m: toggle move mode, Esc: back)\n")
+}
+
+func (m Model) viewAddWidget(s *stringsBuilder) {
+	s.WriteString(lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("39")).Render("Select Widget Type to Add"))
+	s.WriteString("\n\n")
+
+	for i, t := range widgetTypes {
+		cursorStr := " "
+		style := lipgloss.NewStyle()
+		if m.cursor == i {
+			cursorStr = ">"
+			style = style.Bold(true).Foreground(lipgloss.Color("226"))
+		}
+		s.WriteString(fmt.Sprintf("%s %s\n", cursorStr, style.Render(t.name)))
+	}
+
+	s.WriteString("\n(Use arrows/jk to navigate, Enter to add, Esc: cancel)\n")
 }
 
 type stringsBuilder struct {
@@ -204,6 +522,7 @@ func saveSettings(path string, settings types.Settings) error {
 
 	return os.Rename(tempPath, path)
 }
+
 
 // RunTUI launches the Bubble Tea program to edit settings interactively.
 func RunTUI(settings types.Settings, configPath string) error {
