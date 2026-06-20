@@ -66,5 +66,6 @@ func RegisterAll() {
 	RegisterWidget("git-changes", &GitChangesWidget{})
 	RegisterWidget("context-used-pct", &ContextUsedPctWidget{})
 	RegisterWidget("context-remaining-pct", &ContextRemainingPctWidget{})
+	RegisterWidget("quota", &QuotaWidget{})
 }
 

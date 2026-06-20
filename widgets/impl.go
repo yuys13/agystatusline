@@ -206,3 +206,78 @@ func (c *ContextRemainingPctWidget) Render(item types.WidgetItem, ctx types.Rend
 	return fmt.Sprintf("Remaining: %.2f%%", pct), nil
 }
 
+// QuotaWidget displays quota limits and usage.
+type QuotaWidget struct{}
+
+func (q *QuotaWidget) GetDefaultColor() string { return "brightBlack" }
+func (q *QuotaWidget) GetDisplayName() string  { return "Quota" }
+
+func (q *QuotaWidget) Render(item types.WidgetItem, ctx types.RenderContext, settings types.Settings) (string, error) {
+	if ctx.Data.Quota == nil {
+		return "", nil
+	}
+
+	key := item.Metadata["key"]
+	if key == "" {
+		return "", nil
+	}
+
+	quota, ok := ctx.Data.Quota[key]
+	if !ok {
+		return "", nil
+	}
+
+	displayMode := item.Metadata["display"]
+	var valueStr string
+
+	if displayMode == "reset" {
+		if quota.ResetInSeconds == nil {
+			return "", nil
+		}
+		secs := int(*quota.ResetInSeconds)
+		if secs < 0 {
+			secs = 0
+		}
+		if secs < 60 {
+			valueStr = fmt.Sprintf("%ds", secs)
+		} else if secs < 3600 {
+			m := secs / 60
+			s := secs % 60
+			if s > 0 {
+				valueStr = fmt.Sprintf("%dm %ds", m, s)
+			} else {
+				valueStr = fmt.Sprintf("%dm", m)
+			}
+		} else {
+			h := secs / 3600
+			m := (secs % 3600) / 60
+			if m > 0 {
+				valueStr = fmt.Sprintf("%dh %dm", h, m)
+			} else {
+				valueStr = fmt.Sprintf("%dh", h)
+			}
+		}
+	} else {
+		if quota.RemainingFraction == nil {
+			return "", nil
+		}
+		pct := (*quota.RemainingFraction) * 100.0
+		valueStr = fmt.Sprintf("%.2f%%", pct)
+	}
+
+	if item.RawValue != nil && *item.RawValue {
+		return valueStr, nil
+	}
+
+	label := item.CustomText
+	if label == "" {
+		label = key
+	}
+
+	if displayMode == "reset" {
+		return fmt.Sprintf("%s (reset): %s", label, valueStr), nil
+	}
+	return fmt.Sprintf("%s: %s", label, valueStr), nil
+}
+
+

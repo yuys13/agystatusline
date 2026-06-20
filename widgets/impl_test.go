@@ -275,3 +275,194 @@ func TestContextRemainingPctWidget(t *testing.T) {
 	}
 }
 
+func TestQuotaWidget(t *testing.T) {
+	RegisterAll()
+	w := GetWidget("quota")
+	if w == nil {
+		t.Fatalf("Quota widget not found")
+	}
+
+	if w.GetDefaultColor() != "brightBlack" {
+		t.Errorf("Expected default color 'brightBlack', got '%s'", w.GetDefaultColor())
+	}
+
+	remaining1 := float64(0.5019274)
+	resetInSecs1 := float64(8891)
+	remaining2 := float64(1.0)
+	resetInSecs2 := float64(17956)
+
+	ctx := types.RenderContext{
+		Data: types.StatusJSON{
+			Quota: map[string]types.QuotaInfo{
+				"gemini-5h": {
+					RemainingFraction: &remaining1,
+					ResetTime:         "2026-06-20T11:27:27Z",
+					ResetInSeconds:    &resetInSecs1,
+				},
+				"3p-5h": {
+					RemainingFraction: &remaining2,
+					ResetTime:         "2026-06-20T13:58:32Z",
+					ResetInSeconds:    &resetInSecs2,
+				},
+			},
+		},
+	}
+	settings := types.DefaultSettings()
+
+	// Case 1: Labeled Percentage (default)
+	item1 := types.WidgetItem{
+		Type: "quota",
+		Metadata: map[string]string{
+			"key": "gemini-5h",
+		},
+	}
+	output1, err := w.Render(item1, ctx, settings)
+	if err != nil {
+		t.Fatalf("Render error: %v", err)
+	}
+	if output1 != "gemini-5h: 50.19%" {
+		t.Errorf("Expected 'gemini-5h: 50.19%%', got '%s'", output1)
+	}
+
+	// Case 2: Raw Percentage (rawValue = true)
+	rawVal := true
+	item2 := types.WidgetItem{
+		Type: "quota",
+		Metadata: map[string]string{
+			"key": "gemini-5h",
+		},
+		RawValue: &rawVal,
+	}
+	output2, err := w.Render(item2, ctx, settings)
+	if err != nil {
+		t.Fatalf("Render error: %v", err)
+	}
+	if output2 != "50.19%" {
+		t.Errorf("Expected '50.19%%', got '%s'", output2)
+	}
+
+	// Case 3: Custom Text label
+	item3 := types.WidgetItem{
+		Type: "quota",
+		Metadata: map[string]string{
+			"key": "gemini-5h",
+		},
+		CustomText: "Gemini Q",
+	}
+	output3, err := w.Render(item3, ctx, settings)
+	if err != nil {
+		t.Fatalf("Render error: %v", err)
+	}
+	if output3 != "Gemini Q: 50.19%" {
+		t.Errorf("Expected 'Gemini Q: 50.19%%', got '%s'", output3)
+	}
+
+	// Case 4: Reset time labeled
+	item4 := types.WidgetItem{
+		Type: "quota",
+		Metadata: map[string]string{
+			"key":     "gemini-5h",
+			"display": "reset",
+		},
+	}
+	output4, err := w.Render(item4, ctx, settings)
+	if err != nil {
+		t.Fatalf("Render error: %v", err)
+	}
+	if output4 != "gemini-5h (reset): 2h 28m" {
+		t.Errorf("Expected 'gemini-5h (reset): 2h 28m', got '%s'", output4)
+	}
+
+	// Case 5: Reset time raw
+	item5 := types.WidgetItem{
+		Type: "quota",
+		Metadata: map[string]string{
+			"key":     "gemini-5h",
+			"display": "reset",
+		},
+		RawValue: &rawVal,
+	}
+	output5, err := w.Render(item5, ctx, settings)
+	if err != nil {
+		t.Fatalf("Render error: %v", err)
+	}
+	if output5 != "2h 28m" {
+		t.Errorf("Expected '2h 28m', got '%s'", output5)
+	}
+
+	// Case 6: Reset time other durations
+	// 45 seconds -> 45s
+	// 125 seconds -> 2m 5s
+	secs45 := float64(45)
+	secs125 := float64(125)
+	ctxDur := types.RenderContext{
+		Data: types.StatusJSON{
+			Quota: map[string]types.QuotaInfo{
+				"secs45": {
+					RemainingFraction: &remaining2,
+					ResetInSeconds:    &secs45,
+				},
+				"secs125": {
+					RemainingFraction: &remaining2,
+					ResetInSeconds:    &secs125,
+				},
+			},
+		},
+	}
+	itemSecs45 := types.WidgetItem{
+		Type: "quota",
+		Metadata: map[string]string{
+			"key":     "secs45",
+			"display": "reset",
+		},
+		RawValue: &rawVal,
+	}
+	output45, _ := w.Render(itemSecs45, ctxDur, settings)
+	if output45 != "45s" {
+		t.Errorf("Expected '45s', got '%s'", output45)
+	}
+
+	itemSecs125 := types.WidgetItem{
+		Type: "quota",
+		Metadata: map[string]string{
+			"key":     "secs125",
+			"display": "reset",
+		},
+		RawValue: &rawVal,
+	}
+	output125, _ := w.Render(itemSecs125, ctxDur, settings)
+	if output125 != "2m 5s" {
+		t.Errorf("Expected '2m 5s', got '%s'", output125)
+	}
+
+	// Case 7: Key not found or empty
+	itemEmpty := types.WidgetItem{
+		Type: "quota",
+	}
+	outputEmpty, _ := w.Render(itemEmpty, ctx, settings)
+	if outputEmpty != "" {
+		t.Errorf("Expected empty string for empty key, got '%s'", outputEmpty)
+	}
+
+	itemInvalid := types.WidgetItem{
+		Type: "quota",
+		Metadata: map[string]string{
+			"key": "invalid-key",
+		},
+	}
+	outputInvalid, _ := w.Render(itemInvalid, ctx, settings)
+	if outputInvalid != "" {
+		t.Errorf("Expected empty string for invalid key, got '%s'", outputInvalid)
+	}
+
+	// Case 8: Quota map is nil
+	ctxNilQuota := types.RenderContext{
+		Data: types.StatusJSON{},
+	}
+	outputNil, _ := w.Render(item1, ctxNilQuota, settings)
+	if outputNil != "" {
+		t.Errorf("Expected empty string for nil quota map, got '%s'", outputNil)
+	}
+}
+
+
