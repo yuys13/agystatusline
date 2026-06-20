@@ -338,8 +338,11 @@ func (m Model) View() string {
 	s.WriteString(lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("244")).Render("--- Live Preview ---"))
 	s.WriteString("\n")
 
-	width := 80
+	width := 120
 	inputTokens := float64(14200)
+
+	usedPct := float64(20.0)
+	remainingPct := float64(80.0)
 	previewCtx := types.RenderContext{
 		TerminalWidth: &width,
 		IsPreview:     true,
@@ -350,10 +353,13 @@ func (m Model) View() string {
 				DisplayName: "Gemini 3.5 Flash (Medium)",
 			},
 			ContextWindow: &types.ContextWindowInfo{
-				TotalInputTokens: &inputTokens,
+				TotalInputTokens:    &inputTokens,
+				UsedPercentage:      &usedPct,
+				RemainingPercentage: &remainingPct,
 			},
 		},
 	}
+
 
 	previewLines := renderer.RenderStatusLines(m.settings, previewCtx)
 	for _, line := range previewLines {

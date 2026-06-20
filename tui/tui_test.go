@@ -52,6 +52,26 @@ func TestTUI_LivePreviewModelName(t *testing.T) {
 	}
 }
 
+func TestTUI_LivePreviewContextPercentages(t *testing.T) {
+	widgets.RegisterAll()
+	settings := types.DefaultSettings()
+	// Append the new widgets to the first line to test their preview rendering
+	settings.Lines[0] = append(settings.Lines[0],
+		types.WidgetItem{ID: "test_used", Type: "context-used-pct"},
+		types.WidgetItem{ID: "test_remaining", Type: "context-remaining-pct"},
+	)
+	m := NewModel(settings, "/tmp/settings.json")
+
+	viewStr := m.View()
+	if !strings.Contains(viewStr, "Used: 20.00%") {
+		t.Errorf("Expected live preview to contain 'Used: 20.00%%', but it did not. View output:\n%s", viewStr)
+	}
+	if !strings.Contains(viewStr, "Remaining: 80.00%") {
+		t.Errorf("Expected live preview to contain 'Remaining: 80.00%%', but it did not. View output:\n%s", viewStr)
+	}
+}
+
+
 func TestTUI_LayoutAndBorders(t *testing.T) {
 	widgets.RegisterAll()
 	settings := types.DefaultSettings()
