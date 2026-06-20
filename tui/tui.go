@@ -668,6 +668,45 @@ func (m Model) View() string {
 				previewSettings.Powerline.EndCaps = []string{endCapsList[m.cursor].value}
 			}
 		}
+	} else if m.activeMenu == "add_widget" {
+		if m.cursor >= 0 && m.cursor < len(widgetTypes) && m.selectedLine >= 0 && m.selectedLine < len(m.settings.Lines) {
+			selectedType := widgetTypes[m.cursor]
+			tempWidget := types.WidgetItem{
+				ID:    "temp_preview_add",
+				Type:  selectedType.wType,
+				Color: selectedType.color,
+			}
+			if selectedType.customText != "" {
+				tempWidget.CustomText = selectedType.customText
+			}
+			if len(selectedType.metadata) > 0 {
+				tempWidget.Metadata = selectedType.metadata
+			}
+
+			widgets := m.settings.Lines[m.selectedLine]
+			insertIndex := 0
+			if len(widgets) > 0 {
+				insertIndex = m.itemIndex + 1
+			}
+
+			var newWidgets []types.WidgetItem
+			if insertIndex >= len(widgets) {
+				newWidgets = append(widgets, tempWidget)
+			} else {
+				newWidgets = append(widgets[:insertIndex], append([]types.WidgetItem{tempWidget}, widgets[insertIndex:]...)...)
+			}
+
+			// We need to create a copy of Lines slice to prevent modifying the shared layout
+			newLines := make([][]types.WidgetItem, len(previewSettings.Lines))
+			for i, line := range previewSettings.Lines {
+				if i == m.selectedLine {
+					newLines[i] = newWidgets
+				} else {
+					newLines[i] = line
+				}
+			}
+			previewSettings.Lines = newLines
+		}
 	}
 
 	previewLines := renderer.RenderStatusLines(previewSettings, previewCtx)

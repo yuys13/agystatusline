@@ -305,3 +305,14 @@ func (q *QuotaWidget) Render(item types.WidgetItem, ctx types.RenderContext, set
 	}
 	return fmt.Sprintf("%s: %s", label, valueStr), nil
 }
+
+// CustomTextWidget displays custom user-defined text.
+type CustomTextWidget struct{}
+
+func (c *CustomTextWidget) GetDefaultColor() string { return "white" }
+func (c *CustomTextWidget) GetDisplayName() string  { return "Custom Text" }
+
+func (c *CustomTextWidget) Render(item types.WidgetItem, ctx types.RenderContext, settings types.Settings) (string, error) {
+	return item.CustomText, nil
+}
+

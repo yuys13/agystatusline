@@ -910,3 +910,32 @@ func TestTUI_SelectEndCapMenu(t *testing.T) {
 		t.Errorf("Expected end cap to remain '\\uE0B0', got %v", mCancelled.settings.Powerline.EndCaps)
 	}
 }
+
+func TestTUI_LivePreviewAddWidget(t *testing.T) {
+	widgets.RegisterAll()
+	settings := types.DefaultSettings()
+	m := NewModel(settings, "/tmp/settings.json")
+
+	// Set state to "add_widget" menu
+	m.activeMenu = "add_widget"
+	m.selectedLine = 0
+	m.itemIndex = 0 // Insert after the first widget (index 0, Model widget)
+
+	// Select "Custom Text" widget which is index 5 in widgetTypes
+	m.cursor = 5
+
+	viewStr := m.View()
+
+	// The custom-text widget preview has "Custom Text" as its value.
+	// If the preview updates dynamically, it should contain "Custom Text" in the preview section.
+	lines := strings.Split(viewStr, "\n")
+	if len(lines) < 5 {
+		t.Fatalf("Expected view outputs to have enough lines")
+	}
+	previewPart := strings.Join(lines[:4], "\n")
+
+	if !strings.Contains(previewPart, "Custom Text") {
+		t.Errorf("Expected Live Preview to dynamically display the currently selected widget type 'Custom Text' in the preview part, but it did not. Preview part:\n%s", previewPart)
+	}
+}
+
