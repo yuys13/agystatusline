@@ -248,13 +248,21 @@ func (q *QuotaWidget) Render(item types.WidgetItem, ctx types.RenderContext, set
 			} else {
 				valueStr = fmt.Sprintf("%dm", m)
 			}
-		} else {
+		} else if secs < 86400 {
 			h := secs / 3600
 			m := (secs % 3600) / 60
 			if m > 0 {
 				valueStr = fmt.Sprintf("%dh %dm", h, m)
 			} else {
 				valueStr = fmt.Sprintf("%dh", h)
+			}
+		} else {
+			d := secs / 86400
+			h := (secs % 86400) / 3600
+			if h > 0 {
+				valueStr = fmt.Sprintf("%dd %dh", d, h)
+			} else {
+				valueStr = fmt.Sprintf("%dd", d)
 			}
 		}
 	} else {

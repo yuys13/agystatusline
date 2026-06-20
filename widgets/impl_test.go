@@ -395,6 +395,7 @@ func TestQuotaWidget(t *testing.T) {
 	// 125 seconds -> 2m 5s
 	secs45 := float64(45)
 	secs125 := float64(125)
+	secs567440 := float64(567440)
 	ctxDur := types.RenderContext{
 		Data: types.StatusJSON{
 			Quota: map[string]types.QuotaInfo{
@@ -405,6 +406,10 @@ func TestQuotaWidget(t *testing.T) {
 				"secs125": {
 					RemainingFraction: &remaining2,
 					ResetInSeconds:    &secs125,
+				},
+				"secs567440": {
+					RemainingFraction: &remaining2,
+					ResetInSeconds:    &secs567440,
 				},
 			},
 		},
@@ -433,6 +438,19 @@ func TestQuotaWidget(t *testing.T) {
 	output125, _ := w.Render(itemSecs125, ctxDur, settings)
 	if output125 != "2m 5s" {
 		t.Errorf("Expected '2m 5s', got '%s'", output125)
+	}
+
+	itemSecs567440 := types.WidgetItem{
+		Type: "quota",
+		Metadata: map[string]string{
+			"key":     "secs567440",
+			"display": "reset",
+		},
+		RawValue: &rawVal,
+	}
+	output567440, _ := w.Render(itemSecs567440, ctxDur, settings)
+	if output567440 != "6d 13h" {
+		t.Errorf("Expected '6d 13h', got '%s'", output567440)
 	}
 
 	// Case 7: Key not found or empty
