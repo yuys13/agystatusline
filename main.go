@@ -167,8 +167,11 @@ func main() {
 		}
 
 		// Build render context
-		// Terminal width detection (can use os.Stdout term size)
+		// Terminal width detection (can use os.Stdout term size or telemetry data)
 		termWidth := 80 // fallback
+		if status.TerminalWidth != nil {
+			termWidth = *status.TerminalWidth
+		}
 		ctx := types.RenderContext{
 			Data:               status,
 			TerminalWidth:      &termWidth,

@@ -135,6 +135,7 @@ type StatusJSON struct {
 	Worktree       *WorktreeInfo      `json:"worktree,omitempty"`
 	RateLimits     *RateLimitsInfo    `json:"rate_limits,omitempty"`
 	Quota          map[string]QuotaInfo `json:"quota,omitempty"`
+	TerminalWidth  *int               `json:"terminal_width,omitempty"`
 }
 
 // WidgetItem configures a single widget in the statusline.
