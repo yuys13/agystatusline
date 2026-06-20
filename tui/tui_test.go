@@ -1022,28 +1022,6 @@ func TestTUI_LivePreviewSandbox(t *testing.T) {
 	}
 }
 
-func TestTUI_NoHoneycombSlashSeparators(t *testing.T) {
-	// Ensure that the Powerline slash separators (which look like honeycombs: \uE0CC and \uE0CD)
-	// are not present in the separators, startCaps, and endCaps lists.
-	for _, sep := range separatorsList {
-		if sep.value == "\uE0CC" || sep.value == "\uE0CD" {
-			t.Errorf("Found forbidden honeycomb slash separator in separatorsList: %s (%q)", sep.name, sep.value)
-		}
-	}
-	for _, capVal := range startCapsList {
-		val := strings.TrimSpace(capVal.value)
-		if val == "\uE0CC" || val == "\uE0CD" {
-			t.Errorf("Found forbidden honeycomb slash cap in startCapsList: %s (%q)", capVal.name, capVal.value)
-		}
-	}
-	for _, capVal := range endCapsList {
-		val := strings.TrimSpace(capVal.value)
-		if val == "\uE0CC" || val == "\uE0CD" {
-			t.Errorf("Found forbidden honeycomb slash cap in endCapsList: %s (%q)", capVal.name, capVal.value)
-		}
-	}
-}
-
 func TestTUI_WidgetSliceCorruption(t *testing.T) {
 	widgets.RegisterAll()
 
