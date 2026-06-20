@@ -384,5 +384,110 @@ func TestTUI_AddContextPctWidgets(t *testing.T) {
 	}
 }
 
+func TestTUI_AddQuotaWidgets(t *testing.T) {
+	widgets.RegisterAll()
+	settings := types.DefaultSettings()
+	m := NewModel(settings, "/tmp/settings.json")
+	m.activeMenu = "items"
+	m.selectedLine = 0
+	m.cursor = 0
+
+	// 1. "a" キーで追加画面に遷移
+	msg := tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("a")}
+	updatedModel, _ := m.Update(msg)
+	newModel := updatedModel.(Model)
+
+	if newModel.activeMenu != "add_widget" {
+		t.Fatalf("Expected activeMenu to be 'add_widget', got %s", newModel.activeMenu)
+	}
+
+	// 2. ウィジェット追加リストにクォータウィジェットが含まれているか確認
+	var foundG5h, foundGwk, found3p5h, found3pwk bool
+	for _, wt := range widgetTypes {
+		if wt.wType == "quota" {
+			switch wt.metadata["key"] {
+			case "gemini-5h":
+				foundG5h = true
+			case "gemini-weekly":
+				foundGwk = true
+			case "3p-5h":
+				found3p5h = true
+			case "3p-weekly":
+				found3pwk = true
+			}
+		}
+	}
+	if !foundG5h || !foundGwk || !found3p5h || !found3pwk {
+		t.Errorf("Expected all 4 quota presets in widgetTypes, got Gemini 5h:%t, Gemini Weekly:%t, 3P 5h:%t, 3P Weekly:%t",
+			foundG5h, foundGwk, found3p5h, found3pwk)
+	}
+
+	// 3. 実際に Gemini 5h クォータウィジェットを追加してみる。
+	targetIdx := -1
+	for i, wt := range widgetTypes {
+		if wt.wType == "quota" && wt.metadata["key"] == "gemini-5h" {
+			targetIdx = i
+			break
+		}
+	}
+	if targetIdx == -1 {
+		t.Fatalf("Gemini 5h quota widget type not found in widgetTypes")
+	}
+
+	// cursor を targetIdx まで移動させる
+	m = newModel
+	m.cursor = targetIdx
+
+	// Enter を押してウィジェットを追加
+	updatedModel, _ = m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("\n")})
+	finalModel := updatedModel.(Model)
+
+	if finalModel.activeMenu != "items" {
+		t.Fatalf("Expected activeMenu to return to 'items', got %s", finalModel.activeMenu)
+	}
+
+	// 追加されたウィジェットを検証
+	addedWidget := finalModel.settings.Lines[0][1]
+	if addedWidget.Type != "quota" {
+		t.Errorf("Expected widget type 'quota', got '%s'", addedWidget.Type)
+	}
+	if addedWidget.Metadata == nil || addedWidget.Metadata["key"] != "gemini-5h" {
+		t.Errorf("Expected widget metadata key 'gemini-5h', got %v", addedWidget.Metadata)
+	}
+}
+
+func TestTUI_LivePreviewQuota(t *testing.T) {
+	widgets.RegisterAll()
+	settings := types.DefaultSettings()
+	// クォータウィジェットを追加
+	settings.Lines[0] = append(settings.Lines[0],
+		types.WidgetItem{
+			ID:   "test_quota_g5h",
+			Type: "quota",
+			Metadata: map[string]string{
+				"key": "gemini-5h",
+			},
+		},
+		types.WidgetItem{
+			ID:   "test_quota_3p",
+			Type: "quota",
+			Metadata: map[string]string{
+				"key": "3p-5h",
+			},
+		},
+	)
+	m := NewModel(settings, "/tmp/settings.json")
+
+	viewStr := m.View()
+	// previewCtx のダミーデータから、gemini-5h は 50.19%、3p-5h は 100.00% などになるはず
+	if !strings.Contains(viewStr, "gemini-5h: 50.19%") {
+		t.Errorf("Expected live preview to contain 'gemini-5h: 50.19%%', but it did not. View:\n%s", viewStr)
+	}
+	if !strings.Contains(viewStr, "3p-5h: 100.00%") {
+		t.Errorf("Expected live preview to contain '3p-5h: 100.00%%', but it did not. View:\n%s", viewStr)
+	}
+}
+
+
 
 

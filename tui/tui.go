@@ -34,6 +34,7 @@ var widgetTypes = []struct {
 	color           string
 	backgroundColor string
 	customText      string
+	metadata        map[string]string
 }{
 	{name: "Model", wType: "model", color: "cyan"},
 	{name: "Context Length", wType: "context-length", color: "brightBlack"},
@@ -43,6 +44,10 @@ var widgetTypes = []struct {
 	{name: "Custom Text", wType: "custom-text", color: "white", customText: "Custom Text"},
 	{name: "Context Used %", wType: "context-used-pct", color: "brightBlack"},
 	{name: "Context Remaining %", wType: "context-remaining-pct", color: "brightBlack"},
+	{name: "Quota: Gemini 5h", wType: "quota", color: "brightBlack", metadata: map[string]string{"key": "gemini-5h"}},
+	{name: "Quota: Gemini Weekly", wType: "quota", color: "brightBlack", metadata: map[string]string{"key": "gemini-weekly"}},
+	{name: "Quota: 3P 5h", wType: "quota", color: "brightBlack", metadata: map[string]string{"key": "3p-5h"}},
+	{name: "Quota: 3P Weekly", wType: "quota", color: "brightBlack", metadata: map[string]string{"key": "3p-weekly"}},
 }
 
 
@@ -299,6 +304,9 @@ func (m Model) updateAddWidget(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		if selectedType.customText != "" {
 			newWidget.CustomText = selectedType.customText
 		}
+		if len(selectedType.metadata) > 0 {
+			newWidget.Metadata = selectedType.metadata
+		}
 
 		widgets := m.settings.Lines[m.selectedLine]
 		insertIndex := 0
@@ -343,6 +351,10 @@ func (m Model) View() string {
 
 	usedPct := float64(20.0)
 	remainingPct := float64(80.0)
+	g5hFraction := 0.5019274
+	g5hReset := 8891.0
+	p35hFraction := 1.0
+	p35hReset := 17956.0
 	previewCtx := types.RenderContext{
 		TerminalWidth: &width,
 		IsPreview:     true,
@@ -356,6 +368,16 @@ func (m Model) View() string {
 				TotalInputTokens:    &inputTokens,
 				UsedPercentage:      &usedPct,
 				RemainingPercentage: &remainingPct,
+			},
+			Quota: map[string]types.QuotaInfo{
+				"gemini-5h": {
+					RemainingFraction: &g5hFraction,
+					ResetInSeconds:    &g5hReset,
+				},
+				"3p-5h": {
+					RemainingFraction: &p35hFraction,
+					ResetInSeconds:    &p35hReset,
+				},
 			},
 		},
 	}
