@@ -1004,3 +1004,20 @@ func TestTUI_SelectColorLevel(t *testing.T) {
 		t.Errorf("Expected non-empty view string")
 	}
 }
+
+func TestTUI_LivePreviewSandbox(t *testing.T) {
+	widgets.RegisterAll()
+	settings := types.DefaultSettings()
+	// Append sandbox widget to the first line to test its preview rendering
+	settings.Lines[0] = append(settings.Lines[0],
+		types.WidgetItem{ID: "test_sandbox", Type: "sandbox"},
+	)
+	m := NewModel(settings, "/tmp/settings.json")
+
+	viewStr := m.View()
+	// Since sandbox.enabled will be configured as true in the preview context,
+	// the preview output should contain "sandbox: true"
+	if !strings.Contains(viewStr, "sandbox: true") {
+		t.Errorf("Expected live preview to contain 'sandbox: true', but it did not. View output:\n%s", viewStr)
+	}
+}
