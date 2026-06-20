@@ -475,16 +475,36 @@ func TestTUI_LivePreviewQuota(t *testing.T) {
 				"key": "3p-5h",
 			},
 		},
+		types.WidgetItem{
+			ID:   "test_quota_g_wk",
+			Type: "quota",
+			Metadata: map[string]string{
+				"key": "gemini-weekly",
+			},
+		},
+		types.WidgetItem{
+			ID:   "test_quota_3p_wk",
+			Type: "quota",
+			Metadata: map[string]string{
+				"key": "3p-weekly",
+			},
+		},
 	)
 	m := NewModel(settings, "/tmp/settings.json")
 
 	viewStr := m.View()
-	// previewCtx のダミーデータから、gemini-5h は 50.19%、3p-5h は 100.00% などになるはず
+	// previewCtx のダミーデータから、それぞれ適切な値が表示されることを検証
 	if !strings.Contains(viewStr, "gemini-5h: 50.19%") {
 		t.Errorf("Expected live preview to contain 'gemini-5h: 50.19%%', but it did not. View:\n%s", viewStr)
 	}
 	if !strings.Contains(viewStr, "3p-5h: 100.00%") {
 		t.Errorf("Expected live preview to contain '3p-5h: 100.00%%', but it did not. View:\n%s", viewStr)
+	}
+	if !strings.Contains(viewStr, "gemini-weekly: 90.91%") {
+		t.Errorf("Expected live preview to contain 'gemini-weekly: 90.91%%', but it did not. View:\n%s", viewStr)
+	}
+	if !strings.Contains(viewStr, "3p-weekly: 100.00%") {
+		t.Errorf("Expected live preview to contain '3p-weekly: 100.00%%', but it did not. View:\n%s", viewStr)
 	}
 }
 

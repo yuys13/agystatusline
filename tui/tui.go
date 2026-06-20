@@ -346,7 +346,7 @@ func (m Model) View() string {
 	s.WriteString(lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("244")).Render("--- Live Preview ---"))
 	s.WriteString("\n")
 
-	width := 120
+	width := 160
 	inputTokens := float64(14200)
 
 	usedPct := float64(20.0)
@@ -355,6 +355,10 @@ func (m Model) View() string {
 	g5hReset := 8891.0
 	p35hFraction := 1.0
 	p35hReset := 17956.0
+	gWkFraction := 0.9090967
+	gWkReset := 567440.0
+	p3WkFraction := 1.0
+	p3WkReset := 604756.0
 	previewCtx := types.RenderContext{
 		TerminalWidth: &width,
 		IsPreview:     true,
@@ -374,9 +378,17 @@ func (m Model) View() string {
 					RemainingFraction: &g5hFraction,
 					ResetInSeconds:    &g5hReset,
 				},
+				"gemini-weekly": {
+					RemainingFraction: &gWkFraction,
+					ResetInSeconds:    &gWkReset,
+				},
 				"3p-5h": {
 					RemainingFraction: &p35hFraction,
 					ResetInSeconds:    &p35hReset,
+				},
+				"3p-weekly": {
+					RemainingFraction: &p3WkFraction,
+					ResetInSeconds:    &p3WkReset,
 				},
 			},
 		},
