@@ -515,3 +515,99 @@ func TestQuotaWidget(t *testing.T) {
 		t.Errorf("Expected empty string for nil quota map, got '%s'", outputNil)
 	}
 }
+
+func TestSandboxWidget(t *testing.T) {
+	RegisterAll()
+	w := GetWidget("sandbox")
+	if w == nil {
+		t.Fatalf("Sandbox widget not found in registry")
+	}
+
+	if w.GetDefaultColor() != "yellow" {
+		t.Errorf("Expected default color 'yellow', got '%s'", w.GetDefaultColor())
+	}
+
+	if w.GetDisplayName() != "Sandbox" {
+		t.Errorf("Expected display name 'Sandbox', got '%s'", w.GetDisplayName())
+	}
+
+	settings := types.DefaultSettings()
+
+	// Case 1: Sandbox info is nil
+	ctxNil := types.RenderContext{
+		Data: types.StatusJSON{},
+	}
+	item := types.WidgetItem{Type: "sandbox"}
+	outNil, err := w.Render(item, ctxNil, settings)
+	if err != nil {
+		t.Fatalf("Render error: %v", err)
+	}
+	if outNil != "" {
+		t.Errorf("Expected empty string when sandbox is nil, got '%s'", outNil)
+	}
+
+	// Case 2: Sandbox.Enabled is nil
+	ctxNilEnabled := types.RenderContext{
+		Data: types.StatusJSON{
+			Sandbox: &types.SandboxInfo{},
+		},
+	}
+	outNilEnabled, err := w.Render(item, ctxNilEnabled, settings)
+	if err != nil {
+		t.Fatalf("Render error: %v", err)
+	}
+	if outNilEnabled != "" {
+		t.Errorf("Expected empty string when sandbox.enabled is nil, got '%s'", outNilEnabled)
+	}
+
+	// Case 3: Sandbox.Enabled is true (normal and raw)
+	trueVal := true
+	ctxTrue := types.RenderContext{
+		Data: types.StatusJSON{
+			Sandbox: &types.SandboxInfo{
+				Enabled: &trueVal,
+			},
+		},
+	}
+	outTrue, err := w.Render(item, ctxTrue, settings)
+	if err != nil {
+		t.Fatalf("Render error: %v", err)
+	}
+	if outTrue != "sandbox: true" {
+		t.Errorf("Expected 'sandbox: true', got '%s'", outTrue)
+	}
+
+	itemRaw := types.WidgetItem{Type: "sandbox", RawValue: &trueVal}
+	outTrueRaw, err := w.Render(itemRaw, ctxTrue, settings)
+	if err != nil {
+		t.Fatalf("Render error: %v", err)
+	}
+	if outTrueRaw != "true" {
+		t.Errorf("Expected 'true', got '%s'", outTrueRaw)
+	}
+
+	// Case 4: Sandbox.Enabled is false (normal and raw)
+	falseVal := false
+	ctxFalse := types.RenderContext{
+		Data: types.StatusJSON{
+			Sandbox: &types.SandboxInfo{
+				Enabled: &falseVal,
+			},
+		},
+	}
+	outFalse, err := w.Render(item, ctxFalse, settings)
+	if err != nil {
+		t.Fatalf("Render error: %v", err)
+	}
+	if outFalse != "sandbox: false" {
+		t.Errorf("Expected 'sandbox: false', got '%s'", outFalse)
+	}
+
+	outFalseRaw, err := w.Render(itemRaw, ctxFalse, settings)
+	if err != nil {
+		t.Fatalf("Render error: %v", err)
+	}
+	if outFalseRaw != "false" {
+		t.Errorf("Expected 'false', got '%s'", outFalseRaw)
+	}
+}

@@ -306,3 +306,28 @@ func (c *CustomTextWidget) GetDisplayName() string  { return "Custom Text" }
 func (c *CustomTextWidget) Render(item types.WidgetItem, ctx types.RenderContext, settings types.Settings) (string, error) {
 	return item.CustomText, nil
 }
+
+// SandboxWidget displays the sandbox enabled status.
+type SandboxWidget struct{}
+
+func (s *SandboxWidget) GetDefaultColor() string { return "yellow" }
+func (s *SandboxWidget) GetDisplayName() string  { return "Sandbox" }
+
+func (s *SandboxWidget) Render(item types.WidgetItem, ctx types.RenderContext, settings types.Settings) (string, error) {
+	if ctx.Data.Sandbox == nil || ctx.Data.Sandbox.Enabled == nil {
+		return "", nil
+	}
+
+	enabled := *ctx.Data.Sandbox.Enabled
+	valStr := "false"
+	if enabled {
+		valStr = "true"
+	}
+
+	if item.RawValue != nil && *item.RawValue {
+		return valStr, nil
+	}
+
+	return "sandbox: " + valStr, nil
+}
+
