@@ -119,3 +119,25 @@ func TestParseStatusJSON_Quota(t *testing.T) {
 		t.Errorf("Expected 3p-weekly RemainingFraction 1.0, got %v", p3w.RemainingFraction)
 	}
 }
+
+func TestParseStatusJSON_Sandbox(t *testing.T) {
+	input := `{
+		"sandbox": {
+			"enabled": true
+		}
+	}`
+
+	var status StatusJSON
+	err := json.Unmarshal([]byte(input), &status)
+	if err != nil {
+		t.Fatalf("Failed to unmarshal StatusJSON with sandbox: %v", err)
+	}
+
+	if status.Sandbox == nil {
+		t.Fatalf("Expected Sandbox info to be parsed, got nil")
+	}
+
+	if status.Sandbox.Enabled == nil || !*status.Sandbox.Enabled {
+		t.Errorf("Expected Sandbox.Enabled to be true, got %v", status.Sandbox.Enabled)
+	}
+}

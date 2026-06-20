@@ -118,6 +118,10 @@ type QuotaInfo struct {
 	ResetInSeconds    *float64 `json:"reset_in_seconds,omitempty"`
 }
 
+type SandboxInfo struct {
+	Enabled *bool `json:"enabled,omitempty"`
+}
+
 // StatusJSON defines the schema for telemetry input streamed on stdin.
 type StatusJSON struct {
 	HookEventName  string               `json:"hook_event_name"`
@@ -135,6 +139,7 @@ type StatusJSON struct {
 	Worktree       *WorktreeInfo        `json:"worktree,omitempty"`
 	RateLimits     *RateLimitsInfo      `json:"rate_limits,omitempty"`
 	Quota          map[string]QuotaInfo `json:"quota,omitempty"`
+	Sandbox        *SandboxInfo         `json:"sandbox,omitempty"`
 	TerminalWidth  *int                 `json:"terminal_width,omitempty"`
 }
 
