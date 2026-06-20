@@ -39,3 +39,7 @@ The subject line and description should explain **why** the change was made (the
   `refactor(types): move types.go to types package`
 - **Good (Why-focused)**:
   `refactor(types): move types definition to a separate subpackage to prevent circular dependencies in main packages`
+
+### 3. Staging Files Individually
+Always stage modified files explicitly and individually using `git add <file1> <file2> ...`. Do not use wildcard commands such as `git add .` or `git add -A` to avoid accidentally staging untracked, temporary, or private files (e.g., sample JSON outputs or local logs).
+
