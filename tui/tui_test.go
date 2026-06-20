@@ -602,28 +602,142 @@ func TestTUI_PowerlineSeparator(t *testing.T) {
 		t.Errorf("Expected custom separator name to be %q, got %q", customSepName, separatorsList[m3.separatorIndex].name)
 	}
 
-	// 4. Test Navigation and Toggle behavior in main menu
+	// 4. Test Navigation to Separator Selection Menu in main menu
 	m4 := NewModel(settings, "/tmp/settings.json")
 	m4.activeMenu = "main"
 	m4.cursor = 3 // Select Powerline Separator index
 
-	// Simulate pressing Enter to change separator
+	// Simulate pressing Enter to open separator selection
 	msg := tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("\n")}
 	updatedModel, _ := m4.Update(msg)
 	newModel := updatedModel.(Model)
 
-	expectedNextIdx := (m4.separatorIndex + 1) % len(separatorsList)
-	if newModel.separatorIndex != expectedNextIdx {
-		t.Errorf("Expected separatorIndex to transition to %d, got %d", expectedNextIdx, newModel.separatorIndex)
+	if newModel.activeMenu != "select_separator" {
+		t.Errorf("Expected activeMenu to transition to 'select_separator', got %q", newModel.activeMenu)
 	}
-
-	expectedNextVal := separatorsList[expectedNextIdx].value
-	if len(newModel.settings.Powerline.Separators) != 1 || newModel.settings.Powerline.Separators[0] != expectedNextVal {
-		t.Errorf("Expected Powerline.Separators to be updated to %q, got %v", expectedNextVal, newModel.settings.Powerline.Separators)
+	if newModel.cursor != m4.separatorIndex {
+		t.Errorf("Expected cursor in 'select_separator' menu to match current separatorIndex %d, got %d", m4.separatorIndex, newModel.cursor)
 	}
 }
 
+func TestTUI_SelectThemeMenu(t *testing.T) {
+	settings := types.DefaultSettings()
+	// Let's set default theme to "nord" (index 0)
+	settings.Powerline.Theme = "nord"
+	m := NewModel(settings, "/tmp/settings.json")
+	m.activeMenu = "main"
+	m.cursor = 2 // Select Powerline Theme
 
+	// Enter opens theme list selection
+	updatedModel, _ := m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("\n")})
+	mTheme := updatedModel.(Model)
 
+	if mTheme.activeMenu != "select_theme" {
+		t.Fatalf("Expected activeMenu to transition to 'select_theme', got %q", mTheme.activeMenu)
+	}
+	if mTheme.cursor != 0 {
+		t.Errorf("Expected cursor to start at current theme index 0, got %d", mTheme.cursor)
+	}
+
+	// Move cursor down (nord -> nord-aurora)
+	updatedModel, _ = mTheme.Update(tea.KeyMsg{Type: tea.KeyDown})
+	mTheme = updatedModel.(Model)
+	if mTheme.cursor != 1 {
+		t.Errorf("Expected cursor to move to 1, got %d", mTheme.cursor)
+	}
+
+	// Press Enter to confirm selection
+	updatedModel, _ = mTheme.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("\n")})
+	mConfirmed := updatedModel.(Model)
+
+	if mConfirmed.activeMenu != "main" {
+		t.Errorf("Expected activeMenu to return to 'main', got %q", mConfirmed.activeMenu)
+	}
+	if mConfirmed.cursor != 2 {
+		t.Errorf("Expected main menu cursor to remain 2, got %d", mConfirmed.cursor)
+	}
+	if mConfirmed.settings.Powerline.Theme != "nord-aurora" {
+		t.Errorf("Expected theme to be 'nord-aurora', got %q", mConfirmed.settings.Powerline.Theme)
+	}
+	if mConfirmed.themeIndex != 1 {
+		t.Errorf("Expected themeIndex to be updated to 1, got %d", mConfirmed.themeIndex)
+	}
+
+	// Test Esc key to cancel theme selection
+	mCancel := mTheme // cursor at 1 (nord-aurora)
+	updatedModel, _ = mCancel.Update(tea.KeyMsg{Type: tea.KeyEsc})
+	mCancelled := updatedModel.(Model)
+
+	if mCancelled.activeMenu != "main" {
+		t.Errorf("Expected activeMenu to return to 'main' on Esc, got %q", mCancelled.activeMenu)
+	}
+	if mCancelled.cursor != 2 {
+		t.Errorf("Expected main menu cursor to return to 2, got %d", mCancelled.cursor)
+	}
+	// Settings should not have changed
+	if mCancelled.settings.Powerline.Theme != "nord" {
+		t.Errorf("Expected theme to remain 'nord', got %q", mCancelled.settings.Powerline.Theme)
+	}
+}
+
+func TestTUI_SelectSeparatorMenu(t *testing.T) {
+	settings := types.DefaultSettings()
+	// Let's set default separator to Arrow (index 1)
+	settings.Powerline.Separators = []string{"\uE0B0"}
+	m := NewModel(settings, "/tmp/settings.json")
+	m.activeMenu = "main"
+	m.cursor = 3 // Select Powerline Separator
+
+	// Enter opens separator list selection
+	updatedModel, _ := m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("\n")})
+	mSep := updatedModel.(Model)
+
+	if mSep.activeMenu != "select_separator" {
+		t.Fatalf("Expected activeMenu to transition to 'select_separator', got %q", mSep.activeMenu)
+	}
+	if mSep.cursor != 1 {
+		t.Errorf("Expected cursor to start at current separator index 1, got %d", mSep.cursor)
+	}
+
+	// Move cursor down (Arrow -> Round, index 2)
+	updatedModel, _ = mSep.Update(tea.KeyMsg{Type: tea.KeyDown})
+	mSep = updatedModel.(Model)
+	if mSep.cursor != 2 {
+		t.Errorf("Expected cursor to move to 2, got %d", mSep.cursor)
+	}
+
+	// Press Enter to confirm selection
+	updatedModel, _ = mSep.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("\n")})
+	mConfirmed := updatedModel.(Model)
+
+	if mConfirmed.activeMenu != "main" {
+		t.Errorf("Expected activeMenu to return to 'main', got %q", mConfirmed.activeMenu)
+	}
+	if mConfirmed.cursor != 3 {
+		t.Errorf("Expected main menu cursor to remain 3, got %d", mConfirmed.cursor)
+	}
+	if len(mConfirmed.settings.Powerline.Separators) != 1 || mConfirmed.settings.Powerline.Separators[0] != "\uE0B4" {
+		t.Errorf("Expected separator to be updated to '\\uE0B4', got %v", mConfirmed.settings.Powerline.Separators)
+	}
+	if mConfirmed.separatorIndex != 2 {
+		t.Errorf("Expected separatorIndex to be updated to 2, got %d", mConfirmed.separatorIndex)
+	}
+
+	// Test Esc key to cancel separator selection
+	mCancel := mSep // cursor at 2 (Round)
+	updatedModel, _ = mCancel.Update(tea.KeyMsg{Type: tea.KeyEsc})
+	mCancelled := updatedModel.(Model)
+
+	if mCancelled.activeMenu != "main" {
+		t.Errorf("Expected activeMenu to return to 'main' on Esc, got %q", mCancelled.activeMenu)
+	}
+	if mCancelled.cursor != 3 {
+		t.Errorf("Expected main menu cursor to return to 3, got %d", mCancelled.cursor)
+	}
+	// Settings should not have changed
+	if len(mCancelled.settings.Powerline.Separators) != 1 || mCancelled.settings.Powerline.Separators[0] != "\uE0B0" {
+		t.Errorf("Expected separator to remain '\\uE0B0', got %v", mCancelled.settings.Powerline.Separators)
+	}
+}
 
 

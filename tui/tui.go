@@ -136,6 +136,10 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m.updateItems(msg)
 		case "add_widget":
 			return m.updateAddWidget(msg)
+		case "select_theme":
+			return m.updateSelectTheme(msg)
+		case "select_separator":
+			return m.updateSelectSeparator(msg)
 		}
 	}
 	return m, nil
@@ -165,12 +169,12 @@ func (m Model) updateMain(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			m.settings.Powerline.Enabled = !m.settings.Powerline.Enabled
 
 		case 2: // Select Powerline Theme
-			m.themeIndex = (m.themeIndex + 1) % len(themesList)
-			m.settings.Powerline.Theme = themesList[m.themeIndex]
+			m.activeMenu = "select_theme"
+			m.cursor = m.themeIndex
 
 		case 3: // Select Powerline Separator
-			m.separatorIndex = (m.separatorIndex + 1) % len(separatorsList)
-			m.settings.Powerline.Separators = []string{separatorsList[m.separatorIndex].value}
+			m.activeMenu = "select_separator"
+			m.cursor = m.separatorIndex
 
 		case 4: // Save & Exit
 			err := saveSettings(m.configPath, m.settings)
@@ -381,6 +385,56 @@ func (m Model) updateAddWidget(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
+func (m Model) updateSelectTheme(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	switch msg.String() {
+	case "up", "k":
+		if m.cursor > 0 {
+			m.cursor--
+		}
+
+	case "down", "j":
+		if m.cursor < len(themesList)-1 {
+			m.cursor++
+		}
+
+	case "enter", "\n":
+		m.themeIndex = m.cursor
+		m.settings.Powerline.Theme = themesList[m.themeIndex]
+		m.activeMenu = "main"
+		m.cursor = 2
+
+	case "esc":
+		m.activeMenu = "main"
+		m.cursor = 2
+	}
+	return m, nil
+}
+
+func (m Model) updateSelectSeparator(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	switch msg.String() {
+	case "up", "k":
+		if m.cursor > 0 {
+			m.cursor--
+		}
+
+	case "down", "j":
+		if m.cursor < len(separatorsList)-1 {
+			m.cursor++
+		}
+
+	case "enter", "\n":
+		m.separatorIndex = m.cursor
+		m.settings.Powerline.Separators = []string{separatorsList[m.separatorIndex].value}
+		m.activeMenu = "main"
+		m.cursor = 3
+
+	case "esc":
+		m.activeMenu = "main"
+		m.cursor = 3
+	}
+	return m, nil
+}
+
 func (m Model) View() string {
 	if m.quitting {
 		if m.saved {
@@ -461,6 +515,10 @@ func (m Model) View() string {
 		m.viewItems(&s)
 	case "add_widget":
 		m.viewAddWidget(&s)
+	case "select_theme":
+		m.viewSelectTheme(&s)
+	case "select_separator":
+		m.viewSelectSeparator(&s)
 	}
 
 	return s.String()
@@ -571,6 +629,52 @@ func (m Model) viewAddWidget(s *stringsBuilder) {
 	}
 
 	s.WriteString("\n(Use arrows/jk to navigate, Enter to add, Esc: cancel)\n")
+}
+
+func (m Model) viewSelectTheme(s *stringsBuilder) {
+	s.WriteString(lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("39")).Render("Select Powerline Theme"))
+	s.WriteString("\n\n")
+
+	for i, t := range themesList {
+		cursorStr := " "
+		style := lipgloss.NewStyle()
+		if m.cursor == i {
+			cursorStr = ">"
+			style = style.Bold(true).Foreground(lipgloss.Color("226"))
+		}
+		themeStr := t
+		if t == m.settings.Powerline.Theme {
+			themeStr += " (active)"
+		}
+		s.WriteString(fmt.Sprintf("%s %s\n", cursorStr, style.Render(themeStr)))
+	}
+
+	s.WriteString("\n(Use arrows/jk to navigate, Enter to select, Esc: cancel)\n")
+}
+
+func (m Model) viewSelectSeparator(s *stringsBuilder) {
+	s.WriteString(lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("39")).Render("Select Powerline Separator"))
+	s.WriteString("\n\n")
+
+	for i, sep := range separatorsList {
+		cursorStr := " "
+		style := lipgloss.NewStyle()
+		if m.cursor == i {
+			cursorStr = ">"
+			style = style.Bold(true).Foreground(lipgloss.Color("226"))
+		}
+		sepStr := sep.name
+		currentSep := "\uE0B0"
+		if len(m.settings.Powerline.Separators) > 0 {
+			currentSep = m.settings.Powerline.Separators[0]
+		}
+		if sep.value == currentSep {
+			sepStr += " (active)"
+		}
+		s.WriteString(fmt.Sprintf("%s %s\n", cursorStr, style.Render(sepStr)))
+	}
+
+	s.WriteString("\n(Use arrows/jk to navigate, Enter to select, Esc: cancel)\n")
 }
 
 type stringsBuilder struct {
