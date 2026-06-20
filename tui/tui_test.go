@@ -939,3 +939,68 @@ func TestTUI_LivePreviewAddWidget(t *testing.T) {
 	}
 }
 
+func TestTUI_SelectColorLevel(t *testing.T) {
+	widgets.RegisterAll()
+	settings := types.DefaultSettings()
+	settings.ColorLevel = 2 // ANSI 256 colors
+	m := NewModel(settings, "/tmp/settings.json")
+
+	// 1. Initial state
+	if m.colorLevelIndex != 1 {
+		t.Errorf("Expected initial colorLevelIndex to be 1 (ANSI 256 Colors), got %d", m.colorLevelIndex)
+	}
+
+	// 2. Select Color Level menu on main menu
+	// cursor index for color level will be 6
+	// (0: lines, 1: powerline enabled, 2: theme, 3: separator, 4: start cap, 5: end cap, 6: color level, 7: save, 8: discard)
+	m.cursor = 6
+	msgEnter := tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("\n")}
+	updatedModel, _ := m.Update(msgEnter)
+	mSelect := updatedModel.(Model)
+
+	if mSelect.activeMenu != "select_color_level" {
+		t.Errorf("Expected activeMenu to transition to 'select_color_level', got %q", mSelect.activeMenu)
+	}
+	if mSelect.cursor != 1 {
+		t.Errorf("Expected cursor in sub-menu to be 1, got %d", mSelect.cursor)
+	}
+
+	// 3. Move cursor and select Truecolor
+	mSelect.cursor = 2 // Truecolor (24-bit)
+	updatedModel, _ = mSelect.Update(msgEnter)
+	mSelected := updatedModel.(Model)
+
+	if mSelected.activeMenu != "main" {
+		t.Errorf("Expected activeMenu to return to 'main', got %q", mSelected.activeMenu)
+	}
+	if mSelected.settings.ColorLevel != 3 {
+		t.Errorf("Expected settings.ColorLevel to be updated to 3, got %d", mSelected.settings.ColorLevel)
+	}
+	if mSelected.colorLevelIndex != 2 {
+		t.Errorf("Expected colorLevelIndex to be updated to 2, got %d", mSelected.colorLevelIndex)
+	}
+	if mSelected.cursor != 6 {
+		t.Errorf("Expected cursor in main menu to remain at 6, got %d", mSelected.cursor)
+	}
+
+	// 4. Cancel selection with Esc
+	mSelectCancel := mSelect
+	mSelectCancel.cursor = 0 // ANSI 16 colors
+	updatedModel, _ = mSelectCancel.Update(tea.KeyMsg{Type: tea.KeyEsc})
+	mCancelled := updatedModel.(Model)
+
+	if mCancelled.activeMenu != "main" {
+		t.Errorf("Expected activeMenu to return to 'main' on Esc, got %q", mCancelled.activeMenu)
+	}
+	if mCancelled.settings.ColorLevel != 2 {
+		t.Errorf("Expected settings.ColorLevel to remain 2, got %d", mCancelled.settings.ColorLevel)
+	}
+
+	// 5. Test Live Preview during color level selection
+	mSelectPreview := mSelect
+	mSelectPreview.cursor = 0 // ANSI 16 colors (should trigger 16-color rendering in preview)
+	viewStr := mSelectPreview.View()
+	if viewStr == "" {
+		t.Errorf("Expected non-empty view string")
+	}
+}

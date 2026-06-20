@@ -315,4 +315,3 @@ func (c *CustomTextWidget) GetDisplayName() string  { return "Custom Text" }
 func (c *CustomTextWidget) Render(item types.WidgetItem, ctx types.RenderContext, settings types.Settings) (string, error) {
 	return item.CustomText, nil
 }
-

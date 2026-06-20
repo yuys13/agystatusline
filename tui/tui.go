@@ -15,22 +15,32 @@ import (
 )
 
 type Model struct {
-	settings       types.Settings
-	configPath     string
-	activeMenu     string
-	cursor         int
-	quitting       bool
-	saved          bool
-	themeIndex     int
-	separatorIndex int
-	startCapIndex  int
-	endCapIndex    int
-	selectedLine   int
-	itemIndex      int
-	moveMode       bool
+	settings        types.Settings
+	configPath      string
+	activeMenu      string
+	cursor          int
+	quitting        bool
+	saved           bool
+	themeIndex      int
+	separatorIndex  int
+	startCapIndex   int
+	endCapIndex     int
+	colorLevelIndex int
+	selectedLine    int
+	itemIndex       int
+	moveMode        bool
 }
 
 var themesList = []string{"nord", "nord-aurora", "monokai", "solarized", "minimal", "dracula", "catppuccin", "gruvbox", "onedark", "tokyonight"}
+
+var colorLevelsList = []struct {
+	name  string
+	value int
+}{
+	{name: "ANSI 16 Colors", value: 1},
+	{name: "ANSI 256 Colors (Default)", value: 2},
+	{name: "Truecolor (24-bit)", value: 3},
+}
 
 var separatorsList = []struct {
 	name  string
@@ -173,15 +183,24 @@ func NewModel(settings types.Settings, configPath string) Model {
 		initialEndCapIndex = len(endCapsList) - 1
 	}
 
+	initialColorLevelIndex := 1 // default to ANSI 256
+	for i, cl := range colorLevelsList {
+		if cl.value == settings.ColorLevel {
+			initialColorLevelIndex = i
+			break
+		}
+	}
+
 	return Model{
-		settings:       settings,
-		configPath:     configPath,
-		activeMenu:     "main",
-		cursor:         0,
-		themeIndex:     initialThemeIndex,
-		separatorIndex: initialSeparatorIndex,
-		startCapIndex:  initialStartCapIndex,
-		endCapIndex:    initialEndCapIndex,
+		settings:        settings,
+		configPath:      configPath,
+		activeMenu:      "main",
+		cursor:          0,
+		themeIndex:      initialThemeIndex,
+		separatorIndex:  initialSeparatorIndex,
+		startCapIndex:   initialStartCapIndex,
+		endCapIndex:     initialEndCapIndex,
+		colorLevelIndex: initialColorLevelIndex,
 	}
 }
 
@@ -220,6 +239,8 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m.updateSelectStartCap(msg)
 		case "select_end_cap":
 			return m.updateSelectEndCap(msg)
+		case "select_color_level":
+			return m.updateSelectColorLevel(msg)
 		}
 	}
 	return m, nil
@@ -233,7 +254,7 @@ func (m Model) updateMain(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		}
 
 	case "down", "j":
-		maxItems := 8
+		maxItems := 9
 		if m.cursor < maxItems-1 {
 			m.cursor++
 		}
@@ -264,7 +285,11 @@ func (m Model) updateMain(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			m.activeMenu = "select_end_cap"
 			m.cursor = m.endCapIndex
 
-		case 6: // Save & Exit
+		case 6: // Select Color Level
+			m.activeMenu = "select_color_level"
+			m.cursor = m.colorLevelIndex
+
+		case 7: // Save & Exit
 			err := saveSettings(m.configPath, m.settings)
 			if err == nil {
 				m.saved = true
@@ -272,7 +297,7 @@ func (m Model) updateMain(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			m.quitting = true
 			return m, tea.Quit
 
-		case 7: // Discard & Exit
+		case 8: // Discard & Exit
 			m.quitting = true
 			return m, tea.Quit
 		}
@@ -581,6 +606,31 @@ func (m Model) updateSelectEndCap(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
+func (m Model) updateSelectColorLevel(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	switch msg.String() {
+	case "up", "k":
+		if m.cursor > 0 {
+			m.cursor--
+		}
+
+	case "down", "j":
+		if m.cursor < len(colorLevelsList)-1 {
+			m.cursor++
+		}
+
+	case "enter", "\n":
+		m.colorLevelIndex = m.cursor
+		m.settings.ColorLevel = colorLevelsList[m.colorLevelIndex].value
+		m.activeMenu = "main"
+		m.cursor = 6
+
+	case "esc":
+		m.activeMenu = "main"
+		m.cursor = 6
+	}
+	return m, nil
+}
+
 func (m Model) View() string {
 	if m.quitting {
 		if m.saved {
@@ -668,6 +718,10 @@ func (m Model) View() string {
 				previewSettings.Powerline.EndCaps = []string{endCapsList[m.cursor].value}
 			}
 		}
+	} else if m.activeMenu == "select_color_level" {
+		if m.cursor >= 0 && m.cursor < len(colorLevelsList) {
+			previewSettings.ColorLevel = colorLevelsList[m.cursor].value
+		}
 	} else if m.activeMenu == "add_widget" {
 		if m.cursor >= 0 && m.cursor < len(widgetTypes) && m.selectedLine >= 0 && m.selectedLine < len(m.settings.Lines) {
 			selectedType := widgetTypes[m.cursor]
@@ -734,6 +788,8 @@ func (m Model) View() string {
 		m.viewSelectStartCap(&s)
 	case "select_end_cap":
 		m.viewSelectEndCap(&s)
+	case "select_color_level":
+		m.viewSelectColorLevel(&s)
 	}
 
 	return s.String()
@@ -750,6 +806,7 @@ func (m Model) viewMain(s *stringsBuilder) {
 		fmt.Sprintf("Select Powerline Separator  [%s]", separatorsList[m.separatorIndex].name),
 		fmt.Sprintf("Select Powerline Start Cap  [%s]", startCapsList[m.startCapIndex].name),
 		fmt.Sprintf("Select Powerline End Cap    [%s]", endCapsList[m.endCapIndex].name),
+		fmt.Sprintf("Select Color Level          [%s]", colorLevelsList[m.colorLevelIndex].name),
 		"Save & Exit",
 		"Discard & Exit",
 	}
@@ -939,6 +996,27 @@ func (m Model) viewSelectEndCap(s *stringsBuilder) {
 			capStr += " (active)"
 		}
 		s.WriteString(fmt.Sprintf("%s %s\n", cursorStr, style.Render(capStr)))
+	}
+
+	s.WriteString("\n(Use arrows/jk to navigate, Enter to select, Esc: cancel)\n")
+}
+
+func (m Model) viewSelectColorLevel(s *stringsBuilder) {
+	s.WriteString(lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("39")).Render("Select Color Level"))
+	s.WriteString("\n\n")
+
+	for i, cl := range colorLevelsList {
+		cursorStr := " "
+		style := lipgloss.NewStyle()
+		if m.cursor == i {
+			cursorStr = ">"
+			style = style.Bold(true).Foreground(lipgloss.Color("226"))
+		}
+		clStr := cl.name
+		if cl.value == m.settings.ColorLevel {
+			clStr += " (active)"
+		}
+		s.WriteString(fmt.Sprintf("%s %s\n", cursorStr, style.Render(clStr)))
 	}
 
 	s.WriteString("\n(Use arrows/jk to navigate, Enter to select, Esc: cancel)\n")
