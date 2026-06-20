@@ -56,6 +56,41 @@ func TestModelWidget(t *testing.T) {
 	if outputRaw != expectedRaw {
 		t.Errorf("Expected '%s', got '%s'", expectedRaw, outputRaw)
 	}
+
+	// Test parenthesized suffixes: (New) should be stripped, but (Medium) should be kept.
+	ctxWithNew := types.RenderContext{
+		Data: types.StatusJSON{
+			Model: types.ModelInfo{
+				ID:          "claude-3-5-sonnet-new",
+				DisplayName: "Claude 3.5 Sonnet (New)",
+			},
+		},
+	}
+	outputNew, err := w.Render(item, ctxWithNew, settings)
+	if err != nil {
+		t.Fatalf("Render error: %v", err)
+	}
+	expectedNew := "Model: Claude 3.5 Sonnet"
+	if outputNew != expectedNew {
+		t.Errorf("Expected '%s', got '%s'", expectedNew, outputNew)
+	}
+
+	ctxWithMedium := types.RenderContext{
+		Data: types.StatusJSON{
+			Model: types.ModelInfo{
+				ID:          "gemini-3.5-flash-medium",
+				DisplayName: "Gemini 3.5 Flash (Medium)",
+			},
+		},
+	}
+	outputMedium, err := w.Render(item, ctxWithMedium, settings)
+	if err != nil {
+		t.Fatalf("Render error: %v", err)
+	}
+	expectedMedium := "Model: Gemini 3.5 Flash (Medium)"
+	if outputMedium != expectedMedium {
+		t.Errorf("Expected '%s', got '%s'", expectedMedium, outputMedium)
+	}
 }
 
 func TestContextLengthWidget(t *testing.T) {

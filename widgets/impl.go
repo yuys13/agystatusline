@@ -27,8 +27,15 @@ func (m *ModelWidget) Render(item types.WidgetItem, ctx types.RenderContext, set
 	}
 
 	// Remove parenthesized suffixes e.g. "Claude 3.5 Sonnet (New)" -> "Claude 3.5 Sonnet"
-	re := regexp.MustCompile(`\s*\(.*\)$`)
-	shortName := strings.TrimSpace(re.ReplaceAllString(displayName, ""))
+	// but keep (Medium) if present
+	re := regexp.MustCompile(`\s*(\(.*\))$`)
+	matches := re.FindStringSubmatch(displayName)
+	var shortName string
+	if len(matches) > 1 && matches[1] == "(Medium)" {
+		shortName = strings.TrimSpace(displayName)
+	} else {
+		shortName = strings.TrimSpace(re.ReplaceAllString(displayName, ""))
+	}
 
 	if item.RawValue != nil && *item.RawValue {
 		return shortName, nil
