@@ -70,3 +70,53 @@ func TestDefaultSettings(t *testing.T) {
 		t.Errorf("Expected first widget on line 0 to be model (cyan), got Type='%s', Color='%s'", line0[0].Type, line0[0].Color)
 	}
 }
+
+func TestParseStatusJSON_Quota(t *testing.T) {
+	input := `{
+		"quota": {
+			"gemini-5h": {
+				"remaining_fraction": 0.5019274,
+				"reset_time": "2026-06-20T11:27:27Z",
+				"reset_in_seconds": 8891
+			},
+			"3p-weekly": {
+				"remaining_fraction": 1.0,
+				"reset_time": "2026-06-27T08:58:32Z",
+				"reset_in_seconds": 604756
+			}
+		}
+	}`
+
+	var status StatusJSON
+	err := json.Unmarshal([]byte(input), &status)
+	if err != nil {
+		t.Fatalf("Failed to unmarshal StatusJSON with quota: %v", err)
+	}
+
+	if status.Quota == nil {
+		t.Fatalf("Expected Quota map to be parsed, got nil")
+	}
+
+	g5h, ok := status.Quota["gemini-5h"]
+	if !ok {
+		t.Fatalf("Expected 'gemini-5h' key in Quota map")
+	}
+	if g5h.RemainingFraction == nil || *g5h.RemainingFraction != 0.5019274 {
+		t.Errorf("Expected gemini-5h RemainingFraction 0.5019274, got %v", g5h.RemainingFraction)
+	}
+	if g5h.ResetTime != "2026-06-20T11:27:27Z" {
+		t.Errorf("Expected gemini-5h ResetTime '2026-06-20T11:27:27Z', got '%s'", g5h.ResetTime)
+	}
+	if g5h.ResetInSeconds == nil || *g5h.ResetInSeconds != 8891 {
+		t.Errorf("Expected gemini-5h ResetInSeconds 8891, got %v", g5h.ResetInSeconds)
+	}
+
+	p3w, ok := status.Quota["3p-weekly"]
+	if !ok {
+		t.Fatalf("Expected '3p-weekly' key in Quota map")
+	}
+	if p3w.RemainingFraction == nil || *p3w.RemainingFraction != 1.0 {
+		t.Errorf("Expected 3p-weekly RemainingFraction 1.0, got %v", p3w.RemainingFraction)
+	}
+}
+

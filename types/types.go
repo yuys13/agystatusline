@@ -112,6 +112,12 @@ type RateLimitsInfo struct {
 	SevenDayOpus    *RateLimitPeriod `json:"seven_day_opus,omitempty"`
 }
 
+type QuotaInfo struct {
+	RemainingFraction *float64 `json:"remaining_fraction,omitempty"`
+	ResetTime         string   `json:"reset_time,omitempty"`
+	ResetInSeconds    *float64 `json:"reset_in_seconds,omitempty"`
+}
+
 // StatusJSON defines the schema for telemetry input streamed on stdin.
 type StatusJSON struct {
 	HookEventName  string             `json:"hook_event_name"`
@@ -128,6 +134,7 @@ type StatusJSON struct {
 	Vim            *VimInfo           `json:"vim,omitempty"`
 	Worktree       *WorktreeInfo      `json:"worktree,omitempty"`
 	RateLimits     *RateLimitsInfo    `json:"rate_limits,omitempty"`
+	Quota          map[string]QuotaInfo `json:"quota,omitempty"`
 }
 
 // WidgetItem configures a single widget in the statusline.
