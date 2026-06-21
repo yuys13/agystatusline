@@ -645,3 +645,89 @@ func (t *TasksWidget) Render(item types.WidgetItem, ctx types.RenderContext, set
 	}
 	return "tasks", countStr, nil
 }
+
+// QuotaBarWidget displays a progress bar representing remaining quota.
+type QuotaBarWidget struct{}
+
+func (q *QuotaBarWidget) GetDefaultColor() string { return "brightWhite" }
+func (q *QuotaBarWidget) GetDisplayName() string  { return "Quota Bar" }
+
+func (q *QuotaBarWidget) GetBodyColor(item types.WidgetItem, ctx types.RenderContext) string {
+	if ctx.Data.Quota == nil {
+		return "brightWhite"
+	}
+	key := item.Metadata["key"]
+	if key == "" {
+		return "brightWhite"
+	}
+	quota, ok := ctx.Data.Quota[key]
+	if !ok || quota.RemainingFraction == nil {
+		return "brightWhite"
+	}
+	pct := *quota.RemainingFraction * 100.0
+	if pct >= 50 {
+		return "brightWhite"
+	} else if pct >= 10 {
+		return "brightYellow"
+	}
+	return "brightRed"
+}
+
+func (q *QuotaBarWidget) Render(item types.WidgetItem, ctx types.RenderContext, settings types.Settings) (string, string, error) {
+	if ctx.Data.Quota == nil {
+		return "", "", nil
+	}
+	key := item.Metadata["key"]
+	if key == "" {
+		return "", "", nil
+	}
+	quota, ok := ctx.Data.Quota[key]
+	if !ok || quota.RemainingFraction == nil {
+		return "", "", nil
+	}
+
+	pct := *quota.RemainingFraction * 100.0
+	pctInt := int(pct)
+	barLen := 15
+	filled := pctInt * barLen / 100
+	remainder := (pctInt * barLen) % 100
+
+	var barBuilder strings.Builder
+	for i := range barLen {
+		if i < filled {
+			barBuilder.WriteString("█")
+		} else if i == filled {
+			if remainder >= 75 {
+				barBuilder.WriteString("▓")
+			} else if remainder >= 50 {
+				barBuilder.WriteString("▒")
+			} else if remainder >= 25 {
+				barBuilder.WriteString("░")
+			} else {
+				barBuilder.WriteString("·")
+			}
+		} else {
+			barBuilder.WriteString("·")
+		}
+	}
+	bar := barBuilder.String()
+
+	pctFmt := fmt.Sprintf("%.1f%%", pct)
+
+	label := item.CustomText
+	if label == "" {
+		switch key {
+		case "gemini-5h":
+			label = "5h"
+		case "gemini-weekly":
+			label = "weekly"
+		default:
+			label = key
+		}
+	}
+
+	if item.RawValue != nil && *item.RawValue {
+		return "", bar + " " + pctFmt, nil
+	}
+	return label, bar + " " + pctFmt, nil
+}

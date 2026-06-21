@@ -426,6 +426,7 @@ func TestTUI_AddQuotaWidgets(t *testing.T) {
 	var foundG5h, foundGwk, found3p5h, found3pwk bool
 	var foundG5hP, foundGwkP, found3p5hP, found3pwkP bool
 	var foundG5hR, foundGwkR, found3p5hR, found3pwkR bool
+	var foundG5hB, foundGwkB, found3p5hB, found3pwkB bool
 	for _, wt := range widgetTypes {
 		if wt.wType == "quota" {
 			key := wt.metadata["key"]
@@ -464,6 +465,18 @@ func TestTUI_AddQuotaWidgets(t *testing.T) {
 					found3pwk = true
 				}
 			}
+		} else if wt.wType == "quota-bar" {
+			key := wt.metadata["key"]
+			switch key {
+			case "gemini-5h":
+				foundG5hB = true
+			case "gemini-weekly":
+				foundGwkB = true
+			case "3p-5h":
+				found3p5hB = true
+			case "3p-weekly":
+				found3pwkB = true
+			}
 		}
 	}
 	if !foundG5h || !foundGwk || !found3p5h || !found3pwk {
@@ -477,6 +490,10 @@ func TestTUI_AddQuotaWidgets(t *testing.T) {
 	if !foundG5hR || !foundGwkR || !found3p5hR || !found3pwkR {
 		t.Errorf("Expected all 4 quota reset presets in widgetTypes, got Gemini 5h Reset:%t, Gemini Weekly Reset:%t, 3P 5h Reset:%t, 3P Weekly Reset:%t",
 			foundG5hR, foundGwkR, found3p5hR, found3pwkR)
+	}
+	if !foundG5hB || !foundGwkB || !found3p5hB || !found3pwkB {
+		t.Errorf("Expected all 4 quota-bar presets in widgetTypes, got Gemini 5h Bar:%t, Gemini Weekly Bar:%t, 3P 5h Bar:%t, 3P Weekly Bar:%t",
+			foundG5hB, foundGwkB, found3p5hB, found3pwkB)
 	}
 
 	// 3. 実際に Gemini 5h クォータウィジェットを追加してみる（デフォルト: display指定なし）。
@@ -542,6 +559,41 @@ func TestTUI_AddQuotaWidgets(t *testing.T) {
 	}
 	if addedPercentWidget.Metadata == nil || addedPercentWidget.Metadata["key"] != "gemini-5h" || addedPercentWidget.Metadata["display"] != "quota" {
 		t.Errorf("Expected widget metadata key 'gemini-5h' and display 'quota', got %v", addedPercentWidget.Metadata)
+	}
+
+	// 5. 実際に Gemini 5h クォータ Bar ウィジェットを追加してみる。
+	m = finalPercentModel
+	m.activeMenu = "items"
+	m.cursor = 2
+
+	// "a" キーで追加画面に遷移
+	updatedModel, _ = m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("a")})
+	m = updatedModel.(Model)
+
+	targetBarIdx := -1
+	for i, wt := range widgetTypes {
+		if wt.wType == "quota-bar" && wt.metadata["key"] == "gemini-5h" {
+			targetBarIdx = i
+			break
+		}
+	}
+	if targetBarIdx == -1 {
+		t.Fatalf("Gemini 5h quota-bar widget type not found in widgetTypes")
+	}
+
+	m.cursor = targetBarIdx
+	updatedModel, _ = m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("\n")})
+	finalBarModel := updatedModel.(Model)
+
+	addedBarWidget := finalBarModel.settings.Lines[0][3]
+	if addedBarWidget.Type != "quota-bar" {
+		t.Errorf("Expected widget type 'quota-bar', got '%s'", addedBarWidget.Type)
+	}
+	if addedBarWidget.Color != "" {
+		t.Errorf("Expected widget color to be empty, got '%s'", addedBarWidget.Color)
+	}
+	if addedBarWidget.Metadata == nil || addedBarWidget.Metadata["key"] != "gemini-5h" {
+		t.Errorf("Expected widget metadata key 'gemini-5h', got %v", addedBarWidget.Metadata)
 	}
 }
 

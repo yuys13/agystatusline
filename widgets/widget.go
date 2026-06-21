@@ -72,6 +72,7 @@ func RegisterAll() {
 	RegisterWidget("sandbox", &SandboxWidget{})
 	RegisterWidget("agent-state", &AgentStateWidget{})
 	RegisterWidget("context-bar", &ContextBarWidget{})
+	RegisterWidget("quota-bar", &QuotaBarWidget{})
 	RegisterWidget("artifacts", &ArtifactsWidget{})
 	RegisterWidget("subagents", &SubagentsWidget{})
 	RegisterWidget("tasks", &TasksWidget{})
