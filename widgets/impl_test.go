@@ -1,6 +1,7 @@
 package widgets
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/yuys13/agystatusline/types"
@@ -14,8 +15,8 @@ func TestModelWidget(t *testing.T) {
 		t.Fatalf("Model widget not found in registry")
 	}
 
-	if w.GetDefaultColor() != "cyan" {
-		t.Errorf("Expected default color 'cyan', got '%s'", w.GetDefaultColor())
+	if w.GetDefaultColor() != "brightMagenta" {
+		t.Errorf("Expected default color 'brightMagenta', got '%s'", w.GetDefaultColor())
 	}
 
 	settings := types.DefaultSettings()
@@ -33,13 +34,12 @@ func TestModelWidget(t *testing.T) {
 	}
 
 	// Normal render
-	output, err := w.Render(item, ctx, settings)
+	title, output, err := w.Render(item, ctx, settings)
 	if err != nil {
 		t.Fatalf("Render error: %v", err)
 	}
-	expected := "Model: Claude 3.5 Sonnet"
-	if output != expected {
-		t.Errorf("Expected '%s', got '%s'", expected, output)
+	if title != "" || output != "Claude 3.5 Sonnet" {
+		t.Errorf("Expected title '' and body 'Claude 3.5 Sonnet', got title '%s' and body '%s'", title, output)
 	}
 
 	// RawValue render
@@ -48,16 +48,15 @@ func TestModelWidget(t *testing.T) {
 		Type:     "model",
 		RawValue: &rawVal,
 	}
-	outputRaw, err := w.Render(itemRaw, ctx, settings)
+	titleRaw, outputRaw, err := w.Render(itemRaw, ctx, settings)
 	if err != nil {
 		t.Fatalf("Render error: %v", err)
 	}
-	expectedRaw := "Claude 3.5 Sonnet"
-	if outputRaw != expectedRaw {
-		t.Errorf("Expected '%s', got '%s'", expectedRaw, outputRaw)
+	if titleRaw != "" || outputRaw != "Claude 3.5 Sonnet" {
+		t.Errorf("Expected title '' and body 'Claude 3.5 Sonnet', got title '%s' and body '%s'", titleRaw, outputRaw)
 	}
 
-	// Test that parenthesized suffixes (or any part of the DisplayName) are not stripped and are kept as-is.
+	// Test that parenthesized suffixes are kept as-is.
 	ctxWithNew := types.RenderContext{
 		Data: types.StatusJSON{
 			Model: types.ModelInfo{
@@ -66,13 +65,12 @@ func TestModelWidget(t *testing.T) {
 			},
 		},
 	}
-	outputNew, err := w.Render(item, ctxWithNew, settings)
+	titleNew, outputNew, err := w.Render(item, ctxWithNew, settings)
 	if err != nil {
 		t.Fatalf("Render error: %v", err)
 	}
-	expectedNew := "Model: Claude 3.5 Sonnet (New)"
-	if outputNew != expectedNew {
-		t.Errorf("Expected '%s', got '%s'", expectedNew, outputNew)
+	if titleNew != "" || outputNew != "Claude 3.5 Sonnet (New)" {
+		t.Errorf("Expected title '' and body 'Claude 3.5 Sonnet (New)', got title '%s' and body '%s'", titleNew, outputNew)
 	}
 
 	ctxWithMedium := types.RenderContext{
@@ -83,13 +81,12 @@ func TestModelWidget(t *testing.T) {
 			},
 		},
 	}
-	outputMedium, err := w.Render(item, ctxWithMedium, settings)
+	titleMedium, outputMedium, err := w.Render(item, ctxWithMedium, settings)
 	if err != nil {
 		t.Fatalf("Render error: %v", err)
 	}
-	expectedMedium := "Model: Gemini 3.5 Flash (Medium)"
-	if outputMedium != expectedMedium {
-		t.Errorf("Expected '%s', got '%s'", expectedMedium, outputMedium)
+	if titleMedium != "" || outputMedium != "Gemini 3.5 Flash (Medium)" {
+		t.Errorf("Expected title '' and body 'Gemini 3.5 Flash (Medium)', got title '%s' and body '%s'", titleMedium, outputMedium)
 	}
 }
 
@@ -111,12 +108,12 @@ func TestContextLengthWidget(t *testing.T) {
 	}
 	item := types.WidgetItem{Type: "context-length"}
 
-	output, err := w.Render(item, ctx, settings)
+	title, output, err := w.Render(item, ctx, settings)
 	if err != nil {
 		t.Fatalf("Render error: %v", err)
 	}
-	if output != "12.5k" {
-		t.Errorf("Expected '12.5k', got '%s'", output)
+	if title != "" || output != "12.5k" {
+		t.Errorf("Expected title '' and body '12.5k', got title '%s' and body '%s'", title, output)
 	}
 }
 
@@ -125,6 +122,9 @@ func TestGitBranchWidget(t *testing.T) {
 	w := GetWidget("git-branch")
 	if w == nil {
 		t.Fatalf("Git branch widget not found")
+	}
+	if w.GetDefaultColor() != "brightMagenta" {
+		t.Errorf("Expected default color 'brightMagenta', got '%s'", w.GetDefaultColor())
 	}
 
 	oldRunner := runGitCommand
@@ -148,12 +148,12 @@ func TestGitBranchWidget(t *testing.T) {
 	}
 	item := types.WidgetItem{Type: "git-branch"}
 
-	output, err := w.Render(item, ctx, settings)
+	title, output, err := w.Render(item, ctx, settings)
 	if err != nil {
 		t.Fatalf("Render error: %v", err)
 	}
-	if output != "⎇feature/tdd" {
-		t.Errorf("Expected '⎇feature/tdd', got '%s'", output)
+	if title != "" || output != "⎇feature/tdd" {
+		t.Errorf("Expected title '' and body '⎇feature/tdd', got title '%s' and body '%s'", title, output)
 	}
 }
 
@@ -188,12 +188,12 @@ func TestGitChangesWidget(t *testing.T) {
 	}
 	item := types.WidgetItem{Type: "git-changes"}
 
-	output, err := w.Render(item, ctx, settings)
+	title, output, err := w.Render(item, ctx, settings)
 	if err != nil {
 		t.Fatalf("Render error: %v", err)
 	}
-	if output != "(+13,-5)" {
-		t.Errorf("Expected '(+13,-5)', got '%s'", output)
+	if title != "" || output != "(+13,-5)" {
+		t.Errorf("Expected title '' and body '(+13,-5)', got title '%s' and body '%s'", title, output)
 	}
 }
 
@@ -216,23 +216,23 @@ func TestContextUsedPctWidget(t *testing.T) {
 	item := types.WidgetItem{Type: "context-used-pct"}
 
 	// Normal render
-	output, err := w.Render(item, ctx, settings)
+	title, output, err := w.Render(item, ctx, settings)
 	if err != nil {
 		t.Fatalf("Render error: %v", err)
 	}
-	if output != "Used: 0.01%" {
-		t.Errorf("Expected 'Used: 0.01%%', got '%s'", output)
+	if title != "Used" || output != "0.01%" {
+		t.Errorf("Expected title 'Used' and body '0.01%%', got title '%s' and body '%s'", title, output)
 	}
 
 	// RawValue render
 	rawVal := true
 	itemRaw := types.WidgetItem{Type: "context-used-pct", RawValue: &rawVal}
-	outputRaw, err := w.Render(itemRaw, ctx, settings)
+	titleRaw, outputRaw, err := w.Render(itemRaw, ctx, settings)
 	if err != nil {
 		t.Fatalf("Render error: %v", err)
 	}
-	if outputRaw != "0.01%" {
-		t.Errorf("Expected '0.01%%', got '%s'", outputRaw)
+	if titleRaw != "" || outputRaw != "0.01%" {
+		t.Errorf("Expected title '' and body '0.01%%', got title '%s' and body '%s'", titleRaw, outputRaw)
 	}
 }
 
@@ -255,23 +255,23 @@ func TestContextRemainingPctWidget(t *testing.T) {
 	item := types.WidgetItem{Type: "context-remaining-pct"}
 
 	// Normal render
-	output, err := w.Render(item, ctx, settings)
+	title, output, err := w.Render(item, ctx, settings)
 	if err != nil {
 		t.Fatalf("Render error: %v", err)
 	}
-	if output != "Remaining: 99.99%" {
-		t.Errorf("Expected 'Remaining: 99.99%%', got '%s'", output)
+	if title != "Remaining" || output != "99.99%" {
+		t.Errorf("Expected title 'Remaining' and body '99.99%%', got title '%s' and body '%s'", title, output)
 	}
 
 	// RawValue render
 	rawVal := true
 	itemRaw := types.WidgetItem{Type: "context-remaining-pct", RawValue: &rawVal}
-	outputRaw, err := w.Render(itemRaw, ctx, settings)
+	titleRaw, outputRaw, err := w.Render(itemRaw, ctx, settings)
 	if err != nil {
 		t.Fatalf("Render error: %v", err)
 	}
-	if outputRaw != "99.99%" {
-		t.Errorf("Expected '99.99%%', got '%s'", outputRaw)
+	if titleRaw != "" || outputRaw != "99.99%" {
+		t.Errorf("Expected title '' and body '99.99%%', got title '%s' and body '%s'", titleRaw, outputRaw)
 	}
 }
 
@@ -282,8 +282,8 @@ func TestQuotaWidget(t *testing.T) {
 		t.Fatalf("Quota widget not found")
 	}
 
-	if w.GetDefaultColor() != "brightBlack" {
-		t.Errorf("Expected default color 'brightBlack', got '%s'", w.GetDefaultColor())
+	if w.GetDefaultColor() != "brightWhite" {
+		t.Errorf("Expected default color 'brightWhite', got '%s'", w.GetDefaultColor())
 	}
 
 	remaining1 := float64(0.5019274)
@@ -316,12 +316,12 @@ func TestQuotaWidget(t *testing.T) {
 			"key": "gemini-5h",
 		},
 	}
-	output1, err := w.Render(item1, ctx, settings)
+	title1, output1, err := w.Render(item1, ctx, settings)
 	if err != nil {
 		t.Fatalf("Render error: %v", err)
 	}
-	if output1 != "gemini-5h: 50.19% (2h 28m)" {
-		t.Errorf("Expected 'gemini-5h: 50.19%% (2h 28m)', got '%s'", output1)
+	if title1 != "gemini-5h" || output1 != "50.19% (2h 28m)" {
+		t.Errorf("Expected title 'gemini-5h' and body '50.19%% (2h 28m)', got title '%s' and body '%s'", title1, output1)
 	}
 
 	// Case 2: Raw Percentage + Reset (rawValue = true, default)
@@ -333,12 +333,12 @@ func TestQuotaWidget(t *testing.T) {
 		},
 		RawValue: &rawVal,
 	}
-	output2, err := w.Render(item2, ctx, settings)
+	title2, output2, err := w.Render(item2, ctx, settings)
 	if err != nil {
 		t.Fatalf("Render error: %v", err)
 	}
-	if output2 != "50.19% (2h 28m)" {
-		t.Errorf("Expected '50.19%% (2h 28m)', got '%s'", output2)
+	if title2 != "" || output2 != "50.19% (2h 28m)" {
+		t.Errorf("Expected title '' and body '50.19%% (2h 28m)', got title '%s' and body '%s'", title2, output2)
 	}
 
 	// Case 3: Custom Text label + Reset
@@ -349,12 +349,12 @@ func TestQuotaWidget(t *testing.T) {
 		},
 		CustomText: "Gemini Q",
 	}
-	output3, err := w.Render(item3, ctx, settings)
+	title3, output3, err := w.Render(item3, ctx, settings)
 	if err != nil {
 		t.Fatalf("Render error: %v", err)
 	}
-	if output3 != "Gemini Q: 50.19% (2h 28m)" {
-		t.Errorf("Expected 'Gemini Q: 50.19%% (2h 28m)', got '%s'", output3)
+	if title3 != "Gemini Q" || output3 != "50.19% (2h 28m)" {
+		t.Errorf("Expected title 'Gemini Q' and body '50.19%% (2h 28m)', got title '%s' and body '%s'", title3, output3)
 	}
 
 	// Case 3b: display="quota" (Percentage only, labeled)
@@ -365,12 +365,12 @@ func TestQuotaWidget(t *testing.T) {
 			"display": "quota",
 		},
 	}
-	outputQuotaOnly, err := w.Render(itemQuotaOnly, ctx, settings)
+	titleQuotaOnly, outputQuotaOnly, err := w.Render(itemQuotaOnly, ctx, settings)
 	if err != nil {
 		t.Fatalf("Render error: %v", err)
 	}
-	if outputQuotaOnly != "gemini-5h: 50.19%" {
-		t.Errorf("Expected 'gemini-5h: 50.19%%', got '%s'", outputQuotaOnly)
+	if titleQuotaOnly != "gemini-5h" || outputQuotaOnly != "50.19%" {
+		t.Errorf("Expected title 'gemini-5h' and body '50.19%%', got title '%s' and body '%s'", titleQuotaOnly, outputQuotaOnly)
 	}
 
 	// Case 3c: display="quota" (Percentage only, raw)
@@ -382,12 +382,12 @@ func TestQuotaWidget(t *testing.T) {
 		},
 		RawValue: &rawVal,
 	}
-	outputQuotaOnlyRaw, err := w.Render(itemQuotaOnlyRaw, ctx, settings)
+	titleQuotaOnlyRaw, outputQuotaOnlyRaw, err := w.Render(itemQuotaOnlyRaw, ctx, settings)
 	if err != nil {
 		t.Fatalf("Render error: %v", err)
 	}
-	if outputQuotaOnlyRaw != "50.19%" {
-		t.Errorf("Expected '50.19%%', got '%s'", outputQuotaOnlyRaw)
+	if titleQuotaOnlyRaw != "" || outputQuotaOnlyRaw != "50.19%" {
+		t.Errorf("Expected title '' and body '50.19%%', got title '%s' and body '%s'", titleQuotaOnlyRaw, outputQuotaOnlyRaw)
 	}
 
 	// Case 4: Reset time labeled
@@ -398,12 +398,12 @@ func TestQuotaWidget(t *testing.T) {
 			"display": "reset",
 		},
 	}
-	output4, err := w.Render(item4, ctx, settings)
+	title4, output4, err := w.Render(item4, ctx, settings)
 	if err != nil {
 		t.Fatalf("Render error: %v", err)
 	}
-	if output4 != "gemini-5h (reset): 2h 28m" {
-		t.Errorf("Expected 'gemini-5h (reset): 2h 28m', got '%s'", output4)
+	if title4 != "gemini-5h (reset)" || output4 != "2h 28m" {
+		t.Errorf("Expected title 'gemini-5h (reset)' and body '2h 28m', got title '%s' and body '%s'", title4, output4)
 	}
 
 	// Case 5: Reset time raw
@@ -415,17 +415,15 @@ func TestQuotaWidget(t *testing.T) {
 		},
 		RawValue: &rawVal,
 	}
-	output5, err := w.Render(item5, ctx, settings)
+	title5, output5, err := w.Render(item5, ctx, settings)
 	if err != nil {
 		t.Fatalf("Render error: %v", err)
 	}
-	if output5 != "2h 28m" {
-		t.Errorf("Expected '2h 28m', got '%s'", output5)
+	if title5 != "" || output5 != "2h 28m" {
+		t.Errorf("Expected title '' and body '2h 28m', got title '%s' and body '%s'", title5, output5)
 	}
 
 	// Case 6: Reset time other durations
-	// 45 seconds -> 45s
-	// 125 seconds -> 2m 5s
 	secs45 := float64(45)
 	secs125 := float64(125)
 	secs567440 := float64(567440)
@@ -455,9 +453,9 @@ func TestQuotaWidget(t *testing.T) {
 		},
 		RawValue: &rawVal,
 	}
-	output45, _ := w.Render(itemSecs45, ctxDur, settings)
-	if output45 != "45s" {
-		t.Errorf("Expected '45s', got '%s'", output45)
+	title45, output45, _ := w.Render(itemSecs45, ctxDur, settings)
+	if title45 != "" || output45 != "45s" {
+		t.Errorf("Expected title '' and body '45s', got title '%s' and body '%s'", title45, output45)
 	}
 
 	itemSecs125 := types.WidgetItem{
@@ -468,9 +466,9 @@ func TestQuotaWidget(t *testing.T) {
 		},
 		RawValue: &rawVal,
 	}
-	output125, _ := w.Render(itemSecs125, ctxDur, settings)
-	if output125 != "2m 5s" {
-		t.Errorf("Expected '2m 5s', got '%s'", output125)
+	title125, output125, _ := w.Render(itemSecs125, ctxDur, settings)
+	if title125 != "" || output125 != "2m 5s" {
+		t.Errorf("Expected title '' and body '2m 5s', got title '%s' and body '%s'", title125, output125)
 	}
 
 	itemSecs567440 := types.WidgetItem{
@@ -481,18 +479,18 @@ func TestQuotaWidget(t *testing.T) {
 		},
 		RawValue: &rawVal,
 	}
-	output567440, _ := w.Render(itemSecs567440, ctxDur, settings)
-	if output567440 != "6d 13h" {
-		t.Errorf("Expected '6d 13h', got '%s'", output567440)
+	title567440, output567440, _ := w.Render(itemSecs567440, ctxDur, settings)
+	if title567440 != "" || output567440 != "6d 13h" {
+		t.Errorf("Expected title '' and body '6d 13h', got title '%s' and body '%s'", title567440, output567440)
 	}
 
 	// Case 7: Key not found or empty
 	itemEmpty := types.WidgetItem{
 		Type: "quota",
 	}
-	outputEmpty, _ := w.Render(itemEmpty, ctx, settings)
-	if outputEmpty != "" {
-		t.Errorf("Expected empty string for empty key, got '%s'", outputEmpty)
+	titleEmpty, outputEmpty, _ := w.Render(itemEmpty, ctx, settings)
+	if titleEmpty != "" || outputEmpty != "" {
+		t.Errorf("Expected empty title/body for empty key, got title '%s' and body '%s'", titleEmpty, outputEmpty)
 	}
 
 	itemInvalid := types.WidgetItem{
@@ -501,18 +499,18 @@ func TestQuotaWidget(t *testing.T) {
 			"key": "invalid-key",
 		},
 	}
-	outputInvalid, _ := w.Render(itemInvalid, ctx, settings)
-	if outputInvalid != "" {
-		t.Errorf("Expected empty string for invalid key, got '%s'", outputInvalid)
+	titleInvalid, outputInvalid, _ := w.Render(itemInvalid, ctx, settings)
+	if titleInvalid != "" || outputInvalid != "" {
+		t.Errorf("Expected empty title/body for invalid key, got title '%s' and body '%s'", titleInvalid, outputInvalid)
 	}
 
 	// Case 8: Quota map is nil
 	ctxNilQuota := types.RenderContext{
 		Data: types.StatusJSON{},
 	}
-	outputNil, _ := w.Render(item1, ctxNilQuota, settings)
-	if outputNil != "" {
-		t.Errorf("Expected empty string for nil quota map, got '%s'", outputNil)
+	titleNil, outputNil, _ := w.Render(item1, ctxNilQuota, settings)
+	if titleNil != "" || outputNil != "" {
+		t.Errorf("Expected empty title/body for nil quota map, got title '%s' and body '%s'", titleNil, outputNil)
 	}
 }
 
@@ -538,12 +536,12 @@ func TestSandboxWidget(t *testing.T) {
 		Data: types.StatusJSON{},
 	}
 	item := types.WidgetItem{Type: "sandbox"}
-	outNil, err := w.Render(item, ctxNil, settings)
+	titleNil, outNil, err := w.Render(item, ctxNil, settings)
 	if err != nil {
 		t.Fatalf("Render error: %v", err)
 	}
-	if outNil != "" {
-		t.Errorf("Expected empty string when sandbox is nil, got '%s'", outNil)
+	if titleNil != "" || outNil != "" {
+		t.Errorf("Expected empty title/body when sandbox is nil, got title '%s' and body '%s'", titleNil, outNil)
 	}
 
 	// Case 2: Sandbox.Enabled is nil
@@ -552,12 +550,12 @@ func TestSandboxWidget(t *testing.T) {
 			Sandbox: &types.SandboxInfo{},
 		},
 	}
-	outNilEnabled, err := w.Render(item, ctxNilEnabled, settings)
+	titleNilEnabled, outNilEnabled, err := w.Render(item, ctxNilEnabled, settings)
 	if err != nil {
 		t.Fatalf("Render error: %v", err)
 	}
-	if outNilEnabled != "" {
-		t.Errorf("Expected empty string when sandbox.enabled is nil, got '%s'", outNilEnabled)
+	if titleNilEnabled != "" || outNilEnabled != "" {
+		t.Errorf("Expected empty title/body when sandbox.enabled is nil, got title '%s' and body '%s'", titleNilEnabled, outNilEnabled)
 	}
 
 	// Case 3: Sandbox.Enabled is true (normal and raw)
@@ -569,21 +567,21 @@ func TestSandboxWidget(t *testing.T) {
 			},
 		},
 	}
-	outTrue, err := w.Render(item, ctxTrue, settings)
+	titleTrue, outTrue, err := w.Render(item, ctxTrue, settings)
 	if err != nil {
 		t.Fatalf("Render error: %v", err)
 	}
-	if outTrue != "sandbox: true" {
-		t.Errorf("Expected 'sandbox: true', got '%s'", outTrue)
+	if titleTrue != "sandbox" || outTrue != "on" {
+		t.Errorf("Expected title 'sandbox' and body 'on', got title '%s' and body '%s'", titleTrue, outTrue)
 	}
 
 	itemRaw := types.WidgetItem{Type: "sandbox", RawValue: &trueVal}
-	outTrueRaw, err := w.Render(itemRaw, ctxTrue, settings)
+	titleTrueRaw, outTrueRaw, err := w.Render(itemRaw, ctxTrue, settings)
 	if err != nil {
 		t.Fatalf("Render error: %v", err)
 	}
-	if outTrueRaw != "true" {
-		t.Errorf("Expected 'true', got '%s'", outTrueRaw)
+	if titleTrueRaw != "" || outTrueRaw != "on" {
+		t.Errorf("Expected title '' and body 'on', got title '%s' and body '%s'", titleTrueRaw, outTrueRaw)
 	}
 
 	// Case 4: Sandbox.Enabled is false (normal and raw)
@@ -595,19 +593,145 @@ func TestSandboxWidget(t *testing.T) {
 			},
 		},
 	}
-	outFalse, err := w.Render(item, ctxFalse, settings)
+	titleFalse, outFalse, err := w.Render(item, ctxFalse, settings)
 	if err != nil {
 		t.Fatalf("Render error: %v", err)
 	}
-	if outFalse != "sandbox: false" {
-		t.Errorf("Expected 'sandbox: false', got '%s'", outFalse)
+	if titleFalse != "sandbox" || outFalse != "off" {
+		t.Errorf("Expected title 'sandbox' and body 'off', got title '%s' and body '%s'", titleFalse, outFalse)
 	}
 
-	outFalseRaw, err := w.Render(itemRaw, ctxFalse, settings)
+	titleFalseRaw, outFalseRaw, err := w.Render(itemRaw, ctxFalse, settings)
 	if err != nil {
 		t.Fatalf("Render error: %v", err)
 	}
-	if outFalseRaw != "false" {
-		t.Errorf("Expected 'false', got '%s'", outFalseRaw)
+	if titleFalseRaw != "" || outFalseRaw != "off" {
+		t.Errorf("Expected title '' and body 'off', got title '%s' and body '%s'", titleFalseRaw, outFalseRaw)
+	}
+}
+
+func TestAgentStateWidget(t *testing.T) {
+	RegisterAll()
+	w := GetWidget("agent-state")
+	if w == nil {
+		t.Fatalf("Agent state widget not found")
+	}
+
+	settings := types.DefaultSettings()
+	ctx := types.RenderContext{
+		Data: types.StatusJSON{
+			AgentState: "thinking",
+		},
+	}
+	item := types.WidgetItem{Type: "agent-state"}
+
+	title, output, err := w.Render(item, ctx, settings)
+	if err != nil {
+		t.Fatalf("Render error: %v", err)
+	}
+	if title != "" || output != "◆ THINKING" {
+		t.Errorf("Expected body '◆ THINKING', got title '%s' and body '%s'", title, output)
+	}
+}
+
+func TestContextBarWidget(t *testing.T) {
+	RegisterAll()
+	w := GetWidget("context-bar")
+	if w == nil {
+		t.Fatalf("Context bar widget not found")
+	}
+
+	settings := types.DefaultSettings()
+	pct := 50.0
+	ctx := types.RenderContext{
+		Data: types.StatusJSON{
+			ContextWindow: &types.ContextWindowInfo{
+				UsedPercentage: &pct,
+			},
+		},
+	}
+	item := types.WidgetItem{Type: "context-bar"}
+
+	title, output, err := w.Render(item, ctx, settings)
+	if err != nil {
+		t.Fatalf("Render error: %v", err)
+	}
+	if title != "ctx" || !strings.Contains(output, "50.0%") {
+		t.Errorf("Expected title 'ctx' and body containing '50.0%%', got title '%s' and body '%s'", title, output)
+	}
+}
+
+func TestArtifactsWidget(t *testing.T) {
+	RegisterAll()
+	w := GetWidget("artifacts")
+	if w == nil {
+		t.Fatalf("Artifacts widget not found")
+	}
+
+	settings := types.DefaultSettings()
+	count := 5
+	ctx := types.RenderContext{
+		Data: types.StatusJSON{
+			ArtifactCount: &count,
+		},
+	}
+	item := types.WidgetItem{Type: "artifacts"}
+
+	title, output, err := w.Render(item, ctx, settings)
+	if err != nil {
+		t.Fatalf("Render error: %v", err)
+	}
+	if title != "artifacts" || output != "5" {
+		t.Errorf("Expected title 'artifacts' and body '5', got title '%s' and body '%s'", title, output)
+	}
+}
+
+func TestSubagentsWidget(t *testing.T) {
+	RegisterAll()
+	w := GetWidget("subagents")
+	if w == nil {
+		t.Fatalf("Subagents widget not found")
+	}
+
+	settings := types.DefaultSettings()
+	count := 3
+	ctx := types.RenderContext{
+		Data: types.StatusJSON{
+			Subagents: float64(count),
+		},
+	}
+	item := types.WidgetItem{Type: "subagents"}
+
+	title, output, err := w.Render(item, ctx, settings)
+	if err != nil {
+		t.Fatalf("Render error: %v", err)
+	}
+	if title != "subagents" || output != "3" {
+		t.Errorf("Expected title 'subagents' and body '3', got title '%s' and body '%s'", title, output)
+	}
+}
+
+func TestTasksWidget(t *testing.T) {
+	RegisterAll()
+	w := GetWidget("tasks")
+	if w == nil {
+		t.Fatalf("Tasks widget not found")
+	}
+
+	settings := types.DefaultSettings()
+	count := 2
+	ctx := types.RenderContext{
+		Data: types.StatusJSON{
+			TaskCount: &count,
+		},
+	}
+	item := types.WidgetItem{Type: "tasks"}
+
+	title, output, err := w.Render(item, ctx, settings)
+	if err != nil {
+		t.Fatalf("Render error: %v", err)
+	}
+	if title != "tasks" || output != "2" {
+		t.Errorf("Expected title 'tasks' and body '2', got title '%s' and body '%s'", title, output)
 	}
 }

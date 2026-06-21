@@ -13,85 +13,128 @@ import (
 // ModelWidget displays the active model name.
 type ModelWidget struct{}
 
-func (m *ModelWidget) GetDefaultColor() string { return "cyan" }
+func (m *ModelWidget) GetDefaultColor() string { return "brightMagenta" }
 func (m *ModelWidget) GetDisplayName() string  { return "Model" }
+func (m *ModelWidget) GetBodyColor(item types.WidgetItem, ctx types.RenderContext) string {
+	return "brightMagenta"
+}
 
-func (m *ModelWidget) Render(item types.WidgetItem, ctx types.RenderContext, settings types.Settings) (string, error) {
+func (m *ModelWidget) Render(item types.WidgetItem, ctx types.RenderContext, settings types.Settings) (string, string, error) {
 	displayName := ctx.Data.Model.DisplayName
 	if displayName == "" {
 		displayName = ctx.Data.Model.ID
 	}
 
 	if displayName == "" {
-		return "", nil
+		return "", "", nil
 	}
 
 	modelName := strings.TrimSpace(displayName)
 
-	if item.RawValue != nil && *item.RawValue {
-		return modelName, nil
+	preserveColors := item.PreserveColors != nil && *item.PreserveColors
+	if preserveColors {
+		// Under statusline.sh spec, model name is italic magenta
+		return "", "\x1b[3m\x1b[95m" + modelName + "\x1b[23m\x1b[39m", nil
 	}
-	return "Model: " + modelName, nil
+
+	if item.RawValue != nil && *item.RawValue {
+		return "", modelName, nil
+	}
+	return "", modelName, nil
 }
 
 // ContextLengthWidget displays total input tokens.
 type ContextLengthWidget struct{}
 
-func (c *ContextLengthWidget) GetDefaultColor() string { return "brightBlack" }
+func (c *ContextLengthWidget) GetDefaultColor() string { return "brightWhite" }
 func (c *ContextLengthWidget) GetDisplayName() string  { return "Context Length" }
+func (c *ContextLengthWidget) GetBodyColor(item types.WidgetItem, ctx types.RenderContext) string {
+	return "brightWhite"
+}
 
-func (c *ContextLengthWidget) Render(item types.WidgetItem, ctx types.RenderContext, settings types.Settings) (string, error) {
+func (c *ContextLengthWidget) Render(item types.WidgetItem, ctx types.RenderContext, settings types.Settings) (string, string, error) {
 	var tokens float64
 
 	if ctx.Data.ContextWindow != nil && ctx.Data.ContextWindow.TotalInputTokens != nil {
 		tokens = *ctx.Data.ContextWindow.TotalInputTokens
 	} else {
-		return "", nil
+		return "", "", nil
 	}
 
-	return formatTokens(tokens, 1), nil
+	return "", formatTokens(tokens, 1), nil
 }
 
 // GitBranchWidget displays the current Git branch name.
 type GitBranchWidget struct{}
 
-func (g *GitBranchWidget) GetDefaultColor() string { return "magenta" }
+func (g *GitBranchWidget) GetDefaultColor() string { return "brightMagenta" }
 func (g *GitBranchWidget) GetDisplayName() string  { return "Git Branch" }
+func (g *GitBranchWidget) GetBodyColor(item types.WidgetItem, ctx types.RenderContext) string {
+	if ctx.Data.VCS != nil && ctx.Data.VCS.Dirty != nil && *ctx.Data.VCS.Dirty {
+		return "brightRed"
+	}
+	return "brightBlue"
+}
 
-func (g *GitBranchWidget) Render(item types.WidgetItem, ctx types.RenderContext, settings types.Settings) (string, error) {
+func (g *GitBranchWidget) Render(item types.WidgetItem, ctx types.RenderContext, settings types.Settings) (string, string, error) {
 	symbol := "⎇"
 	if item.CustomSymbol != "" {
 		symbol = item.CustomSymbol
 	}
 
-	if ctx.IsPreview {
-		if item.RawValue != nil && *item.RawValue {
-			return "main", nil
+	// Try to get branch from VCS telemetry first
+	var branch string
+	var dirty bool
+	if ctx.Data.VCS != nil {
+		branch = ctx.Data.VCS.Branch
+		if ctx.Data.VCS.Dirty != nil {
+			dirty = *ctx.Data.VCS.Dirty
 		}
-		return symbol + "main", nil
 	}
 
-	// Check if inside git tree
-	isGit, err := runGitCommand("rev-parse --is-inside-work-tree", ctx, ctx.GitCacheTTLSeconds)
-	if err != nil || isGit != "true" {
-		if item.Hide != nil && *item.Hide {
-			return "", nil
+	if branch == "" && !ctx.IsPreview {
+		// Fallback to git command
+		isGit, err := runGitCommand("rev-parse --is-inside-work-tree", ctx, ctx.GitCacheTTLSeconds)
+		if err == nil && isGit == "true" {
+			branch, _ = runGitCommand("symbolic-ref --short HEAD", ctx, ctx.GitCacheTTLSeconds)
+			status, _ := runGitCommand("status --porcelain", ctx, ctx.GitCacheTTLSeconds)
+			dirty = strings.TrimSpace(status) != ""
 		}
-		return symbol + "no git", nil
 	}
 
-	branch, err := runGitCommand("symbolic-ref --short HEAD", ctx, ctx.GitCacheTTLSeconds)
-	if err != nil || branch == "" {
+	if ctx.IsPreview && branch == "" {
+		branch = "main"
+	}
+
+	if branch == "" {
 		if item.Hide != nil && *item.Hide {
-			return "", nil
+			return "", "", nil
 		}
-		return symbol + "no git", nil
+		return "", symbol + "no git", nil
+	}
+
+	preserveColors := item.PreserveColors != nil && *item.PreserveColors
+	if preserveColors {
+		// statusline.sh style coloring:
+		// branch name is brightBlue (or brightRed if dirty with a brightYellow '*' appended)
+		var bodyStr string
+		if dirty {
+			bodyStr = "\x1b[91m" + branch + "\x1b[39m\x1b[93m*\x1b[39m"
+		} else {
+			bodyStr = "\x1b[94m" + branch + "\x1b[39m"
+		}
+		return "", bodyStr, nil
+	}
+
+	bodyStr := symbol + branch
+	if dirty {
+		bodyStr += "*"
 	}
 
 	if item.RawValue != nil && *item.RawValue {
-		return branch, nil
+		return "", branch, nil
 	}
-	return symbol + branch, nil
+	return "", bodyStr, nil
 }
 
 // GitChangesWidget displays the counts of Git insertions and deletions.
@@ -99,19 +142,22 @@ type GitChangesWidget struct{}
 
 func (g *GitChangesWidget) GetDefaultColor() string { return "yellow" }
 func (g *GitChangesWidget) GetDisplayName() string  { return "Git Changes" }
+func (g *GitChangesWidget) GetBodyColor(item types.WidgetItem, ctx types.RenderContext) string {
+	return "yellow"
+}
 
-func (g *GitChangesWidget) Render(item types.WidgetItem, ctx types.RenderContext, settings types.Settings) (string, error) {
+func (g *GitChangesWidget) Render(item types.WidgetItem, ctx types.RenderContext, settings types.Settings) (string, string, error) {
 	if ctx.IsPreview {
-		return "(+42,-10)", nil
+		return "", "(+42,-10)", nil
 	}
 
 	// Check if inside git tree
 	isGit, err := runGitCommand("rev-parse --is-inside-work-tree", ctx, ctx.GitCacheTTLSeconds)
 	if err != nil || isGit != "true" {
 		if item.Hide != nil && *item.Hide {
-			return "", nil
+			return "", "", nil
 		}
-		return "(no git)", nil
+		return "", "(no git)", nil
 	}
 
 	unstagedStat, _ := runGitCommand("diff --shortstat", ctx, ctx.GitCacheTTLSeconds)
@@ -123,7 +169,7 @@ func (g *GitChangesWidget) Render(item types.WidgetItem, ctx types.RenderContext
 	insertions := uIns + sIns
 	deletions := uDel + sDel
 
-	return fmt.Sprintf("(+%d,-%d)", insertions, deletions), nil
+	return "", fmt.Sprintf("(+%d,-%d)", insertions, deletions), nil
 }
 
 func parseShortStat(stat string) (int, int) {
@@ -160,62 +206,73 @@ func formatTokens(count float64, decimals int) string {
 // ContextUsedPctWidget displays context window used percentage.
 type ContextUsedPctWidget struct{}
 
-func (c *ContextUsedPctWidget) GetDefaultColor() string { return "brightBlack" }
+func (c *ContextUsedPctWidget) GetDefaultColor() string { return "brightWhite" }
 func (c *ContextUsedPctWidget) GetDisplayName() string  { return "Context Used %" }
+func (c *ContextUsedPctWidget) GetBodyColor(item types.WidgetItem, ctx types.RenderContext) string {
+	return "brightWhite"
+}
 
-func (c *ContextUsedPctWidget) Render(item types.WidgetItem, ctx types.RenderContext, settings types.Settings) (string, error) {
+func (c *ContextUsedPctWidget) Render(item types.WidgetItem, ctx types.RenderContext, settings types.Settings) (string, string, error) {
 	var pct float64
 	if ctx.Data.ContextWindow != nil && ctx.Data.ContextWindow.UsedPercentage != nil {
 		pct = *ctx.Data.ContextWindow.UsedPercentage
 	} else {
-		return "", nil
+		return "", "", nil
 	}
 
+	valStr := fmt.Sprintf("%.2f%%", pct)
 	if item.RawValue != nil && *item.RawValue {
-		return fmt.Sprintf("%.2f%%", pct), nil
+		return "", valStr, nil
 	}
-	return fmt.Sprintf("Used: %.2f%%", pct), nil
+	return "Used", valStr, nil
 }
 
 // ContextRemainingPctWidget displays context window remaining percentage.
 type ContextRemainingPctWidget struct{}
 
-func (c *ContextRemainingPctWidget) GetDefaultColor() string { return "brightBlack" }
+func (c *ContextRemainingPctWidget) GetDefaultColor() string { return "brightWhite" }
 func (c *ContextRemainingPctWidget) GetDisplayName() string  { return "Context Remaining %" }
+func (c *ContextRemainingPctWidget) GetBodyColor(item types.WidgetItem, ctx types.RenderContext) string {
+	return "brightWhite"
+}
 
-func (c *ContextRemainingPctWidget) Render(item types.WidgetItem, ctx types.RenderContext, settings types.Settings) (string, error) {
+func (c *ContextRemainingPctWidget) Render(item types.WidgetItem, ctx types.RenderContext, settings types.Settings) (string, string, error) {
 	var pct float64
 	if ctx.Data.ContextWindow != nil && ctx.Data.ContextWindow.RemainingPercentage != nil {
 		pct = *ctx.Data.ContextWindow.RemainingPercentage
 	} else {
-		return "", nil
+		return "", "", nil
 	}
 
+	valStr := fmt.Sprintf("%.2f%%", pct)
 	if item.RawValue != nil && *item.RawValue {
-		return fmt.Sprintf("%.2f%%", pct), nil
+		return "", valStr, nil
 	}
-	return fmt.Sprintf("Remaining: %.2f%%", pct), nil
+	return "Remaining", valStr, nil
 }
 
 // QuotaWidget displays quota limits and usage.
 type QuotaWidget struct{}
 
-func (q *QuotaWidget) GetDefaultColor() string { return "brightBlack" }
+func (q *QuotaWidget) GetDefaultColor() string { return "brightWhite" }
 func (q *QuotaWidget) GetDisplayName() string  { return "Quota" }
+func (q *QuotaWidget) GetBodyColor(item types.WidgetItem, ctx types.RenderContext) string {
+	return "brightWhite"
+}
 
-func (q *QuotaWidget) Render(item types.WidgetItem, ctx types.RenderContext, settings types.Settings) (string, error) {
+func (q *QuotaWidget) Render(item types.WidgetItem, ctx types.RenderContext, settings types.Settings) (string, string, error) {
 	if ctx.Data.Quota == nil {
-		return "", nil
+		return "", "", nil
 	}
 
 	key := item.Metadata["key"]
 	if key == "" {
-		return "", nil
+		return "", "", nil
 	}
 
 	quota, ok := ctx.Data.Quota[key]
 	if !ok {
-		return "", nil
+		return "", "", nil
 	}
 
 	displayMode := item.Metadata["display"]
@@ -261,12 +318,12 @@ func (q *QuotaWidget) Render(item types.WidgetItem, ctx types.RenderContext, set
 
 	if displayMode == "reset" {
 		if resetStr == "" {
-			return "", nil
+			return "", "", nil
 		}
 		valueStr = resetStr
 	} else if displayMode == "quota" {
 		if pctStr == "" {
-			return "", nil
+			return "", "", nil
 		}
 		valueStr = pctStr
 	} else {
@@ -278,12 +335,12 @@ func (q *QuotaWidget) Render(item types.WidgetItem, ctx types.RenderContext, set
 		} else if resetStr != "" {
 			valueStr = resetStr
 		} else {
-			return "", nil
+			return "", "", nil
 		}
 	}
 
 	if item.RawValue != nil && *item.RawValue {
-		return valueStr, nil
+		return "", valueStr, nil
 	}
 
 	label := item.CustomText
@@ -292,9 +349,9 @@ func (q *QuotaWidget) Render(item types.WidgetItem, ctx types.RenderContext, set
 	}
 
 	if displayMode == "reset" {
-		return fmt.Sprintf("%s (reset): %s", label, valueStr), nil
+		return label + " (reset)", valueStr, nil
 	}
-	return fmt.Sprintf("%s: %s", label, valueStr), nil
+	return label, valueStr, nil
 }
 
 // CustomTextWidget displays custom user-defined text.
@@ -302,9 +359,12 @@ type CustomTextWidget struct{}
 
 func (c *CustomTextWidget) GetDefaultColor() string { return "white" }
 func (c *CustomTextWidget) GetDisplayName() string  { return "Custom Text" }
+func (c *CustomTextWidget) GetBodyColor(item types.WidgetItem, ctx types.RenderContext) string {
+	return "white"
+}
 
-func (c *CustomTextWidget) Render(item types.WidgetItem, ctx types.RenderContext, settings types.Settings) (string, error) {
-	return item.CustomText, nil
+func (c *CustomTextWidget) Render(item types.WidgetItem, ctx types.RenderContext, settings types.Settings) (string, string, error) {
+	return "", item.CustomText, nil
 }
 
 // SandboxWidget displays the sandbox enabled status.
@@ -312,21 +372,276 @@ type SandboxWidget struct{}
 
 func (s *SandboxWidget) GetDefaultColor() string { return "yellow" }
 func (s *SandboxWidget) GetDisplayName() string  { return "Sandbox" }
+func (s *SandboxWidget) GetBodyColor(item types.WidgetItem, ctx types.RenderContext) string {
+	if ctx.Data.Sandbox != nil && ctx.Data.Sandbox.Enabled != nil && *ctx.Data.Sandbox.Enabled {
+		return "brightGreen"
+	}
+	return "brightBlack"
+}
 
-func (s *SandboxWidget) Render(item types.WidgetItem, ctx types.RenderContext, settings types.Settings) (string, error) {
+func (s *SandboxWidget) Render(item types.WidgetItem, ctx types.RenderContext, settings types.Settings) (string, string, error) {
 	if ctx.Data.Sandbox == nil || ctx.Data.Sandbox.Enabled == nil {
-		return "", nil
+		return "", "", nil
 	}
 
 	enabled := *ctx.Data.Sandbox.Enabled
-	valStr := "false"
+	valStr := "off"
 	if enabled {
-		valStr = "true"
+		valStr = "on"
+	}
+
+	preserveColors := item.PreserveColors != nil && *item.PreserveColors
+	if preserveColors {
+		// statusline.sh style coloring:
+		// sandbox is gray (ansi 90), ON is green and bold (ansi 92), off is gray (ansi 90)
+		var bodyStr string
+		if enabled {
+			bodyStr = "\x1b[90msandbox\x1b[39m \x1b[92m\x1b[1mON\x1b[22m\x1b[39m"
+		} else {
+			bodyStr = "\x1b[90msandbox off\x1b[39m"
+		}
+		return "", bodyStr, nil
 	}
 
 	if item.RawValue != nil && *item.RawValue {
-		return valStr, nil
+		return "", valStr, nil
 	}
 
-	return "sandbox: " + valStr, nil
+	if enabled {
+		return "sandbox", "on", nil
+	}
+	return "sandbox", "off", nil
+}
+
+// AgentStateWidget displays the active agent state.
+type AgentStateWidget struct{}
+
+func (a *AgentStateWidget) GetDefaultColor() string { return "brightGreen" }
+func (a *AgentStateWidget) GetDisplayName() string  { return "Agent State" }
+
+func (a *AgentStateWidget) GetBodyColor(item types.WidgetItem, ctx types.RenderContext) string {
+	state := ctx.Data.AgentState
+	if state == "" {
+		state = "idle"
+	}
+	switch state {
+	case "idle":
+		return "brightGreen"
+	case "thinking":
+		return "brightYellow"
+	case "working":
+		return "brightCyan"
+	case "tool_use":
+		return "brightMagenta"
+	}
+	return "white"
+}
+
+func (a *AgentStateWidget) Render(item types.WidgetItem, ctx types.RenderContext, settings types.Settings) (string, string, error) {
+	state := ctx.Data.AgentState
+	if state == "" {
+		state = "idle"
+	}
+
+	var symbolText string
+	switch state {
+	case "idle":
+		symbolText = "● READY"
+	case "thinking":
+		symbolText = "◆ THINKING"
+	case "working":
+		symbolText = "⚙ WORKING"
+	case "tool_use":
+		symbolText = "🔧 TOOL"
+	default:
+		symbolText = "⏳ " + strings.ToUpper(state)
+	}
+
+	preserveColors := item.PreserveColors != nil && *item.PreserveColors
+	if preserveColors {
+		boldCode := "\x1b[1m"
+		resetCode := "\x1b[22m\x1b[39m"
+		var colorCode string
+		switch state {
+		case "idle":
+			colorCode = "\x1b[92m"
+		case "thinking":
+			colorCode = "\x1b[93m"
+		case "working":
+			colorCode = "\x1b[96m"
+		case "tool_use":
+			colorCode = "\x1b[95m"
+		default:
+			colorCode = "\x1b[97m"
+		}
+		return "", boldCode + colorCode + symbolText + resetCode, nil
+	}
+
+	return "", symbolText, nil
+}
+
+// ContextBarWidget displays a progress bar representing context window usage.
+type ContextBarWidget struct{}
+
+func (c *ContextBarWidget) GetDefaultColor() string { return "brightWhite" }
+func (c *ContextBarWidget) GetDisplayName() string  { return "Context Bar" }
+
+func (c *ContextBarWidget) GetBodyColor(item types.WidgetItem, ctx types.RenderContext) string {
+	var pct float64
+	if ctx.Data.ContextWindow != nil && ctx.Data.ContextWindow.UsedPercentage != nil {
+		pct = *ctx.Data.ContextWindow.UsedPercentage
+	}
+	if pct >= 90 {
+		return "brightRed"
+	} else if pct >= 60 {
+		return "brightYellow"
+	}
+	return "brightWhite"
+}
+
+func (c *ContextBarWidget) Render(item types.WidgetItem, ctx types.RenderContext, settings types.Settings) (string, string, error) {
+	var pct float64
+	if ctx.Data.ContextWindow != nil && ctx.Data.ContextWindow.UsedPercentage != nil {
+		pct = *ctx.Data.ContextWindow.UsedPercentage
+	} else {
+		return "ctx", "", nil
+	}
+
+	pctInt := int(pct)
+	barLen := 15
+	filled := pctInt * barLen / 100
+	remainder := (pctInt * barLen) % 100
+
+	var barBuilder strings.Builder
+	for i := range barLen {
+		if i < filled {
+			barBuilder.WriteString("█")
+		} else if i == filled {
+			if remainder >= 75 {
+				barBuilder.WriteString("▓")
+			} else if remainder >= 50 {
+				barBuilder.WriteString("▒")
+			} else if remainder >= 25 {
+				barBuilder.WriteString("░")
+			} else {
+				barBuilder.WriteString("·")
+			}
+		} else {
+			barBuilder.WriteString("·")
+		}
+	}
+	bar := barBuilder.String()
+
+	pctFmt := fmt.Sprintf("%.1f%%", pct)
+
+	preserveColors := item.PreserveColors != nil && *item.PreserveColors
+	if preserveColors {
+		var barColor string
+		if pctInt >= 90 {
+			barColor = "\x1b[91m"
+		} else if pctInt >= 60 {
+			barColor = "\x1b[93m"
+		} else {
+			barColor = "\x1b[97m"
+		}
+		titleStr := "\x1b[90mctx\x1b[39m"
+		bodyStr := barColor + bar + "\x1b[39m \x1b[97m\x1b[1m" + pctFmt + "\x1b[22m\x1b[39m"
+		return titleStr, bodyStr, nil
+	}
+
+	if item.RawValue != nil && *item.RawValue {
+		return "", bar + " " + pctFmt, nil
+	}
+	return "ctx", bar + " " + pctFmt, nil
+}
+
+// ArtifactsWidget displays count of artifacts.
+type ArtifactsWidget struct{}
+
+func (a *ArtifactsWidget) GetDefaultColor() string { return "brightWhite" }
+func (a *ArtifactsWidget) GetDisplayName() string  { return "Artifacts" }
+func (a *ArtifactsWidget) GetBodyColor(item types.WidgetItem, ctx types.RenderContext) string {
+	return "brightWhite"
+}
+
+func (a *ArtifactsWidget) Render(item types.WidgetItem, ctx types.RenderContext, settings types.Settings) (string, string, error) {
+	count := 0
+	if ctx.Data.ArtifactCount != nil {
+		count = *ctx.Data.ArtifactCount
+	}
+
+	countStr := strconv.Itoa(count)
+	preserveColors := item.PreserveColors != nil && *item.PreserveColors
+	if preserveColors {
+		titleStr := "\x1b[90martifacts\x1b[39m"
+		bodyStr := "\x1b[97m\x1b[1m" + countStr + "\x1b[22m\x1b[39m"
+		return titleStr, bodyStr, nil
+	}
+
+	if item.RawValue != nil && *item.RawValue {
+		return "", countStr, nil
+	}
+	return "artifacts", countStr, nil
+}
+
+// SubagentsWidget displays count of subagents.
+type SubagentsWidget struct{}
+
+func (s *SubagentsWidget) GetDefaultColor() string { return "brightWhite" }
+func (s *SubagentsWidget) GetDisplayName() string  { return "Subagents" }
+func (s *SubagentsWidget) GetBodyColor(item types.WidgetItem, ctx types.RenderContext) string {
+	return "brightWhite"
+}
+
+func (s *SubagentsWidget) Render(item types.WidgetItem, ctx types.RenderContext, settings types.Settings) (string, string, error) {
+	count := 0
+	if ctx.Data.Subagents != nil {
+		if list, ok := ctx.Data.Subagents.([]any); ok {
+			count = len(list)
+		} else if num, ok := ctx.Data.Subagents.(float64); ok {
+			count = int(num)
+		}
+	}
+
+	countStr := strconv.Itoa(count)
+	preserveColors := item.PreserveColors != nil && *item.PreserveColors
+	if preserveColors {
+		titleStr := "\x1b[90msubagents\x1b[39m"
+		bodyStr := "\x1b[97m\x1b[1m" + countStr + "\x1b[22m\x1b[39m"
+		return titleStr, bodyStr, nil
+	}
+
+	if item.RawValue != nil && *item.RawValue {
+		return "", countStr, nil
+	}
+	return "subagents", countStr, nil
+}
+
+// TasksWidget displays count of background tasks.
+type TasksWidget struct{}
+
+func (t *TasksWidget) GetDefaultColor() string { return "brightWhite" }
+func (t *TasksWidget) GetDisplayName() string  { return "Tasks" }
+func (t *TasksWidget) GetBodyColor(item types.WidgetItem, ctx types.RenderContext) string {
+	return "brightWhite"
+}
+
+func (t *TasksWidget) Render(item types.WidgetItem, ctx types.RenderContext, settings types.Settings) (string, string, error) {
+	count := 0
+	if ctx.Data.TaskCount != nil {
+		count = *ctx.Data.TaskCount
+	}
+
+	countStr := strconv.Itoa(count)
+	preserveColors := item.PreserveColors != nil && *item.PreserveColors
+	if preserveColors {
+		titleStr := "\x1b[90mtasks\x1b[39m"
+		bodyStr := "\x1b[97m\x1b[1m" + countStr + "\x1b[22m\x1b[39m"
+		return titleStr, bodyStr, nil
+	}
+
+	if item.RawValue != nil && *item.RawValue {
+		return "", countStr, nil
+	}
+	return "tasks", countStr, nil
 }

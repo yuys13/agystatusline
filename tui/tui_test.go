@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/yuys13/agystatusline/renderer"
 	"github.com/yuys13/agystatusline/types"
 	"github.com/yuys13/agystatusline/widgets"
 )
@@ -74,12 +75,12 @@ func TestTUI_LivePreviewContextPercentages(t *testing.T) {
 	)
 	m := NewModel(settings, "/tmp/settings.json")
 
-	viewStr := m.View()
-	if !strings.Contains(viewStr, "Used: 20.00%") {
-		t.Errorf("Expected live preview to contain 'Used: 20.00%%', but it did not. View output:\n%s", viewStr)
+	viewStr := renderer.StripAnsi(m.View())
+	if !strings.Contains(viewStr, "Used 20.00%") {
+		t.Errorf("Expected live preview to contain 'Used 20.00%%', but it did not. View output:\n%s", viewStr)
 	}
-	if !strings.Contains(viewStr, "Remaining: 80.00%") {
-		t.Errorf("Expected live preview to contain 'Remaining: 80.00%%', but it did not. View output:\n%s", viewStr)
+	if !strings.Contains(viewStr, "Remaining 80.00%") {
+		t.Errorf("Expected live preview to contain 'Remaining 80.00%%', but it did not. View output:\n%s", viewStr)
 	}
 }
 
@@ -250,6 +251,15 @@ func TestTUI_LinesOperations(t *testing.T) {
 
 func TestTUI_ItemsOperations(t *testing.T) {
 	settings := types.DefaultSettings()
+	settings.Lines[0] = []types.WidgetItem{
+		{ID: "1", Type: "model", Color: "brightMagenta"},
+		{ID: "2", Type: "separator"},
+		{ID: "3", Type: "context-length", Color: "brightBlack"},
+		{ID: "4", Type: "separator"},
+		{ID: "5", Type: "git-branch", Color: "brightMagenta"},
+		{ID: "6", Type: "separator"},
+		{ID: "7", Type: "git-changes", Color: "yellow"},
+	}
 	m := NewModel(settings, "/tmp/settings.json")
 	m.activeMenu = "items"
 	m.selectedLine = 0
@@ -349,8 +359,8 @@ func TestTUI_AddWidget(t *testing.T) {
 	if len(newModel.settings.Lines[0]) != 8 {
 		t.Errorf("Expected 8 widgets in line 0, got %d", len(newModel.settings.Lines[0]))
 	}
-	if newModel.settings.Lines[0][2].Type != "separator" {
-		t.Errorf("Expected added widget at index 2 to be 'separator', got %q", newModel.settings.Lines[0][2].Type)
+	if newModel.settings.Lines[0][2].Type != "custom-text" {
+		t.Errorf("Expected added widget at index 2 to be 'custom-text', got %q", newModel.settings.Lines[0][2].Type)
 	}
 	if newModel.cursor != 2 {
 		t.Errorf("Expected cursor to point to the newly added widget (index 2), got %d", newModel.cursor)
@@ -371,12 +381,12 @@ func TestTUI_AddContextPctWidgets(t *testing.T) {
 
 	// Navigate to the bottom (where Context Used % is at index 6)
 	m = newModel
-	for range 6 {
+	for range 5 {
 		updatedModel, _ = m.Update(tea.KeyMsg{Type: tea.KeyDown})
 		m = updatedModel.(Model)
 	}
-	if m.cursor != 6 {
-		t.Fatalf("Expected cursor to be 6, got %d", m.cursor)
+	if m.cursor != 5 {
+		t.Fatalf("Expected cursor to be 5, got %d", m.cursor)
 	}
 
 	// Press Enter to add
@@ -390,8 +400,8 @@ func TestTUI_AddContextPctWidgets(t *testing.T) {
 	if addedWidget.Type != "context-used-pct" {
 		t.Errorf("Expected added widget type to be 'context-used-pct', got %q", addedWidget.Type)
 	}
-	if addedWidget.Color != "brightBlack" {
-		t.Errorf("Expected added widget color to be 'brightBlack', got %q", addedWidget.Color)
+	if addedWidget.Color != "brightWhite" {
+		t.Errorf("Expected added widget color to be 'brightWhite', got %q", addedWidget.Color)
 	}
 }
 
@@ -538,6 +548,7 @@ func TestTUI_AddQuotaWidgets(t *testing.T) {
 func TestTUI_LivePreviewQuota(t *testing.T) {
 	widgets.RegisterAll()
 	settings := types.DefaultSettings()
+	settings.Lines[0] = []types.WidgetItem{}
 	// クォータウィジェットを追加
 	settings.Lines[0] = append(settings.Lines[0],
 		types.WidgetItem{
@@ -565,18 +576,18 @@ func TestTUI_LivePreviewQuota(t *testing.T) {
 	)
 	m := NewModel(settings, "/tmp/settings.json")
 
-	viewStr := m.View()
+	viewStr := renderer.StripAnsi(m.View())
 	// previewCtx のダミーデータから、それぞれ適切な値が表示されることを検証
-	// default (both): gemini-5h: 50.19% (2h 28m), 3p-5h: 100.00% (4h 59m)
-	// display:quota (% only): gemini-5h: 50.19%
-	if !strings.Contains(viewStr, "gemini-5h: 50.19% (2h 28m)") {
-		t.Errorf("Expected live preview to contain 'gemini-5h: 50.19%% (2h 28m)', but it did not. View:\n%s", viewStr)
+	// default (both): gemini-5h 50.19% (2h 28m), 3p-5h 100.00% (4h 59m)
+	// display:quota (% only): gemini-5h 50.19%
+	if !strings.Contains(viewStr, "gemini-5h 50.19% (2h 28m)") {
+		t.Errorf("Expected live preview to contain 'gemini-5h 50.19%% (2h 28m)', but it did not. View:\n%s", viewStr)
 	}
-	if !strings.Contains(viewStr, "gemini-5h: 50.19%") {
-		t.Errorf("Expected live preview to contain 'gemini-5h: 50.19%%', but it did not. View:\n%s", viewStr)
+	if !strings.Contains(viewStr, "gemini-5h 50.19%") {
+		t.Errorf("Expected live preview to contain 'gemini-5h 50.19%%', but it did not. View:\n%s", viewStr)
 	}
-	if !strings.Contains(viewStr, "3p-5h: 100.00% (4h 59m)") {
-		t.Errorf("Expected live preview to contain '3p-5h: 100.00%% (4h 59m)', but it did not. View:\n%s", viewStr)
+	if !strings.Contains(viewStr, "3p-5h 100.00% (4h 59m)") {
+		t.Errorf("Expected live preview to contain '3p-5h 100.00%% (4h 59m)', but it did not. View:\n%s", viewStr)
 	}
 }
 
@@ -921,8 +932,8 @@ func TestTUI_LivePreviewAddWidget(t *testing.T) {
 	m.selectedLine = 0
 	m.itemIndex = 0 // Insert after the first widget (index 0, Model widget)
 
-	// Select "Custom Text" widget which is index 5 in widgetTypes
-	m.cursor = 5
+	// Select "Custom Text" widget which is index 4 in widgetTypes
+	m.cursor = 4
 
 	viewStr := m.View()
 
@@ -1014,11 +1025,11 @@ func TestTUI_LivePreviewSandbox(t *testing.T) {
 	)
 	m := NewModel(settings, "/tmp/settings.json")
 
-	viewStr := m.View()
+	viewStr := renderer.StripAnsi(m.View())
 	// Since sandbox.enabled will be configured as true in the preview context,
-	// the preview output should contain "sandbox: true"
-	if !strings.Contains(viewStr, "sandbox: true") {
-		t.Errorf("Expected live preview to contain 'sandbox: true', but it did not. View output:\n%s", viewStr)
+	// the preview output should contain "sandbox on"
+	if !strings.Contains(viewStr, "sandbox on") {
+		t.Errorf("Expected live preview to contain 'sandbox on', but it did not. View output:\n%s", viewStr)
 	}
 }
 

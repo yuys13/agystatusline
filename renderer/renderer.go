@@ -1,7 +1,6 @@
 package renderer
 
 import (
-	"fmt"
 	"strings"
 
 	"github.com/yuys13/agystatusline/types"
@@ -19,7 +18,7 @@ func RenderStatusLines(settings types.Settings, ctx types.RenderContext) []strin
 	var results []string
 
 	padding := settings.DefaultPadding
-	separator := " | "
+	separator := " · "
 	if settings.DefaultSeparator != "" {
 		separator = formatSeparator(settings.DefaultSeparator)
 	}
@@ -49,30 +48,62 @@ func RenderStatusLines(settings types.Settings, ctx types.RenderContext) []strin
 				effectiveItem.RawValue = &raw
 			}
 
-			content, err := w.Render(effectiveItem, ctx, settings)
-			if err != nil || content == "" {
+			title, body, err := w.Render(effectiveItem, ctx, settings)
+			if err != nil || (title == "" && body == "") {
 				rendered = append(rendered, PreRenderedWidget{Item: item})
 				continue
 			}
 
-			colored := fmt.Sprintf(" %s ", content)
-			if !settings.Powerline.Enabled {
-				bold := false
-				if settings.GlobalBold || (item.Bold != nil && *item.Bold) {
-					bold = true
+			visibleText := body
+			if title != "" {
+				visibleText = title + " " + body
+			}
+
+			colored := visibleText
+			if settings.Powerline.Enabled {
+				colored = visibleText
+			} else {
+				preserveColors := item.PreserveColors != nil && *item.PreserveColors
+				if preserveColors {
+					colored = visibleText
+				} else {
+					bold := false
+					if settings.GlobalBold || (item.Bold != nil && *item.Bold) {
+						bold = true
+					}
+					colorLevelStr := "ansi16"
+					if settings.ColorLevel == 2 {
+						colorLevelStr = "ansi256"
+					} else if settings.ColorLevel == 3 {
+						colorLevelStr = "truecolor"
+					}
+
+					titleColored := ""
+					if title != "" && !(item.RawValue != nil && *item.RawValue) && !settings.MinimalistMode {
+						titleColored = ApplyColors(title, "brightBlack", "", nil, colorLevelStr, nil)
+					}
+
+					bodyColor := item.Color
+					if bodyColor == "" {
+						bodyColor = w.GetBodyColor(effectiveItem, ctx)
+					}
+					if bodyColor == "" {
+						bodyColor = w.GetDefaultColor()
+					}
+
+					bodyColored := ApplyColors(body, bodyColor, item.BackgroundColor, &bold, colorLevelStr, item.Dim)
+
+					if titleColored != "" {
+						colored = titleColored + " " + bodyColored
+					} else {
+						colored = bodyColored
+					}
 				}
-				colorLevelStr := "ansi16"
-				if settings.ColorLevel == 2 {
-					colorLevelStr = "ansi256"
-				} else if settings.ColorLevel == 3 {
-					colorLevelStr = "truecolor"
-				}
-				colored = ApplyColors(content, item.Color, item.BackgroundColor, &bold, colorLevelStr, item.Dim)
 			}
 
 			rendered = append(rendered, PreRenderedWidget{
 				Content:     colored,
-				PlainLength: GetVisibleWidth(content),
+				PlainLength: GetVisibleWidth(visibleText),
 				Item:        item,
 			})
 		}
@@ -82,48 +113,29 @@ func RenderStatusLines(settings types.Settings, ctx types.RenderContext) []strin
 			lineStr = renderPowerline(rendered, settings, ctx)
 		} else {
 			var parts []string
-			var pendingFlex []int
 
+			var activeRendered []PreRenderedWidget
 			for _, r := range rendered {
-				if r.Item.Type == "flex-separator" {
-					pendingFlex = append(pendingFlex, len(parts))
-					parts = append(parts, "FLEX")
-				} else if r.Item.Type == "separator" {
-					parts = append(parts, separator)
-				} else {
-					if r.Content != "" {
-						parts = append(parts, padding+r.Content+padding)
-					}
+				if r.Item.Type == "separator" || r.Item.Type == "flex-separator" {
+					continue
+				}
+				if r.Content != "" {
+					activeRendered = append(activeRendered, r)
 				}
 			}
 
-			if len(pendingFlex) > 0 && ctx.TerminalWidth != nil {
-				termWidth := *ctx.TerminalWidth
-				if ctx.IsPreview {
-					termWidth = termWidth - 6
-				}
+			colorLevelStr := "ansi16"
+			if settings.ColorLevel == 2 {
+				colorLevelStr = "ansi256"
+			} else if settings.ColorLevel == 3 {
+				colorLevelStr = "truecolor"
+			}
+			coloredSeparator := ApplyColors(separator, "brightBlack", "", nil, colorLevelStr, nil)
 
-				visibleWidth := 0
-				for _, p := range parts {
-					if p != "FLEX" {
-						visibleWidth += GetVisibleWidth(p)
-					}
-				}
-
-				totalSpace := max(termWidth-visibleWidth, 0)
-				spacePerFlex := totalSpace / len(pendingFlex)
-				extraSpace := totalSpace % len(pendingFlex)
-
-				for i, idx := range pendingFlex {
-					size := spacePerFlex
-					if i < extraSpace {
-						size++
-					}
-					parts[idx] = strings.Repeat(" ", size)
-				}
-			} else {
-				for _, idx := range pendingFlex {
-					parts[idx] = " "
+			for i, r := range activeRendered {
+				parts = append(parts, padding+r.Content+padding)
+				if i < len(activeRendered)-1 {
+					parts = append(parts, coloredSeparator)
 				}
 			}
 

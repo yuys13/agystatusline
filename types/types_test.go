@@ -62,12 +62,20 @@ func TestDefaultSettings(t *testing.T) {
 
 	// Verify default widgets on line 0
 	line0 := settings.Lines[0]
-	if len(line0) == 0 {
-		t.Fatalf("Expected widgets on line 0, got none")
+	if len(line0) != 7 {
+		t.Fatalf("Expected 7 widgets on line 0, got %d", len(line0))
 	}
 
-	if line0[0].Type != "model" || line0[0].Color != "cyan" {
-		t.Errorf("Expected first widget on line 0 to be model (cyan), got Type='%s', Color='%s'", line0[0].Type, line0[0].Color)
+	if line0[0].Type != "agent-state" || line0[0].Color != "brightGreen" {
+		t.Errorf("Expected first widget on line 0 to be agent-state (brightGreen), got Type='%s', Color='%s'", line0[0].Type, line0[0].Color)
+	}
+
+	if line0[1].Type != "model" || line0[1].Color != "brightMagenta" {
+		t.Errorf("Expected second widget on line 0 to be model (brightMagenta), got Type='%s', Color='%s'", line0[1].Type, line0[1].Color)
+	}
+
+	if line0[6].Type != "sandbox" || line0[6].Color != "yellow" {
+		t.Errorf("Expected seventh widget on line 0 to be sandbox (yellow), got Type='%s', Color='%s'", line0[6].Type, line0[6].Color)
 	}
 }
 
