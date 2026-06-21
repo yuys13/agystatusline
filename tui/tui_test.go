@@ -322,12 +322,12 @@ func TestTUI_AddWidget(t *testing.T) {
 
 	// 2. Select a widget type and add it
 	m = newModel
-	for range 3 {
+	for range 2 {
 		updatedModel, _ = m.Update(tea.KeyMsg{Type: tea.KeyDown})
 		m = updatedModel.(Model)
 	}
-	if m.cursor != 3 {
-		t.Fatalf("Expected cursor to be 3, got %d", m.cursor)
+	if m.cursor != 2 {
+		t.Fatalf("Expected cursor to be 2, got %d", m.cursor)
 	}
 
 	// Press Enter to add
@@ -340,15 +340,15 @@ func TestTUI_AddWidget(t *testing.T) {
 	if len(newModel.settings.Lines[0]) != 8 {
 		t.Errorf("Expected 8 widgets in line 0, got %d", len(newModel.settings.Lines[0]))
 	}
-	if newModel.settings.Lines[0][2].Type != "custom-text" {
-		t.Errorf("Expected added widget at index 2 to be 'custom-text', got %q", newModel.settings.Lines[0][2].Type)
+	if newModel.settings.Lines[0][2].Type != "git-changes" {
+		t.Errorf("Expected added widget at index 2 to be 'git-changes', got %q", newModel.settings.Lines[0][2].Type)
 	}
 	if newModel.cursor != 2 {
 		t.Errorf("Expected cursor to point to the newly added widget (index 2), got %d", newModel.cursor)
 	}
 }
 
-func TestTUI_AddQuotaWidgets(t *testing.T) {
+func TestTUI_AddQuotaBarWidgets(t *testing.T) {
 	widgets.RegisterAll()
 	settings := types.DefaultSettings()
 	m := NewModel(settings, "/tmp/settings.json")
@@ -365,50 +365,10 @@ func TestTUI_AddQuotaWidgets(t *testing.T) {
 		t.Fatalf("Expected activeMenu to be 'add_widget', got %s", newModel.activeMenu)
 	}
 
-	// 2. ウィジェット追加リストにクォータウィジェット（通常・%・リセット）が含まれているか確認
-	var foundG5h, foundGwk, found3p5h, found3pwk bool
-	var foundG5hP, foundGwkP, found3p5hP, found3pwkP bool
-	var foundG5hR, foundGwkR, found3p5hR, found3pwkR bool
+	// 2. ウィジェット追加リストにクォータバーウィジェットが含まれているか確認
 	var foundG5hB, foundGwkB, found3p5hB, found3pwkB bool
 	for _, wt := range widgetTypes {
-		if wt.wType == "quota" {
-			key := wt.metadata["key"]
-			display := wt.metadata["display"]
-			if display == "reset" {
-				switch key {
-				case "gemini-5h":
-					foundG5hR = true
-				case "gemini-weekly":
-					foundGwkR = true
-				case "3p-5h":
-					found3p5hR = true
-				case "3p-weekly":
-					found3pwkR = true
-				}
-			} else if display == "quota" {
-				switch key {
-				case "gemini-5h":
-					foundG5hP = true
-				case "gemini-weekly":
-					foundGwkP = true
-				case "3p-5h":
-					found3p5hP = true
-				case "3p-weekly":
-					found3pwkP = true
-				}
-			} else {
-				switch key {
-				case "gemini-5h":
-					foundG5h = true
-				case "gemini-weekly":
-					foundGwk = true
-				case "3p-5h":
-					found3p5h = true
-				case "3p-weekly":
-					found3pwk = true
-				}
-			}
-		} else if wt.wType == "quota-bar" {
+		if wt.wType == "quota-bar" {
 			key := wt.metadata["key"]
 			switch key {
 			case "gemini-5h":
@@ -422,97 +382,12 @@ func TestTUI_AddQuotaWidgets(t *testing.T) {
 			}
 		}
 	}
-	if !foundG5h || !foundGwk || !found3p5h || !found3pwk {
-		t.Errorf("Expected all 4 quota presets in widgetTypes, got Gemini 5h:%t, Gemini Weekly:%t, 3P 5h:%t, 3P Weekly:%t",
-			foundG5h, foundGwk, found3p5h, found3pwk)
-	}
-	if !foundG5hP || !foundGwkP || !found3p5hP || !found3pwkP {
-		t.Errorf("Expected all 4 quota percent presets in widgetTypes, got Gemini 5h Percent:%t, Gemini Weekly Percent:%t, 3P 5h Percent:%t, 3P Weekly Percent:%t",
-			foundG5hP, foundGwkP, found3p5hP, found3pwkP)
-	}
-	if !foundG5hR || !foundGwkR || !found3p5hR || !found3pwkR {
-		t.Errorf("Expected all 4 quota reset presets in widgetTypes, got Gemini 5h Reset:%t, Gemini Weekly Reset:%t, 3P 5h Reset:%t, 3P Weekly Reset:%t",
-			foundG5hR, foundGwkR, found3p5hR, found3pwkR)
-	}
 	if !foundG5hB || !foundGwkB || !found3p5hB || !found3pwkB {
 		t.Errorf("Expected all 4 quota-bar presets in widgetTypes, got Gemini 5h Bar:%t, Gemini Weekly Bar:%t, 3P 5h Bar:%t, 3P Weekly Bar:%t",
 			foundG5hB, foundGwkB, found3p5hB, found3pwkB)
 	}
 
-	// 3. 実際に Gemini 5h クォータウィジェットを追加してみる（デフォルト: display指定なし）。
-	targetIdx := -1
-	for i, wt := range widgetTypes {
-		if wt.wType == "quota" && wt.metadata["key"] == "gemini-5h" && wt.metadata["display"] == "" {
-			targetIdx = i
-			break
-		}
-	}
-	if targetIdx == -1 {
-		t.Fatalf("Gemini 5h quota widget type not found in widgetTypes")
-	}
-
-	// cursor を targetIdx まで移動させる
-	m = newModel
-	m.cursor = targetIdx
-
-	// Enter を押してウィジェットを追加
-	updatedModel, _ = m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("\n")})
-	finalModel := updatedModel.(Model)
-
-	if finalModel.activeMenu != "items" {
-		t.Fatalf("Expected activeMenu to return to 'items', got %s", finalModel.activeMenu)
-	}
-
-	// 追加されたウィジェットを検証
-	addedWidget := finalModel.settings.Lines[0][1]
-	if addedWidget.Type != "quota" {
-		t.Errorf("Expected widget type 'quota', got '%s'", addedWidget.Type)
-	}
-	if addedWidget.Metadata == nil || addedWidget.Metadata["key"] != "gemini-5h" || addedWidget.Metadata["display"] != "" {
-		t.Errorf("Expected widget metadata key 'gemini-5h' and no display format, got %v", addedWidget.Metadata)
-	}
-
-	// 4. 実際に Gemini 5h クォータ % ウィジェットを追加してみる。
-	m = finalModel
-	m.activeMenu = "items"
-	m.cursor = 1
-
-	// "a" キーで追加画面に遷移
-	updatedModel, _ = m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("a")})
-	m = updatedModel.(Model)
-
-	targetPercentIdx := -1
-	for i, wt := range widgetTypes {
-		if wt.wType == "quota" && wt.metadata["key"] == "gemini-5h" && wt.metadata["display"] == "quota" {
-			targetPercentIdx = i
-			break
-		}
-	}
-	if targetPercentIdx == -1 {
-		t.Fatalf("Gemini 5h quota percent widget type not found in widgetTypes")
-	}
-
-	m.cursor = targetPercentIdx
-	updatedModel, _ = m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("\n")})
-	finalPercentModel := updatedModel.(Model)
-
-	addedPercentWidget := finalPercentModel.settings.Lines[0][2]
-	if addedPercentWidget.Type != "quota" {
-		t.Errorf("Expected widget type 'quota', got '%s'", addedPercentWidget.Type)
-	}
-	if addedPercentWidget.Metadata == nil || addedPercentWidget.Metadata["key"] != "gemini-5h" || addedPercentWidget.Metadata["display"] != "quota" {
-		t.Errorf("Expected widget metadata key 'gemini-5h' and display 'quota', got %v", addedPercentWidget.Metadata)
-	}
-
-	// 5. 実際に Gemini 5h クォータ Bar ウィジェットを追加してみる。
-	m = finalPercentModel
-	m.activeMenu = "items"
-	m.cursor = 2
-
-	// "a" キーで追加画面に遷移
-	updatedModel, _ = m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("a")})
-	m = updatedModel.(Model)
-
+	// 3. 実際に Gemini 5h クォータ Bar ウィジェットを追加してみる。
 	targetBarIdx := -1
 	for i, wt := range widgetTypes {
 		if wt.wType == "quota-bar" && wt.metadata["key"] == "gemini-5h" {
@@ -524,11 +399,16 @@ func TestTUI_AddQuotaWidgets(t *testing.T) {
 		t.Fatalf("Gemini 5h quota-bar widget type not found in widgetTypes")
 	}
 
+	m = newModel
 	m.cursor = targetBarIdx
 	updatedModel, _ = m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("\n")})
 	finalBarModel := updatedModel.(Model)
 
-	addedBarWidget := finalBarModel.settings.Lines[0][3]
+	if finalBarModel.activeMenu != "items" {
+		t.Fatalf("Expected activeMenu to return to 'items', got %s", finalBarModel.activeMenu)
+	}
+
+	addedBarWidget := finalBarModel.settings.Lines[0][1]
 	if addedBarWidget.Type != "quota-bar" {
 		t.Errorf("Expected widget type 'quota-bar', got '%s'", addedBarWidget.Type)
 	}
@@ -925,23 +805,23 @@ func TestTUI_LivePreviewAddWidget(t *testing.T) {
 	// Set state to "add_widget" menu
 	m.activeMenu = "add_widget"
 	m.selectedLine = 0
-	m.itemIndex = 0 // Insert after the first widget (index 0, Model widget)
+	m.itemIndex = 0 // Insert after the first widget (index 0, agent-state widget)
 
-	// Select "Custom Text" widget which is index 3 in widgetTypes
+	// Select "Quota Bar: 5h" widget which is index 3 in widgetTypes
 	m.cursor = 3
 
 	viewStr := m.View()
 
-	// The custom-text widget preview has "Custom Text" as its value.
-	// If the preview updates dynamically, it should contain "Custom Text" in the preview section.
+	// The Quota Bar: 5h widget preview has the bar and remaining pct/time as its value.
+	// If the preview updates dynamically, it should contain "5h" and "50.2%" in the preview section.
 	lines := strings.Split(viewStr, "\n")
 	if len(lines) < 5 {
 		t.Fatalf("Expected view outputs to have enough lines")
 	}
 	previewPart := strings.Join(lines[:4], "\n")
 
-	if !strings.Contains(previewPart, "Custom Text") {
-		t.Errorf("Expected Live Preview to dynamically display the currently selected widget type 'Custom Text' in the preview part, but it did not. Preview part:\n%s", previewPart)
+	if !strings.Contains(previewPart, "5h") || !strings.Contains(previewPart, "50.2%") {
+		t.Errorf("Expected Live Preview to dynamically display the currently selected widget type 'Quota Bar: 5h' in the preview part, but it did not. Preview part:\n%s", previewPart)
 	}
 }
 
@@ -1109,6 +989,17 @@ func TestTUI_NoASCIIInSeparators(t *testing.T) {
 		}
 		if sep.value == "|" {
 			t.Errorf("Bar ASCII (|) separator should be removed")
+		}
+	}
+}
+
+func TestTUI_NoCustomTextAndQuotaInWidgetTypes(t *testing.T) {
+	for _, wt := range widgetTypes {
+		if wt.wType == "custom-text" {
+			t.Errorf("custom-text widget should be removed from TUI selection")
+		}
+		if wt.wType == "quota" {
+			t.Errorf("quota widget should be removed from TUI selection")
 		}
 	}
 }
