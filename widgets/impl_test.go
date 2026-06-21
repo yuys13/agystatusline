@@ -279,8 +279,8 @@ func TestQuotaWidget(t *testing.T) {
 		t.Fatalf("Quota widget not found")
 	}
 
-	if w.GetDefaultColor() != "brightBlack" {
-		t.Errorf("Expected default color 'brightBlack', got '%s'", w.GetDefaultColor())
+	if w.GetDefaultColor() != "brightWhite" {
+		t.Errorf("Expected default color 'brightWhite', got '%s'", w.GetDefaultColor())
 	}
 
 	remaining1 := float64(0.5019274)
