@@ -49,7 +49,7 @@ func TestTruncateStyledText(t *testing.T) {
 	}{
 		{"Hello World", 8, "Hello..."},
 		{"\x1b[31mHello\x1b[0m World", 8, "\x1b[31mHello\x1b[0m..."},
-		{"\x1b]8;;http://x.com\x1b\\Hello\x1b]8;;\x1b\\", 8, "\x1b]8;;http://x.com\x1b\\Hello\x1b]8;;\x1b\\"}, // fits
+		{"\x1b]8;;http://example.com\x1b\\Hello\x1b]8;;\x1b\\", 8, "\x1b]8;;http://example.com\x1b\\Hello\x1b]8;;\x1b\\"}, // fits
 	}
 
 	for _, tc := range tests {
