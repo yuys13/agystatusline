@@ -400,8 +400,8 @@ func TestTUI_AddContextPctWidgets(t *testing.T) {
 	if addedWidget.Type != "context-used-pct" {
 		t.Errorf("Expected added widget type to be 'context-used-pct', got %q", addedWidget.Type)
 	}
-	if addedWidget.Color != "brightBlack" {
-		t.Errorf("Expected added widget color to be 'brightBlack', got %q", addedWidget.Color)
+	if addedWidget.Color != "brightWhite" {
+		t.Errorf("Expected added widget color to be 'brightWhite', got %q", addedWidget.Color)
 	}
 }
 
