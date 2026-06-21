@@ -568,8 +568,8 @@ func TestSandboxWidget(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Render error: %v", err)
 	}
-	if titleTrue != "sandbox" || outTrue != "true" {
-		t.Errorf("Expected title 'sandbox' and body 'true', got title '%s' and body '%s'", titleTrue, outTrue)
+	if titleTrue != "sandbox" || outTrue != "on" {
+		t.Errorf("Expected title 'sandbox' and body 'on', got title '%s' and body '%s'", titleTrue, outTrue)
 	}
 
 	itemRaw := types.WidgetItem{Type: "sandbox", RawValue: &trueVal}
@@ -577,8 +577,8 @@ func TestSandboxWidget(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Render error: %v", err)
 	}
-	if titleTrueRaw != "" || outTrueRaw != "true" {
-		t.Errorf("Expected title '' and body 'true', got title '%s' and body '%s'", titleTrueRaw, outTrueRaw)
+	if titleTrueRaw != "" || outTrueRaw != "on" {
+		t.Errorf("Expected title '' and body 'on', got title '%s' and body '%s'", titleTrueRaw, outTrueRaw)
 	}
 
 	// Case 4: Sandbox.Enabled is false (normal and raw)
@@ -594,16 +594,16 @@ func TestSandboxWidget(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Render error: %v", err)
 	}
-	if titleFalse != "sandbox" || outFalse != "false" {
-		t.Errorf("Expected title 'sandbox' and body 'false', got title '%s' and body '%s'", titleFalse, outFalse)
+	if titleFalse != "sandbox" || outFalse != "off" {
+		t.Errorf("Expected title 'sandbox' and body 'off', got title '%s' and body '%s'", titleFalse, outFalse)
 	}
 
 	titleFalseRaw, outFalseRaw, err := w.Render(itemRaw, ctxFalse, settings)
 	if err != nil {
 		t.Fatalf("Render error: %v", err)
 	}
-	if titleFalseRaw != "" || outFalseRaw != "false" {
-		t.Errorf("Expected title '' and body 'false', got title '%s' and body '%s'", titleFalseRaw, outFalseRaw)
+	if titleFalseRaw != "" || outFalseRaw != "off" {
+		t.Errorf("Expected title '' and body 'off', got title '%s' and body '%s'", titleFalseRaw, outFalseRaw)
 	}
 }
 

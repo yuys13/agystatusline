@@ -1017,9 +1017,9 @@ func TestTUI_LivePreviewSandbox(t *testing.T) {
 
 	viewStr := renderer.StripAnsi(m.View())
 	// Since sandbox.enabled will be configured as true in the preview context,
-	// the preview output should contain "sandbox true"
-	if !strings.Contains(viewStr, "sandbox true") {
-		t.Errorf("Expected live preview to contain 'sandbox true', but it did not. View output:\n%s", viewStr)
+	// the preview output should contain "sandbox on"
+	if !strings.Contains(viewStr, "sandbox on") {
+		t.Errorf("Expected live preview to contain 'sandbox on', but it did not. View output:\n%s", viewStr)
 	}
 }
 

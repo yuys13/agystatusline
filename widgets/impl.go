@@ -385,9 +385,9 @@ func (s *SandboxWidget) Render(item types.WidgetItem, ctx types.RenderContext, s
 	}
 
 	enabled := *ctx.Data.Sandbox.Enabled
-	valStr := "false"
+	valStr := "off"
 	if enabled {
-		valStr = "true"
+		valStr = "on"
 	}
 
 	preserveColors := item.PreserveColors != nil && *item.PreserveColors
@@ -408,9 +408,9 @@ func (s *SandboxWidget) Render(item types.WidgetItem, ctx types.RenderContext, s
 	}
 
 	if enabled {
-		return "sandbox", "true", nil
+		return "sandbox", "on", nil
 	}
-	return "sandbox", "false", nil
+	return "sandbox", "off", nil
 }
 
 // AgentStateWidget displays the active agent state.
