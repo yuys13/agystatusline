@@ -330,4 +330,3 @@ func (s *SandboxWidget) Render(item types.WidgetItem, ctx types.RenderContext, s
 
 	return "sandbox: " + valStr, nil
 }
-

@@ -1095,4 +1095,3 @@ func TestTUI_WidgetSliceCorruption(t *testing.T) {
 		t.Errorf("Expected original widgetsSlice elements to remain untouched, but index 1 got ID %q", widgetsSlice[1].ID)
 	}
 }
-
