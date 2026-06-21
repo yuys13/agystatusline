@@ -18,7 +18,7 @@ func RenderStatusLines(settings types.Settings, ctx types.RenderContext) []strin
 	var results []string
 
 	padding := settings.DefaultPadding
-	separator := " | "
+	separator := " · "
 	if settings.DefaultSeparator != "" {
 		separator = formatSeparator(settings.DefaultSeparator)
 	}
@@ -124,10 +124,18 @@ func RenderStatusLines(settings types.Settings, ctx types.RenderContext) []strin
 				}
 			}
 
+			colorLevelStr := "ansi16"
+			if settings.ColorLevel == 2 {
+				colorLevelStr = "ansi256"
+			} else if settings.ColorLevel == 3 {
+				colorLevelStr = "truecolor"
+			}
+			coloredSeparator := ApplyColors(separator, "brightBlack", "", nil, colorLevelStr, nil)
+
 			for i, r := range activeRendered {
 				parts = append(parts, padding+r.Content+padding)
 				if i < len(activeRendered)-1 {
-					parts = append(parts, separator)
+					parts = append(parts, coloredSeparator)
 				}
 			}
 
