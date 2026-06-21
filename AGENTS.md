@@ -1,4 +1,4 @@
-# agystatusline (Gemini/Antigravity CLI Developer Guide)
+# agystatusline (AI Agents & Developer Guide)
 
 This file guides AI agents and developers on how to work with the `agystatusline` codebase.
 
