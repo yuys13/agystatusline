@@ -100,6 +100,12 @@ type WorktreeInfo struct {
 	OriginalBranch string `json:"original_branch"`
 }
 
+type VCSInfo struct {
+	Type   string `json:"type,omitempty"`
+	Branch string `json:"branch,omitempty"`
+	Dirty  *bool  `json:"dirty,omitempty"`
+}
+
 type RateLimitPeriod struct {
 	UsedPercentage *float64 `json:"used_percentage,omitempty"`
 	ResetsAt       *float64 `json:"resets_at,omitempty"`
@@ -141,6 +147,11 @@ type StatusJSON struct {
 	Quota          map[string]QuotaInfo `json:"quota,omitempty"`
 	Sandbox        *SandboxInfo         `json:"sandbox,omitempty"`
 	TerminalWidth  *int                 `json:"terminal_width,omitempty"`
+	AgentState     string               `json:"agent_state,omitempty"`
+	ArtifactCount  *int                 `json:"artifact_count,omitempty"`
+	Subagents      any                  `json:"subagents,omitempty"`
+	TaskCount      *int                 `json:"task_count,omitempty"`
+	VCS            *VCSInfo             `json:"vcs,omitempty"`
 }
 
 // WidgetItem configures a single widget in the statusline.
