@@ -251,6 +251,15 @@ func TestTUI_LinesOperations(t *testing.T) {
 
 func TestTUI_ItemsOperations(t *testing.T) {
 	settings := types.DefaultSettings()
+	settings.Lines[0] = []types.WidgetItem{
+		{ID: "1", Type: "model", Color: "brightMagenta"},
+		{ID: "2", Type: "separator"},
+		{ID: "3", Type: "context-length", Color: "brightBlack"},
+		{ID: "4", Type: "separator"},
+		{ID: "5", Type: "git-branch", Color: "magenta"},
+		{ID: "6", Type: "separator"},
+		{ID: "7", Type: "git-changes", Color: "yellow"},
+	}
 	m := NewModel(settings, "/tmp/settings.json")
 	m.activeMenu = "items"
 	m.selectedLine = 0
@@ -539,6 +548,7 @@ func TestTUI_AddQuotaWidgets(t *testing.T) {
 func TestTUI_LivePreviewQuota(t *testing.T) {
 	widgets.RegisterAll()
 	settings := types.DefaultSettings()
+	settings.Lines[0] = []types.WidgetItem{}
 	// クォータウィジェットを追加
 	settings.Lines[0] = append(settings.Lines[0],
 		types.WidgetItem{
