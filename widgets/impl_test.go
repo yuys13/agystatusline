@@ -15,8 +15,8 @@ func TestModelWidget(t *testing.T) {
 		t.Fatalf("Model widget not found in registry")
 	}
 
-	if w.GetDefaultColor() != "magenta" {
-		t.Errorf("Expected default color 'magenta', got '%s'", w.GetDefaultColor())
+	if w.GetDefaultColor() != "brightMagenta" {
+		t.Errorf("Expected default color 'brightMagenta', got '%s'", w.GetDefaultColor())
 	}
 
 	settings := types.DefaultSettings()

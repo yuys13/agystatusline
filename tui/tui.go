@@ -92,7 +92,7 @@ var widgetTypes = []struct {
 	customText      string
 	metadata        map[string]string
 }{
-	{name: "Model", wType: "model", color: "magenta"},
+	{name: "Model", wType: "model", color: "brightMagenta"},
 	{name: "Context Length", wType: "context-length", color: "brightBlack"},
 	{name: "Git Branch", wType: "git-branch", color: "magenta"},
 	{name: "Git Changes", wType: "git-changes", color: "yellow"},

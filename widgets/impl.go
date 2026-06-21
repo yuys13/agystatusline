@@ -13,10 +13,10 @@ import (
 // ModelWidget displays the active model name.
 type ModelWidget struct{}
 
-func (m *ModelWidget) GetDefaultColor() string { return "magenta" }
+func (m *ModelWidget) GetDefaultColor() string { return "brightMagenta" }
 func (m *ModelWidget) GetDisplayName() string  { return "Model" }
 func (m *ModelWidget) GetBodyColor(item types.WidgetItem, ctx types.RenderContext) string {
-	return "magenta"
+	return "brightMagenta"
 }
 
 func (m *ModelWidget) Render(item types.WidgetItem, ctx types.RenderContext, settings types.Settings) (string, string, error) {
