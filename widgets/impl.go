@@ -251,6 +251,40 @@ func (c *ContextRemainingPctWidget) Render(item types.WidgetItem, ctx types.Rend
 	return "Remaining", valStr, nil
 }
 
+func formatResetInSeconds(resetInSeconds *float64) string {
+	if resetInSeconds == nil {
+		return ""
+	}
+	secs := max(int(*resetInSeconds), 0)
+	if secs < 60 {
+		return fmt.Sprintf("%ds", secs)
+	} else if secs < 3600 {
+		m := secs / 60
+		s := secs % 60
+		if s > 0 {
+			return fmt.Sprintf("%dm %ds", m, s)
+		} else {
+			return fmt.Sprintf("%dm", m)
+		}
+	} else if secs < 86400 {
+		h := secs / 3600
+		m := (secs % 3600) / 60
+		if m > 0 {
+			return fmt.Sprintf("%dh %dm", h, m)
+		} else {
+			return fmt.Sprintf("%dh", h)
+		}
+	} else {
+		d := secs / 86400
+		h := (secs % 86400) / 3600
+		if h > 0 {
+			return fmt.Sprintf("%dd %dh", d, h)
+		} else {
+			return fmt.Sprintf("%dd", d)
+		}
+	}
+}
+
 // QuotaWidget displays quota limits and usage.
 type QuotaWidget struct{}
 
@@ -284,37 +318,7 @@ func (q *QuotaWidget) Render(item types.WidgetItem, ctx types.RenderContext, set
 		pctStr = fmt.Sprintf("%.2f%%", pct)
 	}
 
-	var resetStr string
-	if quota.ResetInSeconds != nil {
-		secs := max(int(*quota.ResetInSeconds), 0)
-		if secs < 60 {
-			resetStr = fmt.Sprintf("%ds", secs)
-		} else if secs < 3600 {
-			m := secs / 60
-			s := secs % 60
-			if s > 0 {
-				resetStr = fmt.Sprintf("%dm %ds", m, s)
-			} else {
-				resetStr = fmt.Sprintf("%dm", m)
-			}
-		} else if secs < 86400 {
-			h := secs / 3600
-			m := (secs % 3600) / 60
-			if m > 0 {
-				resetStr = fmt.Sprintf("%dh %dm", h, m)
-			} else {
-				resetStr = fmt.Sprintf("%dh", h)
-			}
-		} else {
-			d := secs / 86400
-			h := (secs % 86400) / 3600
-			if h > 0 {
-				resetStr = fmt.Sprintf("%dd %dh", d, h)
-			} else {
-				resetStr = fmt.Sprintf("%dd", d)
-			}
-		}
-	}
+	resetStr := formatResetInSeconds(quota.ResetInSeconds)
 
 	if displayMode == "reset" {
 		if resetStr == "" {
@@ -726,8 +730,14 @@ func (q *QuotaBarWidget) Render(item types.WidgetItem, ctx types.RenderContext, 
 		}
 	}
 
-	if item.RawValue != nil && *item.RawValue {
-		return "", bar + " " + pctFmt, nil
+	resetStr := formatResetInSeconds(quota.ResetInSeconds)
+	bodyVal := bar + " " + pctFmt
+	if resetStr != "" {
+		bodyVal = bodyVal + " (" + resetStr + ")"
 	}
-	return label, bar + " " + pctFmt, nil
+
+	if item.RawValue != nil && *item.RawValue {
+		return "", bodyVal, nil
+	}
+	return label, bodyVal, nil
 }

@@ -854,4 +854,32 @@ func TestQuotaBarWidget(t *testing.T) {
 			t.Errorf("For boundary fraction %.2f, expected color %s, got %s", tc.fraction, tc.expected, color)
 		}
 	}
+
+	// Test 4: Reset time inclusion
+	resetSecs := 750.0 // 12m 30s
+	ctxWithReset := types.RenderContext{
+		Data: types.StatusJSON{
+			Quota: map[string]types.QuotaInfo{
+				"gemini-5h": {
+					RemainingFraction: func(f float64) *float64 { return &f }(0.5019),
+					ResetInSeconds:    &resetSecs,
+				},
+			},
+		},
+	}
+	itemWithReset := types.WidgetItem{
+		Type:     "quota-bar",
+		Metadata: map[string]string{"key": "gemini-5h"},
+	}
+	titleReset, outputReset, err := w.Render(itemWithReset, ctxWithReset, settings)
+	if err != nil {
+		t.Fatalf("Render error with reset: %v", err)
+	}
+	if titleReset != "5h" {
+		t.Errorf("Expected title '5h', got %q", titleReset)
+	}
+	expectedOutput := "███████▒······· 50.2% (12m 30s)"
+	if outputReset != expectedOutput {
+		t.Errorf("Expected body %q, got %q", expectedOutput, outputReset)
+	}
 }
