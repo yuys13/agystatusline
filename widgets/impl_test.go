@@ -764,7 +764,7 @@ func TestQuotaBarWidget(t *testing.T) {
 
 	// Test 2: Standard rendering with different percentages
 	pcts := []float64{0.8, 0.3, 0.05} // 80%, 30%, 5%
-	expectedColors := []string{"brightWhite", "brightYellow", "brightRed"}
+	expectedColors := []string{"brightGreen", "brightYellow", "brightRed"}
 
 	for i, pct := range pcts {
 		ctx := types.RenderContext{
@@ -829,12 +829,12 @@ func TestQuotaBarWidget(t *testing.T) {
 		}
 	}
 
-	// Test 3: Specific boundaries (50% should be white, 49% yellow, 10% yellow, 9% red)
+	// Test 3: Specific boundaries (50% should be green, 49% yellow, 10% yellow, 9% red)
 	boundaryTests := []struct {
 		fraction float64
 		expected string
 	}{
-		{0.50, "brightWhite"},
+		{0.50, "brightGreen"},
 		{0.49, "brightYellow"},
 		{0.10, "brightYellow"},
 		{0.09, "brightRed"},

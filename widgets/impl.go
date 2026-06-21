@@ -649,24 +649,24 @@ func (t *TasksWidget) Render(item types.WidgetItem, ctx types.RenderContext, set
 // QuotaBarWidget displays a progress bar representing remaining quota.
 type QuotaBarWidget struct{}
 
-func (q *QuotaBarWidget) GetDefaultColor() string { return "brightWhite" }
+func (q *QuotaBarWidget) GetDefaultColor() string { return "brightGreen" }
 func (q *QuotaBarWidget) GetDisplayName() string  { return "Quota Bar" }
 
 func (q *QuotaBarWidget) GetBodyColor(item types.WidgetItem, ctx types.RenderContext) string {
 	if ctx.Data.Quota == nil {
-		return "brightWhite"
+		return "brightGreen"
 	}
 	key := item.Metadata["key"]
 	if key == "" {
-		return "brightWhite"
+		return "brightGreen"
 	}
 	quota, ok := ctx.Data.Quota[key]
 	if !ok || quota.RemainingFraction == nil {
-		return "brightWhite"
+		return "brightGreen"
 	}
 	pct := *quota.RemainingFraction * 100.0
 	if pct >= 50 {
-		return "brightWhite"
+		return "brightGreen"
 	} else if pct >= 10 {
 		return "brightYellow"
 	}
