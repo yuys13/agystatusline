@@ -52,8 +52,6 @@ var separatorsList = []struct {
 	{name: "Flame (\uE0C0)", value: "\uE0C0"},
 	{name: "Hexagon (\uE0C6)", value: "\uE0C6"},
 	{name: "Slanted (\uE0C8)", value: "\uE0C8"},
-	{name: "Slash ASCII (/)", value: "/"},
-	{name: "Bar ASCII (|)", value: "|"},
 }
 
 var startCapsList = []struct {

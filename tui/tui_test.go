@@ -1106,3 +1106,14 @@ func TestTUI_WidgetSliceCorruption(t *testing.T) {
 		t.Errorf("Expected original widgetsSlice elements to remain untouched, but index 1 got ID %q", widgetsSlice[1].ID)
 	}
 }
+
+func TestTUI_NoASCIIInSeparators(t *testing.T) {
+	for _, sep := range separatorsList {
+		if sep.value == "/" {
+			t.Errorf("Slash ASCII (/) separator should be removed")
+		}
+		if sep.value == "|" {
+			t.Errorf("Bar ASCII (|) separator should be removed")
+		}
+	}
+}
