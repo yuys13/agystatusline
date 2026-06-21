@@ -82,18 +82,14 @@ func TestRenderStatusLines_PowerlineMode(t *testing.T) {
 	settings.Lines = [][]types.WidgetItem{
 		{
 			{ID: "1", Type: "model"},
-			{ID: "2", Type: "context-length"},
+			{ID: "2", Type: "custom-text", CustomText: "12.5k"},
 		},
 	}
 
-	inputTokens := float64(1000)
 	ctx := types.RenderContext{
 		Data: types.StatusJSON{
 			Model: types.ModelInfo{
 				ID: "Claude",
-			},
-			ContextWindow: &types.ContextWindowInfo{
-				TotalInputTokens: &inputTokens,
 			},
 		},
 	}
@@ -121,18 +117,14 @@ func TestRenderStatusLines_PowerlineCaps(t *testing.T) {
 	settings.Lines = [][]types.WidgetItem{
 		{
 			{ID: "1", Type: "model"},
-			{ID: "2", Type: "context-length"},
+			{ID: "2", Type: "custom-text", CustomText: "12.5k"},
 		},
 	}
 
-	inputTokens := float64(1000)
 	ctx := types.RenderContext{
 		Data: types.StatusJSON{
 			Model: types.ModelInfo{
 				ID: "Claude",
-			},
-			ContextWindow: &types.ContextWindowInfo{
-				TotalInputTokens: &inputTokens,
 			},
 		},
 	}

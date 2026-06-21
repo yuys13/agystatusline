@@ -91,12 +91,9 @@ var widgetTypes = []struct {
 	metadata        map[string]string
 }{
 	{name: "Model", wType: "model", color: "brightMagenta"},
-	{name: "Context Length", wType: "context-length", color: "brightWhite"},
 	{name: "Git Branch", wType: "git-branch", color: "brightMagenta"},
 	{name: "Git Changes", wType: "git-changes", color: "yellow"},
 	{name: "Custom Text", wType: "custom-text", color: "white", customText: "Custom Text"},
-	{name: "Context Used %", wType: "context-used-pct", color: "brightWhite"},
-	{name: "Context Remaining %", wType: "context-remaining-pct", color: "brightWhite"},
 	{name: "Quota: Gemini 5h", wType: "quota", color: "brightWhite", metadata: map[string]string{"key": "gemini-5h"}},
 	{name: "Quota: Gemini Weekly", wType: "quota", color: "brightWhite", metadata: map[string]string{"key": "gemini-weekly"}},
 	{name: "Quota: 3P 5h", wType: "quota", color: "brightWhite", metadata: map[string]string{"key": "3p-5h"}},

@@ -91,33 +91,6 @@ func TestModelWidget(t *testing.T) {
 	}
 }
 
-func TestContextLengthWidget(t *testing.T) {
-	RegisterAll()
-	w := GetWidget("context-length")
-	if w == nil {
-		t.Fatalf("Context length widget not found")
-	}
-
-	settings := types.DefaultSettings()
-	inputTokens := float64(12500)
-	ctx := types.RenderContext{
-		Data: types.StatusJSON{
-			ContextWindow: &types.ContextWindowInfo{
-				TotalInputTokens: &inputTokens,
-			},
-		},
-	}
-	item := types.WidgetItem{Type: "context-length"}
-
-	title, output, err := w.Render(item, ctx, settings)
-	if err != nil {
-		t.Fatalf("Render error: %v", err)
-	}
-	if title != "" || output != "12.5k" {
-		t.Errorf("Expected title '' and body '12.5k', got title '%s' and body '%s'", title, output)
-	}
-}
-
 func TestGitBranchWidget(t *testing.T) {
 	RegisterAll()
 	w := GetWidget("git-branch")
@@ -195,84 +168,6 @@ func TestGitChangesWidget(t *testing.T) {
 	}
 	if title != "" || output != "(+13,-5)" {
 		t.Errorf("Expected title '' and body '(+13,-5)', got title '%s' and body '%s'", title, output)
-	}
-}
-
-func TestContextUsedPctWidget(t *testing.T) {
-	RegisterAll()
-	w := GetWidget("context-used-pct")
-	if w == nil {
-		t.Fatalf("Context used percentage widget not found")
-	}
-
-	settings := types.DefaultSettings()
-	usedPct := 0.014019012451171875
-	ctx := types.RenderContext{
-		Data: types.StatusJSON{
-			ContextWindow: &types.ContextWindowInfo{
-				UsedPercentage: &usedPct,
-			},
-		},
-	}
-	item := types.WidgetItem{Type: "context-used-pct"}
-
-	// Normal render
-	title, output, err := w.Render(item, ctx, settings)
-	if err != nil {
-		t.Fatalf("Render error: %v", err)
-	}
-	if title != "Used" || output != "0.01%" {
-		t.Errorf("Expected title 'Used' and body '0.01%%', got title '%s' and body '%s'", title, output)
-	}
-
-	// RawValue render
-	rawVal := true
-	itemRaw := types.WidgetItem{Type: "context-used-pct", RawValue: &rawVal}
-	titleRaw, outputRaw, err := w.Render(itemRaw, ctx, settings)
-	if err != nil {
-		t.Fatalf("Render error: %v", err)
-	}
-	if titleRaw != "" || outputRaw != "0.01%" {
-		t.Errorf("Expected title '' and body '0.01%%', got title '%s' and body '%s'", titleRaw, outputRaw)
-	}
-}
-
-func TestContextRemainingPctWidget(t *testing.T) {
-	RegisterAll()
-	w := GetWidget("context-remaining-pct")
-	if w == nil {
-		t.Fatalf("Context remaining percentage widget not found")
-	}
-
-	settings := types.DefaultSettings()
-	remainingPct := 99.98598098754883
-	ctx := types.RenderContext{
-		Data: types.StatusJSON{
-			ContextWindow: &types.ContextWindowInfo{
-				RemainingPercentage: &remainingPct,
-			},
-		},
-	}
-	item := types.WidgetItem{Type: "context-remaining-pct"}
-
-	// Normal render
-	title, output, err := w.Render(item, ctx, settings)
-	if err != nil {
-		t.Fatalf("Render error: %v", err)
-	}
-	if title != "Remaining" || output != "99.99%" {
-		t.Errorf("Expected title 'Remaining' and body '99.99%%', got title '%s' and body '%s'", title, output)
-	}
-
-	// RawValue render
-	rawVal := true
-	itemRaw := types.WidgetItem{Type: "context-remaining-pct", RawValue: &rawVal}
-	titleRaw, outputRaw, err := w.Render(itemRaw, ctx, settings)
-	if err != nil {
-		t.Fatalf("Render error: %v", err)
-	}
-	if titleRaw != "" || outputRaw != "99.99%" {
-		t.Errorf("Expected title '' and body '99.99%%', got title '%s' and body '%s'", titleRaw, outputRaw)
 	}
 }
 

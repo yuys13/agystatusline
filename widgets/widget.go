@@ -62,11 +62,8 @@ var runGitCommand = func(command string, ctx CwdResolver, ttlSeconds int) (strin
 // RegisterAll registers all available widget implementations.
 func RegisterAll() {
 	RegisterWidget("model", &ModelWidget{})
-	RegisterWidget("context-length", &ContextLengthWidget{})
 	RegisterWidget("git-branch", &GitBranchWidget{})
 	RegisterWidget("git-changes", &GitChangesWidget{})
-	RegisterWidget("context-used-pct", &ContextUsedPctWidget{})
-	RegisterWidget("context-remaining-pct", &ContextRemainingPctWidget{})
 	RegisterWidget("quota", &QuotaWidget{})
 	RegisterWidget("custom-text", &CustomTextWidget{})
 	RegisterWidget("sandbox", &SandboxWidget{})

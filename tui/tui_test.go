@@ -65,25 +65,6 @@ func TestTUI_LivePreviewModelName(t *testing.T) {
 	}
 }
 
-func TestTUI_LivePreviewContextPercentages(t *testing.T) {
-	widgets.RegisterAll()
-	settings := types.DefaultSettings()
-	// Append the new widgets to the first line to test their preview rendering
-	settings.Lines[0] = append(settings.Lines[0],
-		types.WidgetItem{ID: "test_used", Type: "context-used-pct"},
-		types.WidgetItem{ID: "test_remaining", Type: "context-remaining-pct"},
-	)
-	m := NewModel(settings, "/tmp/settings.json")
-
-	viewStr := renderer.StripAnsi(m.View())
-	if !strings.Contains(viewStr, "Used 20.00%") {
-		t.Errorf("Expected live preview to contain 'Used 20.00%%', but it did not. View output:\n%s", viewStr)
-	}
-	if !strings.Contains(viewStr, "Remaining 80.00%") {
-		t.Errorf("Expected live preview to contain 'Remaining 80.00%%', but it did not. View output:\n%s", viewStr)
-	}
-}
-
 func TestTUI_LayoutAndBorders(t *testing.T) {
 	widgets.RegisterAll()
 	settings := types.DefaultSettings()
@@ -254,7 +235,7 @@ func TestTUI_ItemsOperations(t *testing.T) {
 	settings.Lines[0] = []types.WidgetItem{
 		{ID: "1", Type: "model", Color: "brightMagenta"},
 		{ID: "2", Type: "separator"},
-		{ID: "3", Type: "context-length", Color: "brightBlack"},
+		{ID: "3", Type: "sandbox", Color: "brightBlack"},
 		{ID: "4", Type: "separator"},
 		{ID: "5", Type: "git-branch", Color: "brightMagenta"},
 		{ID: "6", Type: "separator"},
@@ -263,7 +244,7 @@ func TestTUI_ItemsOperations(t *testing.T) {
 	m := NewModel(settings, "/tmp/settings.json")
 	m.activeMenu = "items"
 	m.selectedLine = 0
-	m.cursor = 2 // Pointing to context-length
+	m.cursor = 2 // Pointing to sandbox
 
 	// 1. Delete Widget ("d")
 	msg := tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("d")}
@@ -341,12 +322,12 @@ func TestTUI_AddWidget(t *testing.T) {
 
 	// 2. Select a widget type and add it
 	m = newModel
-	for range 4 {
+	for range 3 {
 		updatedModel, _ = m.Update(tea.KeyMsg{Type: tea.KeyDown})
 		m = updatedModel.(Model)
 	}
-	if m.cursor != 4 {
-		t.Fatalf("Expected cursor to be 4, got %d", m.cursor)
+	if m.cursor != 3 {
+		t.Fatalf("Expected cursor to be 3, got %d", m.cursor)
 	}
 
 	// Press Enter to add
@@ -364,44 +345,6 @@ func TestTUI_AddWidget(t *testing.T) {
 	}
 	if newModel.cursor != 2 {
 		t.Errorf("Expected cursor to point to the newly added widget (index 2), got %d", newModel.cursor)
-	}
-}
-
-func TestTUI_AddContextPctWidgets(t *testing.T) {
-	settings := types.DefaultSettings()
-	m := NewModel(settings, "/tmp/settings.json")
-	m.activeMenu = "items"
-	m.selectedLine = 0
-	m.cursor = 0
-
-	// Press "a" to trigger Add Widget screen
-	msg := tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("a")}
-	updatedModel, _ := m.Update(msg)
-	newModel := updatedModel.(Model)
-
-	// Navigate to the bottom (where Context Used % is at index 6)
-	m = newModel
-	for range 5 {
-		updatedModel, _ = m.Update(tea.KeyMsg{Type: tea.KeyDown})
-		m = updatedModel.(Model)
-	}
-	if m.cursor != 5 {
-		t.Fatalf("Expected cursor to be 5, got %d", m.cursor)
-	}
-
-	// Press Enter to add
-	updatedModel, _ = m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("\n")})
-	newModel = updatedModel.(Model)
-
-	if newModel.activeMenu != "items" {
-		t.Errorf("Expected activeMenu to return to 'items', got %q", newModel.activeMenu)
-	}
-	addedWidget := newModel.settings.Lines[0][1]
-	if addedWidget.Type != "context-used-pct" {
-		t.Errorf("Expected added widget type to be 'context-used-pct', got %q", addedWidget.Type)
-	}
-	if addedWidget.Color != "brightWhite" {
-		t.Errorf("Expected added widget color to be 'brightWhite', got %q", addedWidget.Color)
 	}
 }
 
@@ -984,8 +927,8 @@ func TestTUI_LivePreviewAddWidget(t *testing.T) {
 	m.selectedLine = 0
 	m.itemIndex = 0 // Insert after the first widget (index 0, Model widget)
 
-	// Select "Custom Text" widget which is index 4 in widgetTypes
-	m.cursor = 4
+	// Select "Custom Text" widget which is index 3 in widgetTypes
+	m.cursor = 3
 
 	viewStr := m.View()
 
@@ -1092,7 +1035,7 @@ func TestTUI_WidgetSliceCorruption(t *testing.T) {
 	// This simulates slice sharing capacity.
 	originalWidgets := []types.WidgetItem{
 		{ID: "w1", Type: "model"},
-		{ID: "w2", Type: "context-length"},
+		{ID: "w2", Type: "git-changes"},
 		{ID: "w3", Type: "git-branch"},
 	}
 	widgetsSlice := make([]types.WidgetItem, 3, 10)

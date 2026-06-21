@@ -43,27 +43,6 @@ func (m *ModelWidget) Render(item types.WidgetItem, ctx types.RenderContext, set
 	return "", modelName, nil
 }
 
-// ContextLengthWidget displays total input tokens.
-type ContextLengthWidget struct{}
-
-func (c *ContextLengthWidget) GetDefaultColor() string { return "brightWhite" }
-func (c *ContextLengthWidget) GetDisplayName() string  { return "Context Length" }
-func (c *ContextLengthWidget) GetBodyColor(item types.WidgetItem, ctx types.RenderContext) string {
-	return "brightWhite"
-}
-
-func (c *ContextLengthWidget) Render(item types.WidgetItem, ctx types.RenderContext, settings types.Settings) (string, string, error) {
-	var tokens float64
-
-	if ctx.Data.ContextWindow != nil && ctx.Data.ContextWindow.TotalInputTokens != nil {
-		tokens = *ctx.Data.ContextWindow.TotalInputTokens
-	} else {
-		return "", "", nil
-	}
-
-	return "", formatTokens(tokens, 1), nil
-}
-
 // GitBranchWidget displays the current Git branch name.
 type GitBranchWidget struct{}
 
@@ -201,54 +180,6 @@ func formatTokens(count float64, decimals int) string {
 		return fmt.Sprintf("%.*fk", decimals, val)
 	}
 	return fmt.Sprintf("%.0f", count)
-}
-
-// ContextUsedPctWidget displays context window used percentage.
-type ContextUsedPctWidget struct{}
-
-func (c *ContextUsedPctWidget) GetDefaultColor() string { return "brightWhite" }
-func (c *ContextUsedPctWidget) GetDisplayName() string  { return "Context Used %" }
-func (c *ContextUsedPctWidget) GetBodyColor(item types.WidgetItem, ctx types.RenderContext) string {
-	return "brightWhite"
-}
-
-func (c *ContextUsedPctWidget) Render(item types.WidgetItem, ctx types.RenderContext, settings types.Settings) (string, string, error) {
-	var pct float64
-	if ctx.Data.ContextWindow != nil && ctx.Data.ContextWindow.UsedPercentage != nil {
-		pct = *ctx.Data.ContextWindow.UsedPercentage
-	} else {
-		return "", "", nil
-	}
-
-	valStr := fmt.Sprintf("%.2f%%", pct)
-	if item.RawValue != nil && *item.RawValue {
-		return "", valStr, nil
-	}
-	return "Used", valStr, nil
-}
-
-// ContextRemainingPctWidget displays context window remaining percentage.
-type ContextRemainingPctWidget struct{}
-
-func (c *ContextRemainingPctWidget) GetDefaultColor() string { return "brightWhite" }
-func (c *ContextRemainingPctWidget) GetDisplayName() string  { return "Context Remaining %" }
-func (c *ContextRemainingPctWidget) GetBodyColor(item types.WidgetItem, ctx types.RenderContext) string {
-	return "brightWhite"
-}
-
-func (c *ContextRemainingPctWidget) Render(item types.WidgetItem, ctx types.RenderContext, settings types.Settings) (string, string, error) {
-	var pct float64
-	if ctx.Data.ContextWindow != nil && ctx.Data.ContextWindow.RemainingPercentage != nil {
-		pct = *ctx.Data.ContextWindow.RemainingPercentage
-	} else {
-		return "", "", nil
-	}
-
-	valStr := fmt.Sprintf("%.2f%%", pct)
-	if item.RawValue != nil && *item.RawValue {
-		return "", valStr, nil
-	}
-	return "Remaining", valStr, nil
 }
 
 func formatResetInSeconds(resetInSeconds *float64) string {
