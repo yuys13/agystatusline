@@ -17,6 +17,7 @@ Refer to the [tdd](.agents/skills/tdd/SKILL.md) and [git_commit](.agents/skills/
 
 - **TDD Workflow**: Strictly follow the Red -> Green -> Refactor -> Commit loop.
 - **Commit Messages**: Use Conventional Commits and explain **why** a change was made rather than "what" was changed.
+- **Placeholder Domains in Tests & Docs**: Always use RFC-compliant reserved domains (such as `example.com`, `example.org`, or `example.net` according to RFC 2606) for test cases, sample codes, and documentation instead of arbitrary real-world domains.
 
 ## Architecture & Codebase Layout
 
