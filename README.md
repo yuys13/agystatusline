@@ -55,3 +55,8 @@ To use or modify a custom configuration file, pass the `--config` flag:
 ```bash
 agystatusline --config /path/to/custom-settings.json
 ```
+
+## Acknowledgements
+
+This project is heavily inspired by [ccstatusline](https://github.com/sirmalloc/ccstatusline). We would like to express our gratitude to the author of `ccstatusline` for their work, which served as a major inspiration and foundation for the development of `agystatusline`.
+
