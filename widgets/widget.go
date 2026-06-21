@@ -14,7 +14,8 @@ import (
 type Widget interface {
 	GetDefaultColor() string
 	GetDisplayName() string
-	Render(item types.WidgetItem, ctx types.RenderContext, settings types.Settings) (string, error)
+	Render(item types.WidgetItem, ctx types.RenderContext, settings types.Settings) (title string, body string, err error)
+	GetBodyColor(item types.WidgetItem, ctx types.RenderContext) string
 }
 
 type CwdResolver = utils.CwdResolver
@@ -69,4 +70,9 @@ func RegisterAll() {
 	RegisterWidget("quota", &QuotaWidget{})
 	RegisterWidget("custom-text", &CustomTextWidget{})
 	RegisterWidget("sandbox", &SandboxWidget{})
+	RegisterWidget("agent-state", &AgentStateWidget{})
+	RegisterWidget("context-bar", &ContextBarWidget{})
+	RegisterWidget("artifacts", &ArtifactsWidget{})
+	RegisterWidget("subagents", &SubagentsWidget{})
+	RegisterWidget("tasks", &TasksWidget{})
 }
