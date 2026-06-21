@@ -244,6 +244,7 @@ func DefaultSettings() Settings {
 			SeparatorInvertBackground: []bool{false},
 			StartCaps:                 []string{},
 			EndCaps:                   []string{},
+			Theme:                     "nord-aurora",
 			AutoAlign:                 false,
 			ContinueThemeAcrossLines:  false,
 		},

@@ -77,6 +77,10 @@ func TestDefaultSettings(t *testing.T) {
 	if line0[6].Type != "sandbox" || line0[6].Color != "yellow" {
 		t.Errorf("Expected seventh widget on line 0 to be sandbox (yellow), got Type='%s', Color='%s'", line0[6].Type, line0[6].Color)
 	}
+
+	if settings.Powerline.Theme != "nord-aurora" {
+		t.Errorf("Expected default powerline theme 'nord-aurora', got '%s'", settings.Powerline.Theme)
+	}
 }
 
 func TestParseStatusJSON_Quota(t *testing.T) {
