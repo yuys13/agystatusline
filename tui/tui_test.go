@@ -350,8 +350,8 @@ func TestTUI_AddWidget(t *testing.T) {
 	if len(newModel.settings.Lines[0]) != 8 {
 		t.Errorf("Expected 8 widgets in line 0, got %d", len(newModel.settings.Lines[0]))
 	}
-	if newModel.settings.Lines[0][2].Type != "separator" {
-		t.Errorf("Expected added widget at index 2 to be 'separator', got %q", newModel.settings.Lines[0][2].Type)
+	if newModel.settings.Lines[0][2].Type != "custom-text" {
+		t.Errorf("Expected added widget at index 2 to be 'custom-text', got %q", newModel.settings.Lines[0][2].Type)
 	}
 	if newModel.cursor != 2 {
 		t.Errorf("Expected cursor to point to the newly added widget (index 2), got %d", newModel.cursor)
@@ -372,12 +372,12 @@ func TestTUI_AddContextPctWidgets(t *testing.T) {
 
 	// Navigate to the bottom (where Context Used % is at index 6)
 	m = newModel
-	for range 6 {
+	for range 5 {
 		updatedModel, _ = m.Update(tea.KeyMsg{Type: tea.KeyDown})
 		m = updatedModel.(Model)
 	}
-	if m.cursor != 6 {
-		t.Fatalf("Expected cursor to be 6, got %d", m.cursor)
+	if m.cursor != 5 {
+		t.Fatalf("Expected cursor to be 5, got %d", m.cursor)
 	}
 
 	// Press Enter to add
@@ -922,8 +922,8 @@ func TestTUI_LivePreviewAddWidget(t *testing.T) {
 	m.selectedLine = 0
 	m.itemIndex = 0 // Insert after the first widget (index 0, Model widget)
 
-	// Select "Custom Text" widget which is index 5 in widgetTypes
-	m.cursor = 5
+	// Select "Custom Text" widget which is index 4 in widgetTypes
+	m.cursor = 4
 
 	viewStr := m.View()
 

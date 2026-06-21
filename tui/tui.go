@@ -96,7 +96,6 @@ var widgetTypes = []struct {
 	{name: "Context Length", wType: "context-length", color: "brightBlack"},
 	{name: "Git Branch", wType: "git-branch", color: "magenta"},
 	{name: "Git Changes", wType: "git-changes", color: "yellow"},
-	{name: "Separator", wType: "separator"},
 	{name: "Custom Text", wType: "custom-text", color: "white", customText: "Custom Text"},
 	{name: "Context Used %", wType: "context-used-pct", color: "brightBlack"},
 	{name: "Context Remaining %", wType: "context-remaining-pct", color: "brightBlack"},
@@ -113,6 +112,11 @@ var widgetTypes = []struct {
 	{name: "Quota Reset: 3P 5h", wType: "quota", color: "brightBlack", metadata: map[string]string{"key": "3p-5h", "display": "reset"}},
 	{name: "Quota Reset: 3P Weekly", wType: "quota", color: "brightBlack", metadata: map[string]string{"key": "3p-weekly", "display": "reset"}},
 	{name: "Sandbox Enabled", wType: "sandbox", color: "yellow"},
+	{name: "Agent State", wType: "agent-state", color: "brightGreen"},
+	{name: "Context Bar", wType: "context-bar", color: "brightWhite"},
+	{name: "Artifacts", wType: "artifacts", color: "brightWhite"},
+	{name: "Subagents", wType: "subagents", color: "brightWhite"},
+	{name: "Tasks", wType: "tasks", color: "brightWhite"},
 }
 
 func NewModel(settings types.Settings, configPath string) Model {
