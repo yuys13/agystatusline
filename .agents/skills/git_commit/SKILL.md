@@ -7,17 +7,20 @@ description: Guide the agent to write why-focused commit messages using Conventi
 
 Commit messages must be clear, concise, and structured, preceded by individual file staging. Always adhere to the following rules:
 
-## 1. Staging Files Individually
+## 1. Code Formatting & Fixing
+Before staging and committing Go files, always run `go fmt ./...` and `go fix ./...` to guarantee code style consistency and resolve deprecated APIs. Ensure that any resulting formatting or API fix modifications are staged along with the other changes.
+
+## 2. Staging Files Individually
 Always stage modified files explicitly and individually using `git add <file1> <file2> ...`. Do not use wildcard commands such as `git add .` or `git add -A` to avoid accidentally staging untracked, temporary, or private files (e.g., sample JSON outputs or local logs).
 
-## 2. Format
+## 3. Format
 Use the **Conventional Commits** specification:
 `<type>(<scope>): <subject>`
 
 - **Types**: `feat` (new feature), `fix` (bug fix), `refactor` (code restructuring), `test` (adding/updating tests), `chore` (maintenance, build changes), `docs` (documentation).
 - **Scope**: The module, package, or component being modified (e.g., `renderer`, `cache`, `types`).
 
-## 3. Focus on "Why" over "What"
+## 4. Focus on "Why" over "What"
 The subject line and description should explain **why** the change was made (the motivation or problem solved) rather than merely listing the files or lines added.
 
 - **Bad (What-focused)**:
