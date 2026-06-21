@@ -90,19 +90,24 @@ var widgetTypes = []struct {
 	customText      string
 	metadata        map[string]string
 }{
-	{name: "Model", wType: "model", color: "brightMagenta"},
-	{name: "Git Branch", wType: "git-branch", color: "brightMagenta"},
-	{name: "Git Changes", wType: "git-changes", color: "yellow"},
-	{name: "Quota Bar: 5h", wType: "quota-bar", color: "", metadata: map[string]string{"key": "gemini-5h"}},
-	{name: "Quota Bar: Weekly", wType: "quota-bar", color: "", metadata: map[string]string{"key": "gemini-weekly"}},
-	{name: "Quota Bar: 3P 5h", wType: "quota-bar", color: "", metadata: map[string]string{"key": "3p-5h"}},
-	{name: "Quota Bar: 3P Weekly", wType: "quota-bar", color: "", metadata: map[string]string{"key": "3p-weekly"}},
-	{name: "Sandbox Enabled", wType: "sandbox", color: "yellow"},
+	// Default Settings
 	{name: "Agent State", wType: "agent-state", color: "brightGreen"},
+	{name: "Model", wType: "model", color: "brightMagenta"},
 	{name: "Context Bar", wType: "context-bar", color: "brightWhite"},
 	{name: "Artifacts", wType: "artifacts", color: "brightWhite"},
 	{name: "Subagents", wType: "subagents", color: "brightWhite"},
 	{name: "Tasks", wType: "tasks", color: "brightWhite"},
+	{name: "Sandbox Enabled", wType: "sandbox", color: "yellow"},
+
+	// Git-related
+	{name: "Git Branch", wType: "git-branch", color: "brightMagenta"},
+	{name: "Git Changes", wType: "git-changes", color: "yellow"},
+
+	// Quota Bar
+	{name: "Quota Bar: 5h", wType: "quota-bar", color: "", metadata: map[string]string{"key": "gemini-5h"}},
+	{name: "Quota Bar: Weekly", wType: "quota-bar", color: "", metadata: map[string]string{"key": "gemini-weekly"}},
+	{name: "Quota Bar: 3P 5h", wType: "quota-bar", color: "", metadata: map[string]string{"key": "3p-5h"}},
+	{name: "Quota Bar: 3P Weekly", wType: "quota-bar", color: "", metadata: map[string]string{"key": "3p-weekly"}},
 }
 
 func NewModel(settings types.Settings, configPath string) Model {

@@ -340,8 +340,8 @@ func TestTUI_AddWidget(t *testing.T) {
 	if len(newModel.settings.Lines[0]) != 8 {
 		t.Errorf("Expected 8 widgets in line 0, got %d", len(newModel.settings.Lines[0]))
 	}
-	if newModel.settings.Lines[0][2].Type != "git-changes" {
-		t.Errorf("Expected added widget at index 2 to be 'git-changes', got %q", newModel.settings.Lines[0][2].Type)
+	if newModel.settings.Lines[0][2].Type != "context-bar" {
+		t.Errorf("Expected added widget at index 2 to be 'context-bar', got %q", newModel.settings.Lines[0][2].Type)
 	}
 	if newModel.cursor != 2 {
 		t.Errorf("Expected cursor to point to the newly added widget (index 2), got %d", newModel.cursor)
@@ -807,8 +807,8 @@ func TestTUI_LivePreviewAddWidget(t *testing.T) {
 	m.selectedLine = 0
 	m.itemIndex = 0 // Insert after the first widget (index 0, agent-state widget)
 
-	// Select "Quota Bar: 5h" widget which is index 3 in widgetTypes
-	m.cursor = 3
+	// Select "Quota Bar: 5h" widget which is index 9 in widgetTypes
+	m.cursor = 9
 
 	viewStr := m.View()
 
@@ -1000,6 +1000,35 @@ func TestTUI_NoCustomTextAndQuotaInWidgetTypes(t *testing.T) {
 		}
 		if wt.wType == "quota" {
 			t.Errorf("quota widget should be removed from TUI selection")
+		}
+	}
+}
+
+func TestTUI_WidgetTypesOrdering(t *testing.T) {
+	expectedOrder := []string{
+		"agent-state",
+		"model",
+		"context-bar",
+		"artifacts",
+		"subagents",
+		"tasks",
+		"sandbox",
+		"git-branch",
+		"git-changes",
+		"quota-bar",
+		"quota-bar",
+		"quota-bar",
+		"quota-bar",
+	}
+
+	if len(widgetTypes) != len(expectedOrder) {
+		t.Fatalf("Expected %d widgets in widgetTypes, got %d", len(expectedOrder), len(widgetTypes))
+	}
+
+	for i, wt := range widgetTypes {
+		expectedType := expectedOrder[i]
+		if wt.wType != expectedType {
+			t.Errorf("At index %d: expected widget type %q, got %q (name: %q)", i, expectedType, wt.wType, wt.name)
 		}
 	}
 }
