@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/yuys13/agystatusline/renderer"
 	"github.com/yuys13/agystatusline/types"
 	"github.com/yuys13/agystatusline/widgets"
 )
@@ -74,12 +75,12 @@ func TestTUI_LivePreviewContextPercentages(t *testing.T) {
 	)
 	m := NewModel(settings, "/tmp/settings.json")
 
-	viewStr := m.View()
-	if !strings.Contains(viewStr, "Used: 20.00%") {
-		t.Errorf("Expected live preview to contain 'Used: 20.00%%', but it did not. View output:\n%s", viewStr)
+	viewStr := renderer.StripAnsi(m.View())
+	if !strings.Contains(viewStr, "Used 20.00%") {
+		t.Errorf("Expected live preview to contain 'Used 20.00%%', but it did not. View output:\n%s", viewStr)
 	}
-	if !strings.Contains(viewStr, "Remaining: 80.00%") {
-		t.Errorf("Expected live preview to contain 'Remaining: 80.00%%', but it did not. View output:\n%s", viewStr)
+	if !strings.Contains(viewStr, "Remaining 80.00%") {
+		t.Errorf("Expected live preview to contain 'Remaining 80.00%%', but it did not. View output:\n%s", viewStr)
 	}
 }
 
@@ -565,18 +566,18 @@ func TestTUI_LivePreviewQuota(t *testing.T) {
 	)
 	m := NewModel(settings, "/tmp/settings.json")
 
-	viewStr := m.View()
+	viewStr := renderer.StripAnsi(m.View())
 	// previewCtx のダミーデータから、それぞれ適切な値が表示されることを検証
-	// default (both): gemini-5h: 50.19% (2h 28m), 3p-5h: 100.00% (4h 59m)
-	// display:quota (% only): gemini-5h: 50.19%
-	if !strings.Contains(viewStr, "gemini-5h: 50.19% (2h 28m)") {
-		t.Errorf("Expected live preview to contain 'gemini-5h: 50.19%% (2h 28m)', but it did not. View:\n%s", viewStr)
+	// default (both): gemini-5h 50.19% (2h 28m), 3p-5h 100.00% (4h 59m)
+	// display:quota (% only): gemini-5h 50.19%
+	if !strings.Contains(viewStr, "gemini-5h 50.19% (2h 28m)") {
+		t.Errorf("Expected live preview to contain 'gemini-5h 50.19%% (2h 28m)', but it did not. View:\n%s", viewStr)
 	}
-	if !strings.Contains(viewStr, "gemini-5h: 50.19%") {
-		t.Errorf("Expected live preview to contain 'gemini-5h: 50.19%%', but it did not. View:\n%s", viewStr)
+	if !strings.Contains(viewStr, "gemini-5h 50.19%") {
+		t.Errorf("Expected live preview to contain 'gemini-5h 50.19%%', but it did not. View:\n%s", viewStr)
 	}
-	if !strings.Contains(viewStr, "3p-5h: 100.00% (4h 59m)") {
-		t.Errorf("Expected live preview to contain '3p-5h: 100.00%% (4h 59m)', but it did not. View:\n%s", viewStr)
+	if !strings.Contains(viewStr, "3p-5h 100.00% (4h 59m)") {
+		t.Errorf("Expected live preview to contain '3p-5h 100.00%% (4h 59m)', but it did not. View:\n%s", viewStr)
 	}
 }
 
@@ -1014,11 +1015,11 @@ func TestTUI_LivePreviewSandbox(t *testing.T) {
 	)
 	m := NewModel(settings, "/tmp/settings.json")
 
-	viewStr := m.View()
+	viewStr := renderer.StripAnsi(m.View())
 	// Since sandbox.enabled will be configured as true in the preview context,
-	// the preview output should contain "sandbox: true"
-	if !strings.Contains(viewStr, "sandbox: true") {
-		t.Errorf("Expected live preview to contain 'sandbox: true', but it did not. View output:\n%s", viewStr)
+	// the preview output should contain "sandbox true"
+	if !strings.Contains(viewStr, "sandbox true") {
+		t.Errorf("Expected live preview to contain 'sandbox true', but it did not. View output:\n%s", viewStr)
 	}
 }
 
