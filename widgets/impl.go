@@ -40,7 +40,7 @@ func (m *ModelWidget) Render(item types.WidgetItem, ctx types.RenderContext, set
 	if item.RawValue != nil && *item.RawValue {
 		return "", modelName, nil
 	}
-	return "Model", modelName, nil
+	return "", modelName, nil
 }
 
 // ContextLengthWidget displays total input tokens.
@@ -513,7 +513,7 @@ func (c *ContextBarWidget) Render(item types.WidgetItem, ctx types.RenderContext
 	remainder := (pctInt * barLen) % 100
 
 	var barBuilder strings.Builder
-	for i := 0; i < barLen; i++ {
+	for i := range barLen {
 		if i < filled {
 			barBuilder.WriteString("█")
 		} else if i == filled {

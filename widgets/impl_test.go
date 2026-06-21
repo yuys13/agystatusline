@@ -38,8 +38,8 @@ func TestModelWidget(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Render error: %v", err)
 	}
-	if title != "Model" || output != "Claude 3.5 Sonnet" {
-		t.Errorf("Expected title 'Model' and body 'Claude 3.5 Sonnet', got title '%s' and body '%s'", title, output)
+	if title != "" || output != "Claude 3.5 Sonnet" {
+		t.Errorf("Expected title '' and body 'Claude 3.5 Sonnet', got title '%s' and body '%s'", title, output)
 	}
 
 	// RawValue render
@@ -69,8 +69,8 @@ func TestModelWidget(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Render error: %v", err)
 	}
-	if titleNew != "Model" || outputNew != "Claude 3.5 Sonnet (New)" {
-		t.Errorf("Expected title 'Model' and body 'Claude 3.5 Sonnet (New)', got title '%s' and body '%s'", titleNew, outputNew)
+	if titleNew != "" || outputNew != "Claude 3.5 Sonnet (New)" {
+		t.Errorf("Expected title '' and body 'Claude 3.5 Sonnet (New)', got title '%s' and body '%s'", titleNew, outputNew)
 	}
 
 	ctxWithMedium := types.RenderContext{
@@ -85,8 +85,8 @@ func TestModelWidget(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Render error: %v", err)
 	}
-	if titleMedium != "Model" || outputMedium != "Gemini 3.5 Flash (Medium)" {
-		t.Errorf("Expected title 'Model' and body 'Gemini 3.5 Flash (Medium)', got title '%s' and body '%s'", titleMedium, outputMedium)
+	if titleMedium != "" || outputMedium != "Gemini 3.5 Flash (Medium)" {
+		t.Errorf("Expected title '' and body 'Gemini 3.5 Flash (Medium)', got title '%s' and body '%s'", titleMedium, outputMedium)
 	}
 }
 

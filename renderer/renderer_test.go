@@ -34,8 +34,8 @@ func TestRenderStatusLines_NormalMode(t *testing.T) {
 
 	// Model widget output should be present on first line
 	firstLine := StripAnsi(lines[0])
-	if !strings.Contains(firstLine, "Model Claude 3.5 Sonnet") {
-		t.Errorf("Expected 'Model Claude 3.5 Sonnet' in first line, got '%s'", firstLine)
+	if !strings.Contains(firstLine, "Claude 3.5 Sonnet") {
+		t.Errorf("Expected 'Claude 3.5 Sonnet' in first line, got '%s'", firstLine)
 	}
 
 	// Separator should be applied (in between active widgets, but here we only have model active)
