@@ -123,6 +123,9 @@ func TestGitBranchWidget(t *testing.T) {
 	if w == nil {
 		t.Fatalf("Git branch widget not found")
 	}
+	if w.GetDefaultColor() != "brightMagenta" {
+		t.Errorf("Expected default color 'brightMagenta', got '%s'", w.GetDefaultColor())
+	}
 
 	oldRunner := runGitCommand
 	defer func() { runGitCommand = oldRunner }()

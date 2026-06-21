@@ -67,7 +67,7 @@ func (c *ContextLengthWidget) Render(item types.WidgetItem, ctx types.RenderCont
 // GitBranchWidget displays the current Git branch name.
 type GitBranchWidget struct{}
 
-func (g *GitBranchWidget) GetDefaultColor() string { return "magenta" }
+func (g *GitBranchWidget) GetDefaultColor() string { return "brightMagenta" }
 func (g *GitBranchWidget) GetDisplayName() string  { return "Git Branch" }
 func (g *GitBranchWidget) GetBodyColor(item types.WidgetItem, ctx types.RenderContext) string {
 	if ctx.Data.VCS != nil && ctx.Data.VCS.Dirty != nil && *ctx.Data.VCS.Dirty {

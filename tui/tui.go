@@ -94,7 +94,7 @@ var widgetTypes = []struct {
 }{
 	{name: "Model", wType: "model", color: "brightMagenta"},
 	{name: "Context Length", wType: "context-length", color: "brightWhite"},
-	{name: "Git Branch", wType: "git-branch", color: "magenta"},
+	{name: "Git Branch", wType: "git-branch", color: "brightMagenta"},
 	{name: "Git Changes", wType: "git-changes", color: "yellow"},
 	{name: "Custom Text", wType: "custom-text", color: "white", customText: "Custom Text"},
 	{name: "Context Used %", wType: "context-used-pct", color: "brightWhite"},

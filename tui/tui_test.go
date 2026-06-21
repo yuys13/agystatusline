@@ -256,7 +256,7 @@ func TestTUI_ItemsOperations(t *testing.T) {
 		{ID: "2", Type: "separator"},
 		{ID: "3", Type: "context-length", Color: "brightBlack"},
 		{ID: "4", Type: "separator"},
-		{ID: "5", Type: "git-branch", Color: "magenta"},
+		{ID: "5", Type: "git-branch", Color: "brightMagenta"},
 		{ID: "6", Type: "separator"},
 		{ID: "7", Type: "git-changes", Color: "yellow"},
 	}
