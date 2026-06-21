@@ -66,8 +66,8 @@ func TestDefaultSettings(t *testing.T) {
 		t.Fatalf("Expected widgets on line 0, got none")
 	}
 
-	if line0[0].Type != "model" || line0[0].Color != "cyan" {
-		t.Errorf("Expected first widget on line 0 to be model (cyan), got Type='%s', Color='%s'", line0[0].Type, line0[0].Color)
+	if line0[0].Type != "model" || line0[0].Color != "magenta" {
+		t.Errorf("Expected first widget on line 0 to be model (magenta), got Type='%s', Color='%s'", line0[0].Type, line0[0].Color)
 	}
 }
 

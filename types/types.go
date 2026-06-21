@@ -223,7 +223,7 @@ func DefaultSettings() Settings {
 		Version: 3,
 		Lines: [][]WidgetItem{
 			{
-				{ID: "1", Type: "model", Color: "cyan"},
+				{ID: "1", Type: "model", Color: "magenta"},
 				{ID: "2", Type: "separator"},
 				{ID: "3", Type: "context-length", Color: "brightBlack"},
 				{ID: "4", Type: "separator"},
