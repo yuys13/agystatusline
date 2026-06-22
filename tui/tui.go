@@ -811,6 +811,9 @@ func (m Model) viewMain(s *stringsBuilder) {
 			cursorStr = ">"
 			style = style.Bold(true).Foreground(lipgloss.Color("226"))
 		}
+		if item == "Save & Exit" {
+			s.WriteString("\n")
+		}
 		s.WriteString(fmt.Sprintf("%s %s\n", cursorStr, style.Render(item)))
 	}
 

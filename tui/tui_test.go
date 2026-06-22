@@ -1032,3 +1032,31 @@ func TestTUI_WidgetTypesOrdering(t *testing.T) {
 		}
 	}
 }
+
+func TestTUI_MainMenuSaveExitSpacing(t *testing.T) {
+	widgets.RegisterAll()
+	settings := types.DefaultSettings()
+	m := NewModel(settings, "/tmp/settings.json")
+
+	viewStr := m.View()
+
+	colorLevelIdx := strings.Index(viewStr, "Select Color Level")
+	saveExitIdx := strings.Index(viewStr, "Save & Exit")
+
+	if colorLevelIdx == -1 {
+		t.Fatalf("Expected view to contain 'Select Color Level'")
+	}
+	if saveExitIdx == -1 {
+		t.Fatalf("Expected view to contain 'Save & Exit'")
+	}
+
+	if colorLevelIdx >= saveExitIdx {
+		t.Fatalf("Expected 'Select Color Level' to appear before 'Save & Exit'")
+	}
+
+	between := viewStr[colorLevelIdx:saveExitIdx]
+	newlineCount := strings.Count(between, "\n")
+	if newlineCount < 2 {
+		t.Errorf("Expected an empty line between 'Select Color Level' and 'Save & Exit', but found %d newlines", newlineCount)
+	}
+}
