@@ -56,7 +56,7 @@ func (g *GitBranchWidget) GetBodyColor(item types.WidgetItem, ctx types.RenderCo
 }
 
 func (g *GitBranchWidget) Render(item types.WidgetItem, ctx types.RenderContext, settings types.Settings) (string, string, error) {
-	symbol := "⎇"
+	symbol := "⎇ "
 	if item.CustomSymbol != "" {
 		symbol = item.CustomSymbol
 	}
