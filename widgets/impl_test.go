@@ -126,8 +126,8 @@ func TestGitBranchWidget(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Render error: %v", err)
 	}
-	if title != "" || output != "⎇feature/tdd" {
-		t.Errorf("Expected title '' and body '⎇feature/tdd', got title '%s' and body '%s'", title, output)
+	if title != "" || output != "⎇ feature/tdd" {
+		t.Errorf("Expected title '' and body '⎇ feature/tdd', got title '%s' and body '%s'", title, output)
 	}
 }
 
