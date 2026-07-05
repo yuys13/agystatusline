@@ -14,21 +14,37 @@ Before staging and committing Go files, always run `go fmt ./...` and `go fix ./
 Always stage modified files explicitly and individually using `git add <file1> <file2> ...`. Do not use wildcard commands such as `git add .` or `git add -A` to avoid accidentally staging untracked, temporary, or private files (e.g., sample JSON outputs or local logs).
 
 ## 3. Format
-Use the **Conventional Commits** specification:
-`<type>(<scope>): <subject>`
+Use the **Conventional Commits** specification. The first line (header) must be kept concise (ideally under 50-70 characters) to avoid visual clutter in git logs. Detailed explanation, background context, and motivation must be placed in the body starting from the third line, separated from the header by a single blank line.
+
+```
+<type>(<scope>): <short summary>
+
+<detailed description, background, and motivation>
+```
 
 - **Types**: `feat` (new feature), `fix` (bug fix), `refactor` (code restructuring), `test` (adding/updating tests), `chore` (maintenance, build changes), `docs` (documentation).
 - **Scope**: The module, package, or component being modified (e.g., `renderer`, `cache`, `types`).
 
 ## 4. Focus on "Why" over "What"
-The subject line and description should explain **why** the change was made (the motivation or problem solved) rather than merely listing the files or lines added.
+The commit message should explain **why** the change was made (the motivation or problem solved) rather than merely listing the files or lines added. Put the short reason in the first line and expand on the details in the body.
 
-- **Bad (What-focused)**:
-  `feat(cache): add git command caching logic` (This just repeats what the code does)
-- **Good (Why-focused)**:
-  `feat(cache): implement persistent and in-memory Git command caching to optimize rendering speed and prevent redundant spawns` (Explains the motivation and benefit)
+- **Bad (Too long header / What-focused)**:
+  `feat(cache): implement persistent and in-memory Git command caching to optimize rendering speed and prevent redundant spawns`
+- **Good**:
+  ```
+  feat(cache): optimize Git command performance with caching
+
+  Introduce both in-memory and persistent file-system caching for Git status
+  to prevent redundant process spawns and improve CLI rendering speed.
+  ```
 
 - **Bad (What-focused)**:
   `refactor(types): move types.go to types package`
-- **Good (Why-focused)**:
-  `refactor(types): move types definition to a separate subpackage to prevent circular dependencies in main packages`
+- **Good**:
+  ```
+  refactor(types): resolve circular dependencies in main packages
+
+  Move core telemetry and configuration structure definitions to a separate
+  `types` subpackage to prevent circular package imports.
+  ```
+
