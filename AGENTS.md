@@ -13,7 +13,7 @@ This file guides AI agents and developers on how to work with the `agystatusline
 
 ## TDD & Commit Guidelines
 
-Refer to the [tdd](.agents/skills/tdd/SKILL.md) and [git_commit](.agents/skills/git_commit/SKILL.md) skills for detailed guidelines on Test-Driven Development and commit messages.
+Refer to the [tdd](.agents/skills/tdd/SKILL.md), [git_commit](.agents/skills/git_commit/SKILL.md), [code_verification](.agents/skills/code_verification/SKILL.md), and [github_pr_workflow](.agents/skills/github_pr_workflow/SKILL.md) skills for detailed guidelines on Test-Driven Development, formatting, verification, commit messages, and PR workflows.
 
 - **TDD Workflow**: Strictly follow the Red -> Green -> Refactor -> Commit loop.
 - **Commit Messages**: Use Conventional Commits and explain **why** a change was made rather than "what" was changed.

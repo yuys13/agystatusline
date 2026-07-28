@@ -7,8 +7,8 @@ description: Guide the agent to write why-focused commit messages using Conventi
 
 Commit messages must be clear, concise, and structured, preceded by individual file staging. Always adhere to the following rules:
 
-## 1. Code Formatting & Fixing
-Before staging and committing Go files, always run `go fmt ./...` and `go fix ./...` to guarantee code style consistency and resolve deprecated APIs. Ensure that any resulting formatting or API fix modifications are staged along with the other changes.
+## 1. Code Formatting & Verification
+Before staging and committing files, ensure code formatting and local quality verification steps pass (refer to the [code_verification](../code_verification/SKILL.md) skill). Ensure that any resulting formatting or API fix modifications are staged along with the other changes.
 
 ## 2. Staging Files Individually
 Always stage modified files explicitly and individually using `git add <file1> <file2> ...`. Do not use wildcard commands such as `git add .` or `git add -A` to avoid accidentally staging untracked, temporary, or private files (e.g., sample JSON outputs or local logs).
