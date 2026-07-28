@@ -1096,3 +1096,28 @@ func TestSaveSettings(t *testing.T) {
 		}
 	}
 }
+
+func TestTUI_ViewSubmenus(t *testing.T) {
+	widgets.RegisterAll()
+	settings := types.DefaultSettings()
+
+	// 1. View activeMenu = "lines"
+	mLines := NewModel(settings, "/tmp/settings.json")
+	mLines.activeMenu = "lines"
+	viewLinesStr := mLines.View()
+	if !strings.Contains(viewLinesStr, "Select Line to Edit Items") {
+		t.Errorf("Expected 'Select Line to Edit Items' in view when activeMenu=lines, got:\n%s", viewLinesStr)
+	}
+
+	// 2. View activeMenu = "items"
+	mItems := NewModel(settings, "/tmp/settings.json")
+	mItems.activeMenu = "items"
+	mItems.selectedLine = 0
+	viewItemsStr := mItems.View()
+	if !strings.Contains(viewItemsStr, "Editing Line 1 Items") {
+		t.Errorf("Expected 'Editing Line 1 Items' in view when activeMenu=items, got:\n%s", viewItemsStr)
+	}
+}
+
+
+
