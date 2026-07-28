@@ -12,6 +12,11 @@ import (
 	"github.com/yuys13/agystatusline/widgets"
 )
 
+func TestMain(m *testing.M) {
+	widgets.RegisterAll()
+	os.Exit(m.Run())
+}
+
 func TestInitialModel(t *testing.T) {
 	settings := types.DefaultSettings()
 	m := NewModel(settings, "/tmp/settings.json")
