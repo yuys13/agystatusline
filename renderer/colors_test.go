@@ -142,3 +142,33 @@ func TestApplyColors_InvalidGradient(t *testing.T) {
 		t.Errorf("Expected ApplyColors to handle invalid gradient gracefully, got empty string")
 	}
 }
+
+func TestApplyGradientToText_EdgeCases(t *testing.T) {
+	stops := []RGB{{R: 255, G: 0, B: 0}, {R: 0, G: 255, B: 0}}
+
+	// 1. Empty text
+	resEmpty := applyGradientToText("", stops, "truecolor")
+	if resEmpty != "" {
+		t.Errorf("Expected empty string for empty text gradient, got %q", resEmpty)
+	}
+
+	// 2. Single character text
+	resSingle := applyGradientToText("X", stops, "truecolor")
+	if !strings.Contains(resSingle, "X") {
+		t.Errorf("Expected result to contain 'X', got %q", resSingle)
+	}
+
+	// 3. Text with ANSI escape sequences
+	ansiText := "BoldText"
+	resAnsi := applyGradientToText(ansiText, stops, "truecolor")
+	if !strings.Contains(resAnsi, "B") || !strings.Contains(resAnsi, "t") {
+		t.Errorf("Expected result to contain characters from 'BoldText', got %q", resAnsi)
+	}
+}
+
+func TestGetPowerlineTheme_Fallback(t *testing.T) {
+	theme := GetPowerlineTheme("nonexistent-theme-name")
+	if theme != nil {
+		t.Errorf("Expected nil for nonexistent powerline theme, got %v", theme)
+	}
+}
