@@ -778,3 +778,329 @@ func TestQuotaBarWidget(t *testing.T) {
 		t.Errorf("Expected body %q, got %q", expectedOutput, outputReset)
 	}
 }
+
+func TestModelWidget_EdgeCases(t *testing.T) {
+	RegisterAll()
+	w := GetWidget("model")
+	settings := types.DefaultSettings()
+
+	// 1. Empty Model
+	ctxEmpty := types.RenderContext{Data: types.StatusJSON{}}
+	item := types.WidgetItem{Type: "model"}
+	title, body, err := w.Render(item, ctxEmpty, settings)
+	if err != nil || title != "" || body != "" {
+		t.Errorf("Expected empty output for empty model, got title=%q, body=%q, err=%v", title, body, err)
+	}
+
+	// 2. ID only (no DisplayName)
+	ctxIDOnly := types.RenderContext{
+		Data: types.StatusJSON{
+			Model: types.ModelInfo{ID: "claude-3-5-haiku"},
+		},
+	}
+	_, bodyID, _ := w.Render(item, ctxIDOnly, settings)
+	if bodyID != "claude-3-5-haiku" {
+		t.Errorf("Expected fallback to ID 'claude-3-5-haiku', got %q", bodyID)
+	}
+
+	// 3. PreserveColors
+	trueVal := true
+	itemPreserve := types.WidgetItem{Type: "model", PreserveColors: &trueVal}
+	_, bodyPreserve, _ := w.Render(itemPreserve, ctxIDOnly, settings)
+	if !strings.Contains(bodyPreserve, "\x1b[95m") {
+		t.Errorf("Expected ANSI colors in preserve mode, got %q", bodyPreserve)
+	}
+}
+
+func TestGitWidgets_EdgeCases(t *testing.T) {
+	RegisterAll()
+	wBranch := GetWidget("git-branch")
+	wChanges := GetWidget("git-changes")
+	settings := types.DefaultSettings()
+
+	// Mock git fail
+	oldRunner := runGitCommand
+	defer func() { runGitCommand = oldRunner }()
+	runGitCommand = func(cmd string, ctx CwdResolver, ttl int) (string, error) {
+		return "", fmt.Errorf("git not installed")
+	}
+
+	ctx := types.RenderContext{Data: types.StatusJSON{CWD: "/no-git-dir"}}
+
+	// GitBranch with hide = true
+	hideTrue := true
+	itemHide := types.WidgetItem{Type: "git-branch", Hide: &hideTrue}
+	_, bodyBranchHide, _ := wBranch.Render(itemHide, ctx, settings)
+	if bodyBranchHide != "" {
+		t.Errorf("Expected empty string when git missing and hide=true, got %q", bodyBranchHide)
+	}
+
+	// GitBranch with hide = false
+	hideFalse := false
+	itemNoHide := types.WidgetItem{Type: "git-branch", Hide: &hideFalse}
+	_, bodyBranchNoHide, _ := wBranch.Render(itemNoHide, ctx, settings)
+	if bodyBranchNoHide != "⎇ no git" {
+		t.Errorf("Expected '⎇ no git', got %q", bodyBranchNoHide)
+	}
+
+	// GitBranch GetBodyColor with Dirty
+	ctxDirty := types.RenderContext{
+		Data: types.StatusJSON{
+			VCS: &types.VCSInfo{Dirty: &hideTrue},
+		},
+	}
+	if wBranch.GetBodyColor(itemNoHide, ctxDirty) != "brightRed" {
+		t.Errorf("Expected brightRed for dirty git branch")
+	}
+
+	// GitChanges with hide = true
+	itemChangesHide := types.WidgetItem{Type: "git-changes", Hide: &hideTrue}
+	_, bodyChangesHide, _ := wChanges.Render(itemChangesHide, ctx, settings)
+	if bodyChangesHide != "" {
+		t.Errorf("Expected empty string for git-changes when git missing and hide=true, got %q", bodyChangesHide)
+	}
+
+	// parseShortStat edge cases
+	ins, del := parseShortStat("")
+	if ins != 0 || del != 0 {
+		t.Errorf("Expected 0, 0 for empty stat, got %d, %d", ins, del)
+	}
+
+	insOnly, delOnly := parseShortStat("5 insertions(+)")
+	if insOnly != 5 || delOnly != 0 {
+		t.Errorf("Expected 5, 0 for insertion only, got %d, %d", insOnly, delOnly)
+	}
+
+	insDel, delDel := parseShortStat("10 deletions(-)")
+	if insDel != 0 || delDel != 10 {
+		t.Errorf("Expected 0, 10 for deletion only, got %d, %d", insDel, delDel)
+	}
+}
+
+func TestFormatResetInSeconds(t *testing.T) {
+	tests := []struct {
+		secs     *float64
+		expected string
+	}{
+		{nil, ""},
+		{func(f float64) *float64 { return &f }(-10), "0s"},
+		{func(f float64) *float64 { return &f }(0), "0s"},
+		{func(f float64) *float64 { return &f }(45), "45s"},
+		{func(f float64) *float64 { return &f }(60), "1m"},
+		{func(f float64) *float64 { return &f }(90), "1m 30s"},
+		{func(f float64) *float64 { return &f }(3600), "1h"},
+		{func(f float64) *float64 { return &f }(3660), "1h 1m"},
+		{func(f float64) *float64 { return &f }(86400), "1d"},
+		{func(f float64) *float64 { return &f }(90000), "1d 1h"},
+	}
+
+	for _, tc := range tests {
+		res := formatResetInSeconds(tc.secs)
+		if res != tc.expected {
+			t.Errorf("For secs=%v expected %q, got %q", tc.secs, tc.expected, res)
+		}
+	}
+}
+
+func TestQuotaWidget_EdgeCases(t *testing.T) {
+	RegisterAll()
+	w := GetWidget("quota")
+	settings := types.DefaultSettings()
+
+	// Nil Quota
+	ctxNil := types.RenderContext{Data: types.StatusJSON{}}
+	item := types.WidgetItem{Type: "quota", Metadata: map[string]string{"key": "gemini-5h"}}
+	title, body, err := w.Render(item, ctxNil, settings)
+	if err != nil || title != "" || body != "" {
+		t.Errorf("Expected empty result for nil Quota map")
+	}
+
+	// Missing Key in Metadata
+	ctxData := types.RenderContext{
+		Data: types.StatusJSON{
+			Quota: map[string]types.QuotaInfo{
+				"gemini-5h": {RemainingFraction: func(f float64) *float64 { return &f }(0.8)},
+			},
+		},
+	}
+	itemNoKey := types.WidgetItem{Type: "quota"}
+	_, bodyNoKey, _ := w.Render(itemNoKey, ctxData, settings)
+	if bodyNoKey != "" {
+		t.Errorf("Expected empty body when metadata key is missing")
+	}
+
+	// Unknown Key
+	itemBadKey := types.WidgetItem{Type: "quota", Metadata: map[string]string{"key": "unknown"}}
+	_, bodyBadKey, _ := w.Render(itemBadKey, ctxData, settings)
+	if bodyBadKey != "" {
+		t.Errorf("Expected empty body for unknown quota key")
+	}
+
+	// Display mode "quota"
+	itemDisplayQuota := types.WidgetItem{Type: "quota", Metadata: map[string]string{"key": "gemini-5h", "display": "quota"}}
+	titleQ, bodyQ, _ := w.Render(itemDisplayQuota, ctxData, settings)
+	if titleQ != "gemini-5h" || bodyQ != "80.00%" {
+		t.Errorf("Expected 'gemini-5h' and '80.00%%', got title=%q body=%q", titleQ, bodyQ)
+	}
+
+	// Display mode "reset"
+	itemDisplayReset := types.WidgetItem{Type: "quota", Metadata: map[string]string{"key": "gemini-5h", "display": "reset"}}
+	_, bodyReset, _ := w.Render(itemDisplayReset, ctxData, settings)
+	if bodyReset != "" {
+		t.Errorf("Expected empty reset body when ResetInSeconds is nil")
+	}
+}
+
+func TestSandboxWidget_EdgeCases(t *testing.T) {
+	RegisterAll()
+	w := GetWidget("sandbox")
+	settings := types.DefaultSettings()
+
+	// Sandbox nil
+	ctxNil := types.RenderContext{Data: types.StatusJSON{}}
+	item := types.WidgetItem{Type: "sandbox"}
+	_, bodyNil, _ := w.Render(item, ctxNil, settings)
+	if bodyNil != "" {
+		t.Errorf("Expected empty body when sandbox is nil")
+	}
+
+	// Sandbox off
+	falseVal := false
+	ctxOff := types.RenderContext{
+		Data: types.StatusJSON{
+			Sandbox: &types.SandboxInfo{Enabled: &falseVal},
+		},
+	}
+	titleOff, bodyOff, _ := w.Render(item, ctxOff, settings)
+	if titleOff != "sandbox" || bodyOff != "off" {
+		t.Errorf("Expected 'sandbox' and 'off', got %q, %q", titleOff, bodyOff)
+	}
+	if w.GetBodyColor(item, ctxOff) != "brightBlack" {
+		t.Errorf("Expected brightBlack for sandbox off")
+	}
+
+	// Preserve colors
+	trueVal := true
+	itemPreserve := types.WidgetItem{Type: "sandbox", PreserveColors: &trueVal}
+	_, bodyPreserve, _ := w.Render(itemPreserve, ctxOff, settings)
+	if !strings.Contains(bodyPreserve, "sandbox off") {
+		t.Errorf("Expected preserve colors text to contain 'sandbox off'")
+	}
+}
+
+func TestAgentStateWidget_EdgeCases(t *testing.T) {
+	RegisterAll()
+	w := GetWidget("agent-state")
+	settings := types.DefaultSettings()
+
+	states := []struct {
+		state         string
+		expectedColor string
+		expectedText  string
+	}{
+		{"", "brightGreen", "● READY"},
+		{"thinking", "brightYellow", "◆ THINKING"},
+		{"working", "brightCyan", "⚙ WORKING"},
+		{"tool_use", "brightMagenta", "🔧 TOOL"},
+		{"custom_state", "white", "⏳ CUSTOM_STATE"},
+	}
+
+	for _, tc := range states {
+		ctx := types.RenderContext{
+			Data: types.StatusJSON{AgentState: tc.state},
+		}
+		item := types.WidgetItem{Type: "agent-state"}
+
+		color := w.GetBodyColor(item, ctx)
+		if color != tc.expectedColor {
+			t.Errorf("For state %q expected color %s, got %s", tc.state, tc.expectedColor, color)
+		}
+
+		_, body, _ := w.Render(item, ctx, settings)
+		if body != tc.expectedText {
+			t.Errorf("For state %q expected text %q, got %q", tc.state, tc.expectedText, body)
+		}
+	}
+}
+
+func TestContextBarWidget_EdgeCases(t *testing.T) {
+	RegisterAll()
+	w := GetWidget("context-bar")
+	settings := types.DefaultSettings()
+
+	// Nil context window
+	ctxNil := types.RenderContext{Data: types.StatusJSON{}}
+	item := types.WidgetItem{Type: "context-bar"}
+	title, body, _ := w.Render(item, ctxNil, settings)
+	if title != "ctx" || body != "" {
+		t.Errorf("Expected 'ctx' and empty body when ContextWindow is nil, got %q, %q", title, body)
+	}
+
+	// High percentage colors
+	pctHigh := 95.0
+	ctxHigh := types.RenderContext{
+		Data: types.StatusJSON{
+			ContextWindow: &types.ContextWindowInfo{UsedPercentage: &pctHigh},
+		},
+	}
+	if w.GetBodyColor(item, ctxHigh) != "brightRed" {
+		t.Errorf("Expected brightRed for 95%% context bar")
+	}
+
+	pctMid := 65.0
+	ctxMid := types.RenderContext{
+		Data: types.StatusJSON{
+			ContextWindow: &types.ContextWindowInfo{UsedPercentage: &pctMid},
+		},
+	}
+	if w.GetBodyColor(item, ctxMid) != "brightYellow" {
+		t.Errorf("Expected brightYellow for 65%% context bar")
+	}
+}
+
+func TestSubagentsWidget_Types(t *testing.T) {
+	RegisterAll()
+	w := GetWidget("subagents")
+	settings := types.DefaultSettings()
+	item := types.WidgetItem{Type: "subagents"}
+
+	// Array type
+	ctxSlice := types.RenderContext{
+		Data: types.StatusJSON{Subagents: []any{"a1", "a2"}},
+	}
+	_, bodySlice, _ := w.Render(item, ctxSlice, settings)
+	if bodySlice != "2" {
+		t.Errorf("Expected '2' subagents, got %q", bodySlice)
+	}
+
+	// Number type
+	ctxNum := types.RenderContext{
+		Data: types.StatusJSON{Subagents: float64(5)},
+	}
+	_, bodyNum, _ := w.Render(item, ctxNum, settings)
+	if bodyNum != "5" {
+		t.Errorf("Expected '5' subagents, got %q", bodyNum)
+	}
+}
+
+func TestTasksWidget_EdgeCases(t *testing.T) {
+	RegisterAll()
+	w := GetWidget("tasks")
+	settings := types.DefaultSettings()
+	item := types.WidgetItem{Type: "tasks"}
+
+	// Nil task count
+	ctxNil := types.RenderContext{Data: types.StatusJSON{}}
+	title, body, _ := w.Render(item, ctxNil, settings)
+	if title != "tasks" || body != "0" {
+		t.Errorf("Expected 'tasks' and '0' for nil TaskCount, got %q, %q", title, body)
+	}
+
+	// Valid task count
+	taskCount := 3
+	ctxVal := types.RenderContext{Data: types.StatusJSON{TaskCount: &taskCount}}
+	_, bodyVal, _ := w.Render(item, ctxVal, settings)
+	if bodyVal != "3" {
+		t.Errorf("Expected '3' for TaskCount=3, got %q", bodyVal)
+	}
+}
