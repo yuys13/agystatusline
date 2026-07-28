@@ -59,7 +59,7 @@ func RenderStatusLines(settings types.Settings, ctx types.RenderContext) []strin
 				visibleText = title + " " + body
 			}
 
-			colored := visibleText
+			var colored string
 			if settings.Powerline.Enabled {
 				colored = visibleText
 			} else {
