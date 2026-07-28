@@ -7,9 +7,10 @@ description: Guidelines for code formatting, linting, and local quality verifica
 
 Before staging and committing changes, always ensure code formatting, static analysis, and local build/test checks are completely satisfied:
 
-## 1. Formatting
-- Run `nix fmt` (or `go fmt ./...`) to guarantee code and configuration style consistency.
-- Ensure any formatting modifications are staged alongside the relevant code changes.
+## 1. Formatting (Mandatory Pre-Commit Step)
+- **Nix Projects (`flake.nix` present)**: ALWAYS run `nix fmt` before committing or running verification checks. This formats Go source files, Nix files (`.nix`), and YAML configurations (`.yml`/`.yaml`) via `treefmt`.
+- **Go Projects (non-Nix)**: Run `go fmt ./...`.
+- Always ensure all formatted changes are staged (`git add`) as part of the commit.
 
 ## 2. Verification & Testing
 - Run `go test ./...` to ensure all unit tests pass locally.
