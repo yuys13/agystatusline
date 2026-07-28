@@ -11,3 +11,6 @@ agystatusline.exe
 # Nix build outputs
 result
 
+# Test coverage outputs
+coverage.out
+
