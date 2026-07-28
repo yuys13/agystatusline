@@ -2,7 +2,6 @@ package widgets
 
 import (
 	"fmt"
-	"math"
 	"regexp"
 	"strconv"
 	"strings"
@@ -166,20 +165,6 @@ func parseShortStat(stat string) (int, int) {
 	}
 
 	return ins, del
-}
-
-func formatTokens(count float64, decimals int) string {
-	div := math.Pow(10, float64(decimals))
-	threshold := 1000000.0 - 500.0/div
-	if count >= threshold {
-		val := count / 1000000.0
-		return fmt.Sprintf("%.1fM", val)
-	}
-	if count >= 1000.0 {
-		val := count / 1000.0
-		return fmt.Sprintf("%.*fk", decimals, val)
-	}
-	return fmt.Sprintf("%.0f", count)
 }
 
 func formatResetInSeconds(resetInSeconds *float64) string {
