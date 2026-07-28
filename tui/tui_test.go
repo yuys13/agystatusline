@@ -1096,4 +1096,3 @@ func TestSaveSettings(t *testing.T) {
 		}
 	}
 }
-

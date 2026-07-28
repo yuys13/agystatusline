@@ -36,10 +36,13 @@
         {
           treefmt = {
             projectRootFile = "flake.nix";
-            programs.gofmt.enable = true;
-            programs.nixfmt = {
-              enable = true;
-              package = pkgs.nixfmt;
+            programs = {
+              gofmt.enable = true;
+              nixfmt = {
+                enable = true;
+                package = pkgs.nixfmt;
+              };
+              yamlfmt.enable = true;
             };
           };
 
