@@ -1104,3 +1104,220 @@ func TestTasksWidget_EdgeCases(t *testing.T) {
 		t.Errorf("Expected '3' for TaskCount=3, got %q", bodyVal)
 	}
 }
+
+func TestWidgetInterfaces(t *testing.T) {
+	RegisterAll()
+	ctx := types.RenderContext{
+		Data: types.StatusJSON{},
+	}
+	item := types.WidgetItem{
+		Type: "model",
+	}
+
+	for _, name := range []string{
+		"model", "git-branch", "git-changes", "quota", "custom-text",
+		"sandbox", "agent-state", "context-bar", "quota-bar", "artifacts",
+		"subagents", "tasks",
+	} {
+		w := GetWidget(name)
+		if w == nil {
+			t.Fatalf("Widget %s not registered", name)
+		}
+		if nameStr := w.GetDisplayName(); nameStr == "" {
+			t.Errorf("GetDisplayName() returned empty for %s", name)
+		}
+		if defaultColor := w.GetDefaultColor(); defaultColor == "" {
+			t.Errorf("GetDefaultColor() returned empty for %s", name)
+		}
+		if bodyColor := w.GetBodyColor(item, ctx); bodyColor == "" {
+			t.Errorf("GetBodyColor() returned empty for %s", name)
+		}
+	}
+}
+
+func TestModelWidget_IDOnlyAndEmpty(t *testing.T) {
+	RegisterAll()
+	w := GetWidget("model")
+	settings := types.DefaultSettings()
+	item := types.WidgetItem{Type: "model"}
+
+	// DisplayName empty, ID present
+	ctxIDOnly := types.RenderContext{
+		Data: types.StatusJSON{
+			Model: types.ModelInfo{ID: "gemini-flash"},
+		},
+	}
+	_, body, err := w.Render(item, ctxIDOnly, settings)
+	if err != nil || body != "gemini-flash" {
+		t.Errorf("Expected 'gemini-flash', got body=%q, err=%v", body, err)
+	}
+
+	// Both DisplayName and ID empty
+	ctxEmpty := types.RenderContext{
+		Data: types.StatusJSON{
+			Model: types.ModelInfo{},
+		},
+	}
+	titleEmpty, bodyEmpty, err := w.Render(item, ctxEmpty, settings)
+	if err != nil || titleEmpty != "" || bodyEmpty != "" {
+		t.Errorf("Expected empty title/body for empty model info, got title=%q, body=%q", titleEmpty, bodyEmpty)
+	}
+}
+
+func TestQuotaWidget_MoreEdgeCases(t *testing.T) {
+	RegisterAll()
+	w := GetWidget("quota")
+	settings := types.DefaultSettings()
+
+	// Missing metadata key
+	itemNoKey := types.WidgetItem{Type: "quota"}
+	ctx := types.RenderContext{
+		Data: types.StatusJSON{
+			Quota: map[string]types.QuotaInfo{
+				"api": {ResetTime: "2026-06-20T12:00:00Z"},
+			},
+		},
+	}
+	title, body, err := w.Render(itemNoKey, ctx, settings)
+	if err != nil || title != "" || body != "" {
+		t.Errorf("Expected empty result when metadata key is missing, got title=%q, body=%q", title, body)
+	}
+
+	// Key not in Quota map
+	itemKey := types.WidgetItem{
+		Type:     "quota",
+		Metadata: map[string]string{"key": "nonexistent"},
+	}
+	title, body, err = w.Render(itemKey, ctx, settings)
+	if err != nil || title != "" || body != "" {
+		t.Errorf("Expected empty result when key is non-existent, got title=%q, body=%q", title, body)
+	}
+
+	// QuotaInfo nil fields (RemainingFraction nil, ResetTime empty)
+	itemApi := types.WidgetItem{
+		Type:     "quota",
+		Metadata: map[string]string{"key": "api", "display": "quota"},
+	}
+	ctxNilFields := types.RenderContext{
+		Data: types.StatusJSON{
+			Quota: map[string]types.QuotaInfo{
+				"api": {},
+			},
+		},
+	}
+	title, body, err = w.Render(itemApi, ctxNilFields, settings)
+	if err != nil || title != "" || body != "" {
+		t.Errorf("Expected empty result when QuotaInfo has nil fields, got title=%q, body=%q", title, body)
+	}
+}
+
+func TestQuotaBarWidget_EdgeCases(t *testing.T) {
+	RegisterAll()
+	w := GetWidget("quota-bar")
+	settings := types.DefaultSettings()
+
+	// Nil Quota map
+	ctxNil := types.RenderContext{Data: types.StatusJSON{Quota: nil}}
+	item := types.WidgetItem{
+		Type:     "quota-bar",
+		Metadata: map[string]string{"key": "api"},
+	}
+	title, body, err := w.Render(item, ctxNil, settings)
+	if err != nil || title != "" || body != "" {
+		t.Errorf("Expected empty result for nil quota map, got title=%q, body=%q", title, body)
+	}
+	if color := w.GetBodyColor(item, ctxNil); color != "brightGreen" {
+		t.Errorf("Expected default 'brightGreen' body color for nil quota, got %q", color)
+	}
+
+	// Test color thresholds (RemainingFraction: 80% -> brightGreen, 30% -> brightYellow, 5% -> brightRed)
+	val80 := 0.8
+	val30 := 0.3
+	val05 := 0.05
+
+	ctx80 := types.RenderContext{Data: types.StatusJSON{Quota: map[string]types.QuotaInfo{"api": {RemainingFraction: &val80}}}}
+	ctx30 := types.RenderContext{Data: types.StatusJSON{Quota: map[string]types.QuotaInfo{"api": {RemainingFraction: &val30}}}}
+	ctx05 := types.RenderContext{Data: types.StatusJSON{Quota: map[string]types.QuotaInfo{"api": {RemainingFraction: &val05}}}}
+
+	if c := w.GetBodyColor(item, ctx80); c != "brightGreen" {
+		t.Errorf("Expected brightGreen for 80%%, got %q", c)
+	}
+	if c := w.GetBodyColor(item, ctx30); c != "brightYellow" {
+		t.Errorf("Expected brightYellow for 30%%, got %q", c)
+	}
+	if c := w.GetBodyColor(item, ctx05); c != "brightRed" {
+		t.Errorf("Expected brightRed for 5%%, got %q", c)
+	}
+}
+
+func TestSubagentsWidget_InvalidType(t *testing.T) {
+	RegisterAll()
+	w := GetWidget("subagents")
+	settings := types.DefaultSettings()
+	item := types.WidgetItem{Type: "subagents"}
+
+	// Subagents as unexpected string type
+	ctxString := types.RenderContext{
+		Data: types.StatusJSON{
+			Subagents: "invalid_string_data",
+		},
+	}
+	title, body, err := w.Render(item, ctxString, settings)
+	if err != nil || title != "subagents" || body != "0" {
+		t.Errorf("Expected 'subagents' and '0' for string type Subagents, got title=%q, body=%q", title, body)
+	}
+}
+
+func TestGitBranchWidget_NonGit(t *testing.T) {
+	RegisterAll()
+	w := GetWidget("git-branch")
+	settings := types.DefaultSettings()
+
+	oldRunner := runGitCommand
+	defer func() { runGitCommand = oldRunner }()
+
+	// Simulate non-git repository
+	runGitCommand = func(cmd string, ctx CwdResolver, ttl int) (string, error) {
+		return "false", nil
+	}
+
+	ctx := types.RenderContext{Data: types.StatusJSON{CWD: "/tmp/non-git-dir"}}
+	item := types.WidgetItem{Type: "git-branch"}
+
+	_, body, err := w.Render(item, ctx, settings)
+	if err != nil || body != "⎇ no git" {
+		t.Errorf("Expected '⎇ no git' in non-git dir, got body=%q, err=%v", body, err)
+	}
+
+	// Test with Hide=true when no git
+	hideVal := true
+	itemHide := types.WidgetItem{Type: "git-branch", Hide: &hideVal}
+	titleHide, bodyHide, err := w.Render(itemHide, ctx, settings)
+	if err != nil || titleHide != "" || bodyHide != "" {
+		t.Errorf("Expected empty result when Hide=true and no git, got title=%q, body=%q", titleHide, bodyHide)
+	}
+}
+
+func TestGitChangesWidget_NonGit(t *testing.T) {
+	RegisterAll()
+	w := GetWidget("git-changes")
+	settings := types.DefaultSettings()
+
+	oldRunner := runGitCommand
+	defer func() { runGitCommand = oldRunner }()
+
+	// Simulate non-git repository
+	runGitCommand = func(cmd string, ctx CwdResolver, ttl int) (string, error) {
+		return "false", fmt.Errorf("not a git repository")
+	}
+
+	ctx := types.RenderContext{Data: types.StatusJSON{CWD: "/tmp/non-git-dir"}}
+	item := types.WidgetItem{Type: "git-changes"}
+
+	_, body, err := w.Render(item, ctx, settings)
+	if err != nil || body != "(no git)" {
+		t.Errorf("Expected '(no git)' in non-git dir for git-changes, got body=%q, err=%v", body, err)
+	}
+}
+
+
