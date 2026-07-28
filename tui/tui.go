@@ -1042,9 +1042,12 @@ func saveSettings(path string, settings types.Settings) error {
 	if err != nil {
 		return err
 	}
+	var success bool
 	defer func() {
-		file.Close()
-		os.Remove(tempPath)
+		_ = file.Close()
+		if !success {
+			_ = os.Remove(tempPath)
+		}
 	}()
 
 	bytes, err := json.MarshalIndent(settings, "", "  ")
@@ -1056,9 +1059,15 @@ func saveSettings(path string, settings types.Settings) error {
 	if err != nil {
 		return err
 	}
-	file.Close()
+	if err := file.Close(); err != nil {
+		return err
+	}
 
-	return os.Rename(tempPath, path)
+	if err := os.Rename(tempPath, path); err != nil {
+		return err
+	}
+	success = true
+	return nil
 }
 
 // RunTUI launches the Bubble Tea program to edit settings interactively.

@@ -157,24 +157,28 @@ func getGitRepoMetadata(cwd string) (*GitRepoMetadata, error) {
 	}, nil
 }
 
-func readPersistentCache(cachePath string) (*PersistentGitCacheInternal, error) {
+func readPersistentCache(cachePath string) (cache *PersistentGitCacheInternal, err error) {
 	file, err := os.Open(cachePath)
 	if err != nil {
 		return nil, err
 	}
-	defer file.Close()
+	defer func() {
+		if cErr := file.Close(); cErr != nil && err == nil {
+			err = cErr
+		}
+	}()
 
-	var cache PersistentGitCacheInternal
+	var res PersistentGitCacheInternal
 	decoder := json.NewDecoder(file)
-	if err := decoder.Decode(&cache); err != nil {
+	if err = decoder.Decode(&res); err != nil {
 		return nil, err
 	}
 
-	if cache.Version != GitCacheSchemaVersion {
+	if res.Version != GitCacheSchemaVersion {
 		return nil, errors.New("invalid cache version")
 	}
 
-	return &cache, nil
+	return &res, nil
 }
 
 func writePersistentCache(cachePath string, cache *PersistentGitCacheInternal) {
@@ -189,9 +193,12 @@ func writePersistentCache(cachePath string, cache *PersistentGitCacheInternal) {
 	if err != nil {
 		return
 	}
+	var success bool
 	defer func() {
-		file.Close()
-		os.Remove(tempPath) // clean up temp file if rename failed
+		_ = file.Close()
+		if !success {
+			_ = os.Remove(tempPath) // clean up temp file if rename failed
+		}
 	}()
 
 	encoder := json.NewEncoder(file)
@@ -199,9 +206,13 @@ func writePersistentCache(cachePath string, cache *PersistentGitCacheInternal) {
 	if err := encoder.Encode(cache); err != nil {
 		return
 	}
-	file.Close()
+	if err := file.Close(); err != nil {
+		return
+	}
 
-	os.Rename(tempPath, cachePath)
+	if err := os.Rename(tempPath, cachePath); err == nil {
+		success = true
+	}
 }
 
 func isCacheEntryFresh(entry GitCacheEntryInternal, metadata *GitRepoMetadata, ttlMs int64, now int64) bool {

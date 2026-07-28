@@ -129,7 +129,9 @@ func GetColorAnsiCode(colorName string, colorLevel string, isBg bool) string {
 				return fmt.Sprintf("\x1b[38;5;%dm", entry.Ansi256Index)
 			case "truecolor":
 				var r, g, b int
-				fmt.Sscanf(entry.TruecolorHex, "%02x%02x%02x", &r, &g, &b)
+				if _, err := fmt.Sscanf(entry.TruecolorHex, "%02x%02x%02x", &r, &g, &b); err != nil {
+					return ""
+				}
 				if isBg {
 					return fmt.Sprintf("\x1b[48;2;%d;%d;%dm", r, g, b)
 				}
@@ -263,8 +265,9 @@ func parseGradientStops(spec string) []RGB {
 			for _, entry := range colorMap {
 				if entry.Name == p && !entry.IsBackground {
 					var r, g, b int
-					fmt.Sscanf(entry.TruecolorHex, "%02x%02x%02x", &r, &g, &b)
-					stops = append(stops, RGB{R: r, G: g, B: b})
+					if _, err := fmt.Sscanf(entry.TruecolorHex, "%02x%02x%02x", &r, &g, &b); err == nil {
+						stops = append(stops, RGB{R: r, G: g, B: b})
+					}
 					break
 				}
 			}
