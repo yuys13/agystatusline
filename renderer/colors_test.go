@@ -185,4 +185,3 @@ func TestWrapSolidColor(t *testing.T) {
 		t.Errorf("Expected ansi256 wrap, got %q", res256)
 	}
 }
-

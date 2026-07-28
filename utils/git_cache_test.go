@@ -328,4 +328,3 @@ func TestRunGit(t *testing.T) {
 		t.Errorf("Expected mockExec execution count to remain 1 (cache hit), got %d", execCount)
 	}
 }
-
