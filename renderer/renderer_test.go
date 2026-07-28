@@ -156,3 +156,59 @@ func TestRenderStatusLines_PowerlineCaps(t *testing.T) {
 		t.Errorf("Expected end cap to be colored with %q, but got '%q'", expectedEndCapFg, firstLine)
 	}
 }
+
+func TestRenderStatusLines_CapsAndNonASCII(t *testing.T) {
+	widgets.RegisterAll()
+
+	settings := types.DefaultSettings()
+	settings.Powerline.Enabled = false
+	settings.DefaultSeparator = " - " // Test padded separator
+	settings.Lines = [][]types.WidgetItem{
+		{
+			{ID: "1", Type: "custom-text", CustomText: "Left"},
+			{ID: "2", Type: "custom-text", CustomText: "Right"},
+		},
+	}
+
+	ctx := types.RenderContext{Data: types.StatusJSON{}}
+	lines := RenderStatusLines(settings, ctx)
+
+	if len(lines) == 0 {
+		t.Fatalf("Expected lines")
+	}
+
+	stripped := StripAnsi(lines[0])
+	if !strings.Contains(stripped, "Left - Right") {
+		t.Errorf("Expected 'Left - Right' in stripped line, got %q", stripped)
+	}
+}
+
+
+func TestRenderStatusLines_PowerlineColorLevels(t *testing.T) {
+	widgets.RegisterAll()
+
+	ctx := types.RenderContext{Data: types.StatusJSON{}}
+
+	for _, colorLevel := range []int{0, 2, 3} {
+		settings := types.DefaultSettings()
+		settings.Powerline.Enabled = true
+		settings.Powerline.Theme = "dracula"
+		settings.ColorLevel = colorLevel
+		settings.Lines = [][]types.WidgetItem{
+			{
+				{ID: "1", Type: "custom-text", CustomText: "P1"},
+				{ID: "2", Type: "custom-text", CustomText: "P2"},
+			},
+		}
+
+		lines := RenderStatusLines(settings, ctx)
+		if len(lines) == 0 {
+			t.Fatalf("Expected rendered powerline lines for color level %d", colorLevel)
+		}
+		if !strings.Contains(lines[0], "P1") || !strings.Contains(lines[0], "P2") {
+			t.Errorf("Expected P1 and P2 in powerline output for color level %d", colorLevel)
+		}
+	}
+}
+
+

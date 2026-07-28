@@ -172,3 +172,17 @@ func TestGetPowerlineTheme_Fallback(t *testing.T) {
 		t.Errorf("Expected nil for nonexistent powerline theme, got %v", theme)
 	}
 }
+
+func TestWrapSolidColor(t *testing.T) {
+	c := RGB{R: 255, G: 128, B: 0}
+	resTrue := wrapSolidColor("test", c, "truecolor")
+	if !strings.Contains(resTrue, "255;128;0") || !strings.Contains(resTrue, "test") {
+		t.Errorf("Expected truecolor wrap, got %q", resTrue)
+	}
+
+	res256 := wrapSolidColor("test", c, "ansi256")
+	if !strings.Contains(res256, "\x1b[38;5;") || !strings.Contains(res256, "test") {
+		t.Errorf("Expected ansi256 wrap, got %q", res256)
+	}
+}
+
