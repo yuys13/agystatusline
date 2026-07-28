@@ -51,6 +51,7 @@
           apps.default = {
             type = "app";
             program = "${self'.packages.default}/bin/agystatusline";
+            meta.description = "agystatusline binary execution app";
           };
 
           devShells.default = pkgs.mkShell {
