@@ -7,3 +7,7 @@ agystatusline.exe
 
 # OS metadata
 .DS_Store
+
+# Nix build outputs
+result
+
