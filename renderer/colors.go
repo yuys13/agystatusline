@@ -329,10 +329,10 @@ func applyGradientToText(text string, stops []RGB, colorLevel string) string {
 		ib := int(float64(c1.B) + float64(c2.B-c1.B)*localT)
 
 		if colorLevel == "truecolor" {
-			builder.WriteString(fmt.Sprintf("\x1b[38;2;%d;%d;%dm%c", ir, ig, ib, r))
+			_, _ = fmt.Fprintf(&builder, "\x1b[38;2;%d;%d;%dm%c", ir, ig, ib, r)
 		} else { // ansi256
 			code := rgbToAnsi256(ir, ig, ib)
-			builder.WriteString(fmt.Sprintf("\x1b[38;5;%dm%c", code, r))
+			_, _ = fmt.Fprintf(&builder, "\x1b[38;5;%dm%c", code, r)
 		}
 	}
 	// Return string with reset at the end

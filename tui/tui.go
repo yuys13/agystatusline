@@ -689,15 +689,16 @@ func (m Model) View() string {
 	}
 
 	previewSettings := m.settings
-	if m.activeMenu == "select_theme" {
+	switch m.activeMenu {
+	case "select_theme":
 		if m.cursor >= 0 && m.cursor < len(themesList) {
 			previewSettings.Powerline.Theme = themesList[m.cursor]
 		}
-	} else if m.activeMenu == "select_separator" {
+	case "select_separator":
 		if m.cursor >= 0 && m.cursor < len(separatorsList) {
 			previewSettings.Powerline.Separators = []string{separatorsList[m.cursor].value}
 		}
-	} else if m.activeMenu == "select_start_cap" {
+	case "select_start_cap":
 		if m.cursor >= 0 && m.cursor < len(startCapsList) {
 			if startCapsList[m.cursor].value == "" {
 				previewSettings.Powerline.StartCaps = []string{}
@@ -705,7 +706,7 @@ func (m Model) View() string {
 				previewSettings.Powerline.StartCaps = []string{startCapsList[m.cursor].value}
 			}
 		}
-	} else if m.activeMenu == "select_end_cap" {
+	case "select_end_cap":
 		if m.cursor >= 0 && m.cursor < len(endCapsList) {
 			if endCapsList[m.cursor].value == "" {
 				previewSettings.Powerline.EndCaps = []string{}
@@ -713,11 +714,11 @@ func (m Model) View() string {
 				previewSettings.Powerline.EndCaps = []string{endCapsList[m.cursor].value}
 			}
 		}
-	} else if m.activeMenu == "select_color_level" {
+	case "select_color_level":
 		if m.cursor >= 0 && m.cursor < len(colorLevelsList) {
 			previewSettings.ColorLevel = colorLevelsList[m.cursor].value
 		}
-	} else if m.activeMenu == "add_widget" {
+	case "add_widget":
 		if m.cursor >= 0 && m.cursor < len(widgetTypes) && m.selectedLine >= 0 && m.selectedLine < len(m.settings.Lines) {
 			selectedType := widgetTypes[m.cursor]
 			tempWidget := types.WidgetItem{

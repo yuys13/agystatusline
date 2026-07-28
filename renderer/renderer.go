@@ -71,15 +71,18 @@ func RenderStatusLines(settings types.Settings, ctx types.RenderContext) []strin
 					if settings.GlobalBold || (item.Bold != nil && *item.Bold) {
 						bold = true
 					}
-					colorLevelStr := "ansi16"
-					if settings.ColorLevel == 2 {
+					var colorLevelStr string
+					switch settings.ColorLevel {
+					case 2:
 						colorLevelStr = "ansi256"
-					} else if settings.ColorLevel == 3 {
+					case 3:
 						colorLevelStr = "truecolor"
+					default:
+						colorLevelStr = "ansi16"
 					}
 
 					titleColored := ""
-					if title != "" && !(item.RawValue != nil && *item.RawValue) && !settings.MinimalistMode {
+					if title != "" && (item.RawValue == nil || !*item.RawValue) && !settings.MinimalistMode {
 						titleColored = ApplyColors(title, "brightBlack", "", nil, colorLevelStr, nil)
 					}
 
@@ -124,11 +127,14 @@ func RenderStatusLines(settings types.Settings, ctx types.RenderContext) []strin
 				}
 			}
 
-			colorLevelStr := "ansi16"
-			if settings.ColorLevel == 2 {
+			var colorLevelStr string
+			switch settings.ColorLevel {
+			case 2:
 				colorLevelStr = "ansi256"
-			} else if settings.ColorLevel == 3 {
+			case 3:
 				colorLevelStr = "truecolor"
+			default:
+				colorLevelStr = "ansi16"
 			}
 			coloredSeparator := ApplyColors(separator, "brightBlack", "", nil, colorLevelStr, nil)
 
@@ -255,11 +261,14 @@ func renderPowerline(rendered []PreRenderedWidget, settings types.Settings, ctx 
 	}
 	sep := separators[0]
 
-	colorLevel := "ansi16"
-	if settings.ColorLevel == 2 {
+	var colorLevel string
+	switch settings.ColorLevel {
+	case 2:
 		colorLevel = "ansi256"
-	} else if settings.ColorLevel == 3 {
+	case 3:
 		colorLevel = "truecolor"
+	default:
+		colorLevel = "ansi16"
 	}
 
 	// Prepend StartCap if configured

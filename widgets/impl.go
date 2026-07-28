@@ -236,17 +236,18 @@ func (q *QuotaWidget) Render(item types.WidgetItem, ctx types.RenderContext, set
 
 	resetStr := formatResetInSeconds(quota.ResetInSeconds)
 
-	if displayMode == "reset" {
+	switch displayMode {
+	case "reset":
 		if resetStr == "" {
 			return "", "", nil
 		}
 		valueStr = resetStr
-	} else if displayMode == "quota" {
+	case "quota":
 		if pctStr == "" {
 			return "", "", nil
 		}
 		valueStr = pctStr
-	} else {
+	default:
 		// Default: quota % + reset countdown
 		if pctStr != "" && resetStr != "" {
 			valueStr = fmt.Sprintf("%s (%s)", pctStr, resetStr)
