@@ -179,3 +179,107 @@ func TestWritePersistentCache_CleanupOnFailure(t *testing.T) {
 		}
 	}
 }
+
+func TestReadGitDirFile(t *testing.T) {
+	tempDir := t.TempDir()
+
+	// 1. Non-existent file
+	_, err := readGitDirFile(filepath.Join(tempDir, "nonexistent"))
+	if err == nil {
+		t.Errorf("Expected error for non-existent file, got nil")
+	}
+
+	// 2. Invalid content (no gitdir: prefix)
+	invalidFile := filepath.Join(tempDir, "invalid_git")
+	_ = os.WriteFile(invalidFile, []byte("invalid content"), 0644)
+	_, err = readGitDirFile(invalidFile)
+	if err == nil || err.Error() != "not a gitdir file" {
+		t.Errorf("Expected 'not a gitdir file' error, got %v", err)
+	}
+
+	// 3. Valid relative gitdir file
+	relFile := filepath.Join(tempDir, "rel_git")
+	_ = os.WriteFile(relFile, []byte("gitdir: ../target_git"), 0644)
+	target, err := readGitDirFile(relFile)
+	if err != nil {
+		t.Fatalf("Unexpected error for relative gitdir: %v", err)
+	}
+	expectedTarget, _ := filepath.Abs(filepath.Join(tempDir, "../target_git"))
+	if target != expectedTarget {
+		t.Errorf("Expected %q, got %q", expectedTarget, target)
+	}
+
+	// 4. Valid absolute gitdir file
+	absTarget := filepath.Join(tempDir, "abs_target")
+	absFile := filepath.Join(tempDir, "abs_git")
+	_ = os.WriteFile(absFile, []byte("gitdir: "+absTarget), 0644)
+	targetAbs, err := readGitDirFile(absFile)
+	if err != nil || targetAbs != absTarget {
+		t.Errorf("Expected %q, got %q (err=%v)", absTarget, targetAbs, err)
+	}
+}
+
+func TestDiscoverGitDir(t *testing.T) {
+	tempDir := t.TempDir()
+
+	// 1. No git dir found
+	_, err := discoverGitDir(tempDir)
+	if err == nil {
+		t.Errorf("Expected error when no git dir exists, got nil")
+	}
+
+	// 2. Git dir as file (worktree)
+	worktreeDir := filepath.Join(tempDir, "worktree")
+	_ = os.Mkdir(worktreeDir, 0755)
+
+	realGitDir := filepath.Join(tempDir, "real_git")
+	_ = os.Mkdir(realGitDir, 0755)
+
+	gitFile := filepath.Join(worktreeDir, ".git")
+	_ = os.WriteFile(gitFile, []byte("gitdir: "+realGitDir), 0644)
+
+	found, err := discoverGitDir(worktreeDir)
+	if err != nil {
+		t.Fatalf("Unexpected error discovering git dir via worktree file: %v", err)
+	}
+	if found != realGitDir {
+		t.Errorf("Expected %q, got %q", realGitDir, found)
+	}
+}
+
+func TestNormalizeDirectory(t *testing.T) {
+	tempDir := t.TempDir()
+
+	// 1. Non-existent path
+	_, err := normalizeDirectory(filepath.Join(tempDir, "nonexistent"))
+	if err == nil {
+		t.Errorf("Expected error for non-existent path, got nil")
+	}
+
+	// 2. Directory path
+	normDir, err := normalizeDirectory(tempDir)
+	if err != nil || normDir != tempDir {
+		t.Errorf("Expected %q, got %q (err=%v)", tempDir, normDir, err)
+	}
+
+	// 3. File path
+	filePath := filepath.Join(tempDir, "file.txt")
+	_ = os.WriteFile(filePath, []byte("test"), 0644)
+	normFile, err := normalizeDirectory(filePath)
+	if err != nil || normFile != tempDir {
+		t.Errorf("Expected parent dir %q for file path, got %q (err=%v)", tempDir, normFile, err)
+	}
+}
+
+func TestClearGitCache(t *testing.T) {
+	tempDir := t.TempDir()
+	SetCacheDir(tempDir)
+	SetCacheEntry(tempDir, "test-cmd", "output", 1000, 10)
+
+	ClearGitCache()
+
+	_, hit := GetCacheEntry(tempDir, "test-cmd", 10)
+	if hit {
+		t.Errorf("Expected cache miss after ClearGitCache(), but hit was true")
+	}
+}

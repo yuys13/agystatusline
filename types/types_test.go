@@ -153,3 +153,92 @@ func TestParseStatusJSON_Sandbox(t *testing.T) {
 		t.Errorf("Expected Sandbox.Enabled to be true, got %v", status.Sandbox.Enabled)
 	}
 }
+
+func TestModelInfo_UnmarshalJSON_Invalid(t *testing.T) {
+	invalidInputs := []string{
+		`["invalid", "array"]`,
+		`12345`,
+		`true`,
+	}
+
+	for _, input := range invalidInputs {
+		var m ModelInfo
+		err := m.UnmarshalJSON([]byte(input))
+		if err == nil {
+			t.Errorf("Expected error for invalid ModelInfo input '%s', got nil", input)
+		}
+	}
+}
+
+func TestContextUsage_UnmarshalJSON(t *testing.T) {
+	// Valid numeric context usage
+	var c1 ContextUsage
+	if err := c1.UnmarshalJSON([]byte(`1234.5`)); err != nil {
+		t.Fatalf("Failed to unmarshal numeric ContextUsage: %v", err)
+	}
+	if c1.InputTokens != 1234.5 {
+		t.Errorf("Expected InputTokens 1234.5, got %f", c1.InputTokens)
+	}
+
+	// Valid object context usage
+	var c2 ContextUsage
+	if err := c2.UnmarshalJSON([]byte(`{"input_tokens": 100, "output_tokens": 50}`)); err != nil {
+		t.Fatalf("Failed to unmarshal object ContextUsage: %v", err)
+	}
+	if c2.InputTokens != 100 || c2.OutputTokens != 50 {
+		t.Errorf("Expected InputTokens 100 and OutputTokens 50, got InputTokens=%f OutputTokens=%f", c2.InputTokens, c2.OutputTokens)
+	}
+
+	// Invalid inputs
+	invalidInputs := []string{
+		`["invalid"]`,
+		`"string"`,
+		`true`,
+	}
+
+	for _, input := range invalidInputs {
+		var c ContextUsage
+		err := c.UnmarshalJSON([]byte(input))
+		if err == nil {
+			t.Errorf("Expected error for invalid ContextUsage input '%s', got nil", input)
+		}
+	}
+}
+
+func TestRenderContext_Getters(t *testing.T) {
+	// 1. With Workspace and CWD
+	c1 := RenderContext{
+		Data: StatusJSON{
+			CWD: "/cwd/path",
+			Workspace: &WorkspaceInfo{
+				CurrentDir: "/workspace/current",
+				ProjectDir: "/workspace/project",
+			},
+		},
+	}
+	if c1.GetCwd() != "/cwd/path" {
+		t.Errorf("Expected GetCwd() '/cwd/path', got '%s'", c1.GetCwd())
+	}
+	if c1.GetWorkspaceCurrentDir() != "/workspace/current" {
+		t.Errorf("Expected GetWorkspaceCurrentDir() '/workspace/current', got '%s'", c1.GetWorkspaceCurrentDir())
+	}
+	if c1.GetWorkspaceProjectDir() != "/workspace/project" {
+		t.Errorf("Expected GetWorkspaceProjectDir() '/workspace/project', got '%s'", c1.GetWorkspaceProjectDir())
+	}
+
+	// 2. Nil Workspace
+	c2 := RenderContext{
+		Data: StatusJSON{
+			CWD: "/cwd/path",
+		},
+	}
+	if c2.GetCwd() != "/cwd/path" {
+		t.Errorf("Expected GetCwd() '/cwd/path', got '%s'", c2.GetCwd())
+	}
+	if c2.GetWorkspaceCurrentDir() != "" {
+		t.Errorf("Expected empty GetWorkspaceCurrentDir(), got '%s'", c2.GetWorkspaceCurrentDir())
+	}
+	if c2.GetWorkspaceProjectDir() != "" {
+		t.Errorf("Expected empty GetWorkspaceProjectDir(), got '%s'", c2.GetWorkspaceProjectDir())
+	}
+}
