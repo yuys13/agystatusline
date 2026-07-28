@@ -142,4 +142,3 @@ func TestApplyColors_InvalidGradient(t *testing.T) {
 		t.Errorf("Expected ApplyColors to handle invalid gradient gracefully, got empty string")
 	}
 }
-
