@@ -283,3 +283,49 @@ func TestClearGitCache(t *testing.T) {
 		t.Errorf("Expected cache miss after ClearGitCache(), but hit was true")
 	}
 }
+
+func TestRunGit(t *testing.T) {
+	tempDir := t.TempDir()
+	SetCacheDir(tempDir)
+	ClearGitCache()
+
+	ctx := RenderContextDummy{CWD: tempDir, GitCacheTTLSeconds: 5}
+
+	// 1. Empty CWD
+	emptyCtx := RenderContextDummy{CWD: ""}
+	_, err := RunGit("status", emptyCtx, 5, nil)
+	if err == nil {
+		t.Errorf("Expected error when CWD is empty")
+	}
+
+	// 2. Empty command
+	_, err = RunGit("", ctx, 5, nil)
+	if err == nil {
+		t.Errorf("Expected error when command is empty")
+	}
+
+	// 3. Successful execution and caching
+	execCount := 0
+	mockExec := func(args []string, cwd string) (string, error) {
+		execCount++
+		return "branch-name", nil
+	}
+
+	out1, err := RunGit("symbolic-ref --short HEAD", ctx, 5, mockExec)
+	if err != nil || out1 != "branch-name" {
+		t.Errorf("Expected 'branch-name', got %q, err=%v", out1, err)
+	}
+	if execCount != 1 {
+		t.Errorf("Expected mockExec to be called once, got %d", execCount)
+	}
+
+	// 4. Second call should hit cache and not invoke mockExec again
+	out2, err := RunGit("symbolic-ref --short HEAD", ctx, 5, mockExec)
+	if err != nil || out2 != "branch-name" {
+		t.Errorf("Expected 'branch-name', got %q, err=%v", out2, err)
+	}
+	if execCount != 1 {
+		t.Errorf("Expected mockExec execution count to remain 1 (cache hit), got %d", execCount)
+	}
+}
+
