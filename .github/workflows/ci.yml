@@ -35,7 +35,7 @@ jobs:
         with:
           go-version-file: 'go.mod'
       - name: Run unit tests
-        run: go test -v -coverprofile=coverage.out ./...
+        run: go test -v -race -shuffle=on -coverprofile=coverage.out ./...
       - name: Run octocov
         uses: k1LoW/octocov-action@a167dc0dee441b7ffc45e1b862ab55ec0d87f278 # v1.5.2
   build:

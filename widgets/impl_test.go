@@ -1319,5 +1319,3 @@ func TestGitChangesWidget_NonGit(t *testing.T) {
 		t.Errorf("Expected '(no git)' in non-git dir for git-changes, got body=%q, err=%v", body, err)
 	}
 }
-
-

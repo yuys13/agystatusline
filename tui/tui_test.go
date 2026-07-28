@@ -1118,6 +1118,3 @@ func TestTUI_ViewSubmenus(t *testing.T) {
 		t.Errorf("Expected 'Editing Line 1 Items' in view when activeMenu=items, got:\n%s", viewItemsStr)
 	}
 }
-
-
-

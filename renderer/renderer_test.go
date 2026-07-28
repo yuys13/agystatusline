@@ -183,7 +183,6 @@ func TestRenderStatusLines_CapsAndNonASCII(t *testing.T) {
 	}
 }
 
-
 func TestRenderStatusLines_PowerlineColorLevels(t *testing.T) {
 	widgets.RegisterAll()
 
@@ -210,5 +209,3 @@ func TestRenderStatusLines_PowerlineColorLevels(t *testing.T) {
 		}
 	}
 }
-
-

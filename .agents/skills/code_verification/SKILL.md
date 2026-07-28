@@ -13,7 +13,7 @@ Before staging and committing changes, always ensure code formatting, static ana
 - Always ensure all formatted changes are staged (`git add`) as part of the commit.
 
 ## 2. Verification & Testing
-- Run `go test ./...` to ensure all unit tests pass locally.
+- Run `go test -race -shuffle=on ./...` to ensure all unit tests pass locally.
 - Run `golangci-lint run` (or `nix develop --command golangci-lint run`) to verify static code analysis.
 - Run `nix flake check --all-systems` to verify Nix build rules, treefmt checks, and cross-platform compatibility.
 - Ensure `go build -o agystatusline` builds successfully without warnings or errors.
