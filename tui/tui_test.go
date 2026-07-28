@@ -1,6 +1,8 @@
 package tui
 
 import (
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -1060,3 +1062,38 @@ func TestTUI_MainMenuSaveExitSpacing(t *testing.T) {
 		t.Errorf("Expected an empty line between 'Select Color Level' and 'Save & Exit', but found %d newlines", newlineCount)
 	}
 }
+
+func TestSaveSettings(t *testing.T) {
+	tempDir := t.TempDir()
+	validPath := filepath.Join(tempDir, "config.json")
+	settings := types.DefaultSettings()
+
+	// 1. Test successful save
+	err := saveSettings(validPath, settings)
+	if err != nil {
+		t.Fatalf("Expected saveSettings to succeed, got error: %v", err)
+	}
+
+	if _, err := os.Stat(validPath); os.IsNotExist(err) {
+		t.Errorf("Expected settings file to exist at %s", validPath)
+	}
+
+	// 2. Test invalid path error handling (path is a directory)
+	invalidPath := filepath.Join(tempDir, "a_dir")
+	if err := os.Mkdir(invalidPath, 0755); err != nil {
+		t.Fatalf("Failed to create temp dir: %v", err)
+	}
+	err = saveSettings(invalidPath, settings)
+	if err == nil {
+		t.Errorf("Expected saveSettings to fail when target path is a directory, but it succeeded")
+	}
+
+	// 3. Verify temporary files are cleaned up
+	files, _ := os.ReadDir(tempDir)
+	for _, f := range files {
+		if strings.HasSuffix(f.Name(), ".tmp") {
+			t.Errorf("Expected no temporary files remaining in %s, but found %s", tempDir, f.Name())
+		}
+	}
+}
+

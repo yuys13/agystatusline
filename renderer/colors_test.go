@@ -113,3 +113,33 @@ func TestGetPowerlineTheme(t *testing.T) {
 		})
 	}
 }
+
+func TestGetColorAnsiCode_InvalidHex(t *testing.T) {
+	tests := []struct {
+		colorName  string
+		colorLevel string
+		isBg       bool
+		expected   string
+	}{
+		{"hex:invalid", "truecolor", false, ""},
+		{"hex:12", "truecolor", false, ""},
+		{"hex:zzzzzz", "truecolor", false, ""},
+		{"unknown_color", "truecolor", false, ""},
+	}
+
+	for _, tc := range tests {
+		actual := GetColorAnsiCode(tc.colorName, tc.colorLevel, tc.isBg)
+		if actual != tc.expected {
+			t.Errorf("For invalid color (%s, %s, %t) expected empty string, got %q", tc.colorName, tc.colorLevel, tc.isBg, actual)
+		}
+	}
+}
+
+func TestApplyColors_InvalidGradient(t *testing.T) {
+	// Gradient with invalid hex stop should safely fallback or ignore invalid stops
+	res := ApplyColors("Text", "gradient:hex:invalid,hex:0000FF", "ansi16", nil, "truecolor", nil)
+	if res == "" {
+		t.Errorf("Expected ApplyColors to handle invalid gradient gracefully, got empty string")
+	}
+}
+

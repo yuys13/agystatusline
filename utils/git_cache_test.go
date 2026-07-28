@@ -131,3 +131,52 @@ type GitCacheEntry struct {
 	HeadMtimeMS  int64   `json:"headMtimeMs"`
 	IndexMtimeMS int64   `json:"indexMtimeMs"`
 }
+
+func TestReadPersistentCache_ErrorHandling(t *testing.T) {
+	tempDir := t.TempDir()
+
+	// 1. Non-existent file
+	_, err := readPersistentCache(filepath.Join(tempDir, "nonexistent.json"))
+	if err == nil {
+		t.Errorf("Expected error when reading non-existent cache file, got nil")
+	}
+
+	// 2. Invalid JSON file
+	invalidJsonPath := filepath.Join(tempDir, "invalid.json")
+	_ = os.WriteFile(invalidJsonPath, []byte("invalid json{"), 0644)
+	_, err = readPersistentCache(invalidJsonPath)
+	if err == nil {
+		t.Errorf("Expected error when reading invalid JSON cache file, got nil")
+	}
+
+	// 3. Invalid schema version
+	invalidVerPath := filepath.Join(tempDir, "invalid_ver.json")
+	_ = os.WriteFile(invalidVerPath, []byte(`{"version": 999}`), 0644)
+	_, err = readPersistentCache(invalidVerPath)
+	if err == nil || err.Error() != "invalid cache version" {
+		t.Errorf("Expected 'invalid cache version' error, got %v", err)
+	}
+}
+
+func TestWritePersistentCache_CleanupOnFailure(t *testing.T) {
+	tempDir := t.TempDir()
+	invalidPath := filepath.Join(tempDir, "dir_target")
+	_ = os.Mkdir(invalidPath, 0755)
+
+	cache := &PersistentGitCacheInternal{
+		Version: GitCacheSchemaVersion,
+		CWD:     tempDir,
+		Entries: make(map[string]GitCacheEntryInternal),
+	}
+
+	// Writing to a directory path should fail gracefully without leaving temporary files
+	writePersistentCache(invalidPath, cache)
+
+	files, _ := os.ReadDir(tempDir)
+	for _, f := range files {
+		if filepath.Ext(f.Name()) == ".tmp" {
+			t.Errorf("Expected no temporary files remaining in %s, but found %s", tempDir, f.Name())
+		}
+	}
+}
+
