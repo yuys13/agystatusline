@@ -42,6 +42,10 @@
                 enable = true;
                 package = pkgs.nixfmt;
               };
+              prettier = {
+                enable = true;
+                includes = [ "*.md" ];
+              };
               yamlfmt.enable = true;
             };
           };
