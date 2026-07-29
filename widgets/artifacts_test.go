@@ -1,17 +1,13 @@
 package widgets
 
 import (
-	"github.com/yuys13/agystatusline/types"
 	"testing"
+
+	"github.com/yuys13/agystatusline/types"
 )
 
-func TestArtifactsWidget(t *testing.T) {
-	RegisterAll()
-	w := GetWidget("artifacts")
-	if w == nil {
-		t.Fatalf("Artifacts widget not found")
-	}
-
+func TestArtifactsWidget_Normal(t *testing.T) {
+	w := initTestWidget(t, "artifacts")
 	settings := types.DefaultSettings()
 	count := 5
 	ctx := types.RenderContext{
@@ -27,5 +23,21 @@ func TestArtifactsWidget(t *testing.T) {
 	}
 	if title != "artifacts" || output != "5" {
 		t.Errorf("Expected title 'artifacts' and body '5', got title '%s' and body '%s'", title, output)
+	}
+}
+
+func TestArtifactsWidget_Interface(t *testing.T) {
+	w := initTestWidget(t, "artifacts")
+	ctx := types.RenderContext{Data: types.StatusJSON{}}
+	item := types.WidgetItem{Type: "artifacts"}
+
+	if nameStr := w.GetDisplayName(); nameStr == "" {
+		t.Errorf("GetDisplayName() returned empty for artifacts")
+	}
+	if defaultColor := w.GetDefaultColor(); defaultColor == "" {
+		t.Errorf("GetDefaultColor() returned empty for artifacts")
+	}
+	if bodyColor := w.GetBodyColor(item, ctx); bodyColor == "" {
+		t.Errorf("GetBodyColor() returned empty for artifacts")
 	}
 }

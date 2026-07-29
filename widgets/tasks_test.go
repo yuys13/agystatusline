@@ -1,17 +1,13 @@
 package widgets
 
 import (
-	"github.com/yuys13/agystatusline/types"
 	"testing"
+
+	"github.com/yuys13/agystatusline/types"
 )
 
-func TestTasksWidget(t *testing.T) {
-	RegisterAll()
-	w := GetWidget("tasks")
-	if w == nil {
-		t.Fatalf("Tasks widget not found")
-	}
-
+func TestTasksWidget_Normal(t *testing.T) {
+	w := initTestWidget(t, "tasks")
 	settings := types.DefaultSettings()
 	count := 2
 	ctx := types.RenderContext{
@@ -30,24 +26,43 @@ func TestTasksWidget(t *testing.T) {
 	}
 }
 
-func TestTasksWidget_EdgeCases(t *testing.T) {
-	RegisterAll()
-	w := GetWidget("tasks")
+func TestTasksWidget_EdgeCase_NilTaskCount(t *testing.T) {
+	w := initTestWidget(t, "tasks")
 	settings := types.DefaultSettings()
 	item := types.WidgetItem{Type: "tasks"}
 
-	// Nil task count
 	ctxNil := types.RenderContext{Data: types.StatusJSON{}}
-	title, body, _ := w.Render(item, ctxNil, settings)
-	if title != "tasks" || body != "0" {
-		t.Errorf("Expected 'tasks' and '0' for nil TaskCount, got %q, %q", title, body)
+	title, body, err := w.Render(item, ctxNil, settings)
+	if err != nil || title != "tasks" || body != "0" {
+		t.Errorf("Expected 'tasks' and '0' for nil TaskCount, got %q, %q, err=%v", title, body, err)
 	}
+}
 
-	// Valid task count
+func TestTasksWidget_ValidTaskCount(t *testing.T) {
+	w := initTestWidget(t, "tasks")
+	settings := types.DefaultSettings()
+	item := types.WidgetItem{Type: "tasks"}
+
 	taskCount := 3
 	ctxVal := types.RenderContext{Data: types.StatusJSON{TaskCount: &taskCount}}
-	_, bodyVal, _ := w.Render(item, ctxVal, settings)
-	if bodyVal != "3" {
-		t.Errorf("Expected '3' for TaskCount=3, got %q", bodyVal)
+	_, bodyVal, err := w.Render(item, ctxVal, settings)
+	if err != nil || bodyVal != "3" {
+		t.Errorf("Expected '3' for TaskCount=3, got %q, err=%v", bodyVal, err)
+	}
+}
+
+func TestTasksWidget_Interface(t *testing.T) {
+	w := initTestWidget(t, "tasks")
+	ctx := types.RenderContext{Data: types.StatusJSON{}}
+	item := types.WidgetItem{Type: "tasks"}
+
+	if nameStr := w.GetDisplayName(); nameStr == "" {
+		t.Errorf("GetDisplayName() returned empty for tasks")
+	}
+	if defaultColor := w.GetDefaultColor(); defaultColor == "" {
+		t.Errorf("GetDefaultColor() returned empty for tasks")
+	}
+	if bodyColor := w.GetBodyColor(item, ctx); bodyColor == "" {
+		t.Errorf("GetBodyColor() returned empty for tasks")
 	}
 }

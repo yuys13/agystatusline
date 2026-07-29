@@ -1,17 +1,13 @@
 package widgets
 
 import (
-	"github.com/yuys13/agystatusline/types"
 	"testing"
+
+	"github.com/yuys13/agystatusline/types"
 )
 
-func TestSubagentsWidget(t *testing.T) {
-	RegisterAll()
-	w := GetWidget("subagents")
-	if w == nil {
-		t.Fatalf("Subagents widget not found")
-	}
-
+func TestSubagentsWidget_Normal(t *testing.T) {
+	w := initTestWidget(t, "subagents")
 	settings := types.DefaultSettings()
 	count := 3
 	ctx := types.RenderContext{
@@ -30,38 +26,39 @@ func TestSubagentsWidget(t *testing.T) {
 	}
 }
 
-func TestSubagentsWidget_Types(t *testing.T) {
-	RegisterAll()
-	w := GetWidget("subagents")
+func TestSubagentsWidget_TypeSlice(t *testing.T) {
+	w := initTestWidget(t, "subagents")
 	settings := types.DefaultSettings()
 	item := types.WidgetItem{Type: "subagents"}
 
-	// Array type
 	ctxSlice := types.RenderContext{
 		Data: types.StatusJSON{Subagents: []any{"a1", "a2"}},
 	}
-	_, bodySlice, _ := w.Render(item, ctxSlice, settings)
-	if bodySlice != "2" {
-		t.Errorf("Expected '2' subagents, got %q", bodySlice)
+	_, bodySlice, err := w.Render(item, ctxSlice, settings)
+	if err != nil || bodySlice != "2" {
+		t.Errorf("Expected '2' subagents, got %q, err=%v", bodySlice, err)
 	}
+}
 
-	// Number type
+func TestSubagentsWidget_TypeNumber(t *testing.T) {
+	w := initTestWidget(t, "subagents")
+	settings := types.DefaultSettings()
+	item := types.WidgetItem{Type: "subagents"}
+
 	ctxNum := types.RenderContext{
 		Data: types.StatusJSON{Subagents: float64(5)},
 	}
-	_, bodyNum, _ := w.Render(item, ctxNum, settings)
-	if bodyNum != "5" {
-		t.Errorf("Expected '5' subagents, got %q", bodyNum)
+	_, bodyNum, err := w.Render(item, ctxNum, settings)
+	if err != nil || bodyNum != "5" {
+		t.Errorf("Expected '5' subagents, got %q, err=%v", bodyNum, err)
 	}
 }
 
 func TestSubagentsWidget_InvalidType(t *testing.T) {
-	RegisterAll()
-	w := GetWidget("subagents")
+	w := initTestWidget(t, "subagents")
 	settings := types.DefaultSettings()
 	item := types.WidgetItem{Type: "subagents"}
 
-	// Subagents as unexpected string type
 	ctxString := types.RenderContext{
 		Data: types.StatusJSON{
 			Subagents: "invalid_string_data",
@@ -69,6 +66,22 @@ func TestSubagentsWidget_InvalidType(t *testing.T) {
 	}
 	title, body, err := w.Render(item, ctxString, settings)
 	if err != nil || title != "subagents" || body != "0" {
-		t.Errorf("Expected 'subagents' and '0' for string type Subagents, got title=%q, body=%q", title, body)
+		t.Errorf("Expected 'subagents' and '0' for string type Subagents, got title=%q, body=%q, err=%v", title, body, err)
+	}
+}
+
+func TestSubagentsWidget_Interface(t *testing.T) {
+	w := initTestWidget(t, "subagents")
+	ctx := types.RenderContext{Data: types.StatusJSON{}}
+	item := types.WidgetItem{Type: "subagents"}
+
+	if nameStr := w.GetDisplayName(); nameStr == "" {
+		t.Errorf("GetDisplayName() returned empty for subagents")
+	}
+	if defaultColor := w.GetDefaultColor(); defaultColor == "" {
+		t.Errorf("GetDefaultColor() returned empty for subagents")
+	}
+	if bodyColor := w.GetBodyColor(item, ctx); bodyColor == "" {
+		t.Errorf("GetBodyColor() returned empty for subagents")
 	}
 }
