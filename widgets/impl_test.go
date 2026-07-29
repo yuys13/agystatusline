@@ -778,6 +778,35 @@ func TestQuotaBarWidget(t *testing.T) {
 		}
 	}
 
+	// Test 3: Fractional progress block characters (▓, ▒, ░)
+	fractionalTests := []struct {
+		pct         float64
+		expectedBar string
+		desc        string
+	}{
+		{pct: 0.28, expectedBar: "██▓·······", desc: "remainder >= 75 (28%)"},
+		{pct: 0.27, expectedBar: "██▒·······", desc: "remainder >= 50 (27%)"},
+		{pct: 0.23, expectedBar: "██░·······", desc: "remainder >= 25 (23%)"},
+	}
+
+	for _, tt := range fractionalTests {
+		ctx := types.RenderContext{
+			Data: types.StatusJSON{
+				Quota: map[string]types.QuotaInfo{
+					"gemini-5h": {RemainingFraction: &tt.pct},
+				},
+			},
+		}
+		_, output, err := w.Render(item, ctx, settings)
+		if err != nil {
+			t.Fatalf("Render error for %s: %v", tt.desc, err)
+		}
+		parts := strings.Split(output, " ")
+		if parts[0] != tt.expectedBar {
+			t.Errorf("For %s, expected bar %q, got %q", tt.desc, tt.expectedBar, parts[0])
+		}
+	}
+
 	// Test 4: Reset time inclusion
 	resetSecs := 750.0 // 12m 30s
 	ctxWithReset := types.RenderContext{
