@@ -33,30 +33,42 @@ func TestInitialModel(t *testing.T) {
 func TestTUI_UpdateQuit(t *testing.T) {
 	settings := types.DefaultSettings()
 
-	// 1. Send key event "q" on main menu: should exit
-	m := NewModel(settings, "/tmp/settings.json")
-	msg := tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("q")}
-	updatedModel, _ := m.Update(msg)
-	newModel := updatedModel.(Model)
-	if !newModel.quitting {
-		t.Errorf("Expected quitting to be true after pressing 'q' on main menu")
+	tests := []struct {
+		name         string
+		activeMenu   string
+		keyMsg       tea.KeyMsg
+		wantQuitting bool
+	}{
+		{
+			name:         "Press 'q' on main menu exits",
+			activeMenu:   "main",
+			keyMsg:       tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("q")},
+			wantQuitting: true,
+		},
+		{
+			name:         "Press 'q' on lines menu does NOT exit",
+			activeMenu:   "lines",
+			keyMsg:       tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("q")},
+			wantQuitting: false,
+		},
+		{
+			name:         "Press 'ctrl+c' on lines menu exits",
+			activeMenu:   "lines",
+			keyMsg:       tea.KeyMsg{Type: tea.KeyCtrlC},
+			wantQuitting: true,
+		},
 	}
 
-	// 2. Send key event "q" on lines menu: should NOT exit
-	m2 := NewModel(settings, "/tmp/settings.json")
-	m2.activeMenu = "lines"
-	updatedModel2, _ := m2.Update(msg)
-	newModel2 := updatedModel2.(Model)
-	if newModel2.quitting {
-		t.Errorf("Expected quitting to be false after pressing 'q' on lines menu")
-	}
-
-	// 3. Send key event "ctrl+c" on lines menu: should exit
-	ctrlCMsg := tea.KeyMsg{Type: tea.KeyCtrlC}
-	updatedModel3, _ := m2.Update(ctrlCMsg)
-	newModel3 := updatedModel3.(Model)
-	if !newModel3.quitting {
-		t.Errorf("Expected quitting to be true after pressing 'ctrl+c' on lines menu")
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			m := NewModel(settings, "/tmp/settings.json")
+			m.activeMenu = tt.activeMenu
+			updatedModel, _ := m.Update(tt.keyMsg)
+			newModel := updatedModel.(Model)
+			if newModel.quitting != tt.wantQuitting {
+				t.Errorf("Expected quitting to be %v, got %v", tt.wantQuitting, newModel.quitting)
+			}
+		})
 	}
 }
 
@@ -474,53 +486,104 @@ func TestTUI_LivePreviewQuota(t *testing.T) {
 }
 
 func TestTUI_PowerlineSeparator(t *testing.T) {
-	// 1. Default Separator Test
-	settings := types.DefaultSettings()
-	m := NewModel(settings, "/tmp/settings.json")
-	if m.separatorIndex != 1 {
-		t.Errorf("Expected default separatorIndex to be 1, got %d", m.separatorIndex)
+	tests := []struct {
+		name               string
+		setupSettings      func() types.Settings
+		keyMsg             *tea.KeyMsg
+		startMenu          string
+		startCursor        int
+		wantSeparatorIndex int
+		wantCustomSepName  string
+		wantActiveMenu     string
+		wantCursor         func(m Model) int
+	}{
+		{
+			name: "Default Separator",
+			setupSettings: func() types.Settings {
+				return types.DefaultSettings()
+			},
+			wantSeparatorIndex: 1,
+		},
+		{
+			name: "Custom Separator (exists in list)",
+			setupSettings: func() types.Settings {
+				s := types.DefaultSettings()
+				s.Powerline.Separators = []string{"\uE0B4"}
+				return s
+			},
+			wantSeparatorIndex: 2,
+		},
+		{
+			name: "None Separator",
+			setupSettings: func() types.Settings {
+				s := types.DefaultSettings()
+				s.Powerline.Separators = []string{""}
+				return s
+			},
+			wantSeparatorIndex: 0,
+		},
+		{
+			name: "Custom Separator (NOT in list)",
+			setupSettings: func() types.Settings {
+				s := types.DefaultSettings()
+				s.Powerline.Separators = []string{"♦"}
+				return s
+			},
+			wantCustomSepName: "Custom (♦)",
+		},
+		{
+			name: "Navigation to Separator Selection Menu",
+			setupSettings: func() types.Settings {
+				s := types.DefaultSettings()
+				s.Powerline.Separators = []string{"♦"}
+				return s
+			},
+			startMenu:      "main",
+			startCursor:    3,
+			keyMsg:         &tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("\n")},
+			wantActiveMenu: "select_separator",
+			wantCursor: func(m Model) int {
+				return m.separatorIndex
+			},
+		},
 	}
 
-	// 2. Custom Separator (exists in list) Test
-	settings.Powerline.Separators = []string{"\uE0B4"} // Round
-	m2 := NewModel(settings, "/tmp/settings.json")
-	if m2.separatorIndex != 2 {
-		t.Errorf("Expected separatorIndex to be 2 for '\\uE0B4', got %d", m2.separatorIndex)
-	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			settings := tt.setupSettings()
+			m := NewModel(settings, "/tmp/settings.json")
 
-	// 2.5. None Separator Test
-	settings.Powerline.Separators = []string{""}
-	mNone := NewModel(settings, "/tmp/settings.json")
-	if mNone.separatorIndex != 0 {
-		t.Errorf("Expected separatorIndex to be 0 for None, got %d", mNone.separatorIndex)
-	}
+			if tt.wantCustomSepName != "" {
+				if m.separatorIndex == -1 {
+					t.Fatalf("Expected new custom separator to be added to list, but got index -1")
+				}
+				if separatorsList[m.separatorIndex].name != tt.wantCustomSepName {
+					t.Errorf("Expected custom separator name to be %q, got %q", tt.wantCustomSepName, separatorsList[m.separatorIndex].name)
+				}
+			} else if tt.wantSeparatorIndex != 0 || tt.keyMsg == nil {
+				if m.separatorIndex != tt.wantSeparatorIndex {
+					t.Errorf("Expected separatorIndex to be %d, got %d", tt.wantSeparatorIndex, m.separatorIndex)
+				}
+			}
 
-	// 3. Custom Separator (NOT in list) Test
-	settings.Powerline.Separators = []string{"♦"}
-	m3 := NewModel(settings, "/tmp/settings.json")
-	if m3.separatorIndex == -1 {
-		t.Errorf("Expected new custom separator to be added to list, but got index -1")
-	}
-	customSepName := "Custom (♦)"
-	if separatorsList[m3.separatorIndex].name != customSepName {
-		t.Errorf("Expected custom separator name to be %q, got %q", customSepName, separatorsList[m3.separatorIndex].name)
-	}
+			if tt.keyMsg != nil {
+				m.activeMenu = tt.startMenu
+				m.cursor = tt.startCursor
 
-	// 4. Test Navigation to Separator Selection Menu in main menu
-	m4 := NewModel(settings, "/tmp/settings.json")
-	m4.activeMenu = "main"
-	m4.cursor = 3 // Select Powerline Separator index
+				updatedModel, _ := m.Update(*tt.keyMsg)
+				newModel := updatedModel.(Model)
 
-	// Simulate pressing Enter to open separator selection
-	msg := tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("\n")}
-	updatedModel, _ := m4.Update(msg)
-	newModel := updatedModel.(Model)
-
-	if newModel.activeMenu != "select_separator" {
-		t.Errorf("Expected activeMenu to transition to 'select_separator', got %q", newModel.activeMenu)
-	}
-	if newModel.cursor != m4.separatorIndex {
-		t.Errorf("Expected cursor in 'select_separator' menu to match current separatorIndex %d, got %d", m4.separatorIndex, newModel.cursor)
+				if tt.wantActiveMenu != "" && newModel.activeMenu != tt.wantActiveMenu {
+					t.Errorf("Expected activeMenu to transition to %q, got %q", tt.wantActiveMenu, newModel.activeMenu)
+				}
+				if tt.wantCursor != nil {
+					expectedCursor := tt.wantCursor(m)
+					if newModel.cursor != expectedCursor {
+						t.Errorf("Expected cursor to be %d, got %d", expectedCursor, newModel.cursor)
+					}
+				}
+			}
+		})
 	}
 }
 
@@ -991,23 +1054,27 @@ func TestTUI_WidgetSliceCorruption(t *testing.T) {
 
 func TestTUI_NoASCIIInSeparators(t *testing.T) {
 	for _, sep := range separatorsList {
-		if sep.value == "/" {
-			t.Errorf("Slash ASCII (/) separator should be removed")
-		}
-		if sep.value == "|" {
-			t.Errorf("Bar ASCII (|) separator should be removed")
-		}
+		t.Run(sep.name, func(t *testing.T) {
+			if sep.value == "/" {
+				t.Errorf("Slash ASCII (/) separator should be removed")
+			}
+			if sep.value == "|" {
+				t.Errorf("Bar ASCII (|) separator should be removed")
+			}
+		})
 	}
 }
 
 func TestTUI_NoCustomTextAndQuotaInWidgetTypes(t *testing.T) {
 	for _, wt := range widgetTypes {
-		if wt.wType == "custom-text" {
-			t.Errorf("custom-text widget should be removed from TUI selection")
-		}
-		if wt.wType == "quota" {
-			t.Errorf("quota widget should be removed from TUI selection")
-		}
+		t.Run(wt.name, func(t *testing.T) {
+			if wt.wType == "custom-text" {
+				t.Errorf("custom-text widget should be removed from TUI selection")
+			}
+			if wt.wType == "quota" {
+				t.Errorf("quota widget should be removed from TUI selection")
+			}
+		})
 	}
 }
 
@@ -1034,9 +1101,11 @@ func TestTUI_WidgetTypesOrdering(t *testing.T) {
 
 	for i, wt := range widgetTypes {
 		expectedType := expectedOrder[i]
-		if wt.wType != expectedType {
-			t.Errorf("At index %d: expected widget type %q, got %q (name: %q)", i, expectedType, wt.wType, wt.name)
-		}
+		t.Run(wt.name, func(t *testing.T) {
+			if wt.wType != expectedType {
+				t.Errorf("At index %d: expected widget type %q, got %q (name: %q)", i, expectedType, wt.wType, wt.name)
+			}
+		})
 	}
 }
 
@@ -1069,36 +1138,58 @@ func TestTUI_MainMenuSaveExitSpacing(t *testing.T) {
 }
 
 func TestSaveSettings(t *testing.T) {
-	tempDir := t.TempDir()
-	validPath := filepath.Join(tempDir, "config.json")
 	settings := types.DefaultSettings()
 
-	// 1. Test successful save
-	err := saveSettings(validPath, settings)
-	if err != nil {
-		t.Fatalf("Expected saveSettings to succeed, got error: %v", err)
+	tests := []struct {
+		name           string
+		setupPath      func(dir string) string
+		wantErr        bool
+		checkFileExist bool
+	}{
+		{
+			name: "Successful save",
+			setupPath: func(dir string) string {
+				return filepath.Join(dir, "config.json")
+			},
+			wantErr:        false,
+			checkFileExist: true,
+		},
+		{
+			name: "Target path is directory error handling",
+			setupPath: func(dir string) string {
+				invalidPath := filepath.Join(dir, "a_dir")
+				_ = os.Mkdir(invalidPath, 0755)
+				return invalidPath
+			},
+			wantErr:        true,
+			checkFileExist: false,
+		},
 	}
 
-	if _, err := os.Stat(validPath); os.IsNotExist(err) {
-		t.Errorf("Expected settings file to exist at %s", validPath)
-	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tempDir := t.TempDir()
+			targetPath := tt.setupPath(tempDir)
 
-	// 2. Test invalid path error handling (path is a directory)
-	invalidPath := filepath.Join(tempDir, "a_dir")
-	if err := os.Mkdir(invalidPath, 0755); err != nil {
-		t.Fatalf("Failed to create temp dir: %v", err)
-	}
-	err = saveSettings(invalidPath, settings)
-	if err == nil {
-		t.Errorf("Expected saveSettings to fail when target path is a directory, but it succeeded")
-	}
+			err := saveSettings(targetPath, settings)
+			if (err != nil) != tt.wantErr {
+				t.Fatalf("saveSettings() error = %v, wantErr %v", err, tt.wantErr)
+			}
 
-	// 3. Verify temporary files are cleaned up
-	files, _ := os.ReadDir(tempDir)
-	for _, f := range files {
-		if strings.HasSuffix(f.Name(), ".tmp") {
-			t.Errorf("Expected no temporary files remaining in %s, but found %s", tempDir, f.Name())
-		}
+			if tt.checkFileExist {
+				if _, err := os.Stat(targetPath); os.IsNotExist(err) {
+					t.Errorf("Expected settings file to exist at %s", targetPath)
+				}
+			}
+
+			// Verify temporary files are cleaned up
+			files, _ := os.ReadDir(tempDir)
+			for _, f := range files {
+				if strings.HasSuffix(f.Name(), ".tmp") {
+					t.Errorf("Expected no temporary files remaining in %s, but found %s", tempDir, f.Name())
+				}
+			}
+		})
 	}
 }
 
@@ -1106,20 +1197,35 @@ func TestTUI_ViewSubmenus(t *testing.T) {
 	widgets.RegisterAll()
 	settings := types.DefaultSettings()
 
-	// 1. View activeMenu = "lines"
-	mLines := NewModel(settings, "/tmp/settings.json")
-	mLines.activeMenu = "lines"
-	viewLinesStr := mLines.View()
-	if !strings.Contains(viewLinesStr, "Select Line to Edit Items") {
-		t.Errorf("Expected 'Select Line to Edit Items' in view when activeMenu=lines, got:\n%s", viewLinesStr)
+	tests := []struct {
+		name         string
+		activeMenu   string
+		selectedLine int
+		wantSubstr   string
+	}{
+		{
+			name:       "activeMenu = lines",
+			activeMenu: "lines",
+			wantSubstr: "Select Line to Edit Items",
+		},
+		{
+			name:         "activeMenu = items",
+			activeMenu:   "items",
+			selectedLine: 0,
+			wantSubstr:   "Editing Line 1 Items",
+		},
 	}
 
-	// 2. View activeMenu = "items"
-	mItems := NewModel(settings, "/tmp/settings.json")
-	mItems.activeMenu = "items"
-	mItems.selectedLine = 0
-	viewItemsStr := mItems.View()
-	if !strings.Contains(viewItemsStr, "Editing Line 1 Items") {
-		t.Errorf("Expected 'Editing Line 1 Items' in view when activeMenu=items, got:\n%s", viewItemsStr)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			m := NewModel(settings, "/tmp/settings.json")
+			m.activeMenu = tt.activeMenu
+			m.selectedLine = tt.selectedLine
+
+			viewStr := m.View()
+			if !strings.Contains(viewStr, tt.wantSubstr) {
+				t.Errorf("Expected %q in view when activeMenu=%s, got:\n%s", tt.wantSubstr, tt.activeMenu, viewStr)
+			}
+		})
 	}
 }
