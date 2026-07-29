@@ -231,8 +231,9 @@ func TestQuotaBarWidget(t *testing.T) {
 			{0.50, "brightGreen"},
 			{0.49, "brightYellow"},
 			{0.30, "brightYellow"},
-			{0.10, "brightYellow"},
-			{0.09, "brightRed"},
+			{0.20, "brightYellow"},
+			{0.19, "brightRed"},
+			{0.10, "brightRed"},
 			{0.05, "brightRed"},
 		}
 		item := types.WidgetItem{Type: "quota-bar", Metadata: map[string]string{"key": "gemini-5h"}}

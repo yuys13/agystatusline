@@ -136,7 +136,7 @@ func (q *QuotaBarWidget) GetBodyColor(item types.WidgetItem, ctx types.RenderCon
 	pct := *quota.RemainingFraction * 100.0
 	if pct >= 50 {
 		return "brightGreen"
-	} else if pct >= 10 {
+	} else if pct >= 20 {
 		return "brightYellow"
 	}
 	return "brightRed"
