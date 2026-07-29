@@ -25,16 +25,16 @@ func TestWidgetInterfaces(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			w := GetWidget(name)
 			if w == nil {
-				t.Fatalf("Widget %s not registered", name)
+				t.Fatalf("Widget %q not registered", name)
 			}
 			if nameStr := w.GetDisplayName(); nameStr == "" {
-				t.Errorf("GetDisplayName() returned empty for %s", name)
+				t.Errorf("GetDisplayName() returned empty for %q", name)
 			}
 			if defaultColor := w.GetDefaultColor(); defaultColor == "" {
-				t.Errorf("GetDefaultColor() returned empty for %s", name)
+				t.Errorf("GetDefaultColor() returned empty for %q", name)
 			}
 			if bodyColor := w.GetBodyColor(item, ctx); bodyColor == "" {
-				t.Errorf("GetBodyColor() returned empty for %s", name)
+				t.Errorf("GetBodyColor() returned empty for %q", name)
 			}
 		})
 	}

@@ -92,7 +92,7 @@ func TestGitCache_TTLAndMtime(t *testing.T) {
 	// Read cache - should be hit (same mtimes and within TTL)
 	cachedOutput, hit := GetCacheEntry(tempDir, cacheKey, ctx.GitCacheTTLSeconds)
 	if !hit || cachedOutput != output {
-		t.Errorf("Expected cache hit with '%s', got '%s' (hit=%t)", output, cachedOutput, hit)
+		t.Errorf("Expected cache hit with %q, got %q (hit=%t)", output, cachedOutput, hit)
 	}
 
 	// Wait or force TTL expiration
@@ -219,7 +219,7 @@ func TestWritePersistentCache_CleanupOnFailure(t *testing.T) {
 	files, _ := os.ReadDir(tempDir)
 	for _, f := range files {
 		if filepath.Ext(f.Name()) == ".tmp" {
-			t.Errorf("Expected no temporary files remaining in %s, but found %s", tempDir, f.Name())
+			t.Errorf("Expected no temporary files remaining in %q, but found %q", tempDir, f.Name())
 		}
 	}
 }

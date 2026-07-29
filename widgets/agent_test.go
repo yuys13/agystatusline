@@ -15,11 +15,11 @@ func TestSandboxWidget(t *testing.T) {
 	}
 
 	if w.GetDefaultColor() != "yellow" {
-		t.Errorf("Expected default color 'yellow', got '%s'", w.GetDefaultColor())
+		t.Errorf("Expected default color %q, got %q", "yellow", w.GetDefaultColor())
 	}
 
 	if w.GetDisplayName() != "Sandbox" {
-		t.Errorf("Expected display name 'Sandbox', got '%s'", w.GetDisplayName())
+		t.Errorf("Expected display name %q, got %q", "Sandbox", w.GetDisplayName())
 	}
 
 	settings := types.DefaultSettings()

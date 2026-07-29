@@ -34,7 +34,7 @@ func TestRenderStatusLines(t *testing.T) {
 
 		firstLine := StripAnsi(lines[0])
 		if !strings.Contains(firstLine, "Claude 3.5 Sonnet") {
-			t.Errorf("Expected 'Claude 3.5 Sonnet' in first line, got '%s'", firstLine)
+			t.Errorf("Expected 'Claude 3.5 Sonnet' in first line, got %q", firstLine)
 		}
 	})
 
@@ -63,7 +63,7 @@ func TestRenderStatusLines(t *testing.T) {
 		firstLine := StripAnsi(lines[0])
 		expected := "A/B/C"
 		if firstLine != expected {
-			t.Errorf("Expected auto-separator formatting '%s', got '%s'", expected, firstLine)
+			t.Errorf("Expected auto-separator formatting %q, got %q", expected, firstLine)
 		}
 	})
 
@@ -90,11 +90,11 @@ func TestRenderStatusLines(t *testing.T) {
 		firstLine := lines[0]
 
 		if !strings.Contains(firstLine, "\uE0B0") {
-			t.Errorf("Expected powerline separator '\\uE0B0' in output, got '%q'", firstLine)
+			t.Errorf("Expected powerline separator '\\uE0B0' in output, got %q", firstLine)
 		}
 
 		if !strings.Contains(firstLine, "\x1b[") {
-			t.Errorf("Expected ANSI color escapes in powerline output, got '%q'", firstLine)
+			t.Errorf("Expected ANSI color escapes in powerline output, got %q", firstLine)
 		}
 	})
 
@@ -123,21 +123,21 @@ func TestRenderStatusLines(t *testing.T) {
 		firstLine := lines[0]
 
 		if !strings.Contains(firstLine, "\uE0B2") {
-			t.Errorf("Expected start cap '\\uE0B2' in output, got '%q'", firstLine)
+			t.Errorf("Expected start cap '\\uE0B2' in output, got %q", firstLine)
 		}
 
 		if !strings.Contains(firstLine, "\uE0B0") {
-			t.Errorf("Expected end cap '\\uE0B0' in output, got '%q'", firstLine)
+			t.Errorf("Expected end cap '\\uE0B0' in output, got %q", firstLine)
 		}
 
 		expectedStartCapFg := "\x1b[38;5;73m"
 		if !strings.Contains(firstLine, expectedStartCapFg+"\uE0B2") {
-			t.Errorf("Expected start cap to be colored with %q, but got '%q'", expectedStartCapFg, firstLine)
+			t.Errorf("Expected start cap to be colored with %q, but got %q", expectedStartCapFg, firstLine)
 		}
 
 		expectedEndCapFg := "\x1b[38;5;239m"
 		if !strings.Contains(firstLine, expectedEndCapFg+"\uE0B0") {
-			t.Errorf("Expected end cap to be colored with %q, but got '%q'", expectedEndCapFg, firstLine)
+			t.Errorf("Expected end cap to be colored with %q, but got %q", expectedEndCapFg, firstLine)
 		}
 	})
 

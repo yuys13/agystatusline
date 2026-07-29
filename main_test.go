@@ -106,7 +106,7 @@ func TestLoadSettings(t *testing.T) {
 			}
 			if tt.expectCreated {
 				if _, err := os.Stat(customPath); os.IsNotExist(err) {
-					t.Errorf("Settings file was not created on disk at %s", customPath)
+					t.Errorf("Settings file was not created on disk at %q", customPath)
 				}
 			}
 			if tt.expectErr && lastLoadError == "" {
