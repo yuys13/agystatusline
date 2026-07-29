@@ -687,7 +687,7 @@ func TestQuotaBarWidget(t *testing.T) {
 		if title != "5h" || !strings.Contains(output, expectedPctStr) {
 			t.Errorf("Expected title '5h' and body containing %q, got title %q and body %q", expectedPctStr, title, output)
 		}
-		// Verify gemini-weekly maps to 'weekly'
+		// Verify gemini-weekly maps to '7d'
 		itemWeekly := types.WidgetItem{
 			Type:     "quota-bar",
 			Metadata: map[string]string{"key": "gemini-weekly"},
@@ -705,8 +705,30 @@ func TestQuotaBarWidget(t *testing.T) {
 		if err != nil {
 			t.Fatalf("Render error: %v", err)
 		}
-		if titleW != "weekly" {
-			t.Errorf("Expected title 'weekly', got %q", titleW)
+		if titleW != "7d" {
+			t.Errorf("Expected title '7d', got %q", titleW)
+		}
+
+		// Verify 3p-weekly maps to '3p-7d'
+		item3PWeekly := types.WidgetItem{
+			Type:     "quota-bar",
+			Metadata: map[string]string{"key": "3p-weekly"},
+		}
+		ctx3PWeekly := types.RenderContext{
+			Data: types.StatusJSON{
+				Quota: map[string]types.QuotaInfo{
+					"3p-weekly": {
+						RemainingFraction: &pct,
+					},
+				},
+			},
+		}
+		title3PW, _, err := w.Render(item3PWeekly, ctx3PWeekly, settings)
+		if err != nil {
+			t.Fatalf("Render error: %v", err)
+		}
+		if title3PW != "3p-7d" {
+			t.Errorf("Expected title '3p-7d', got %q", title3PW)
 		}
 
 		// Verify RawValue

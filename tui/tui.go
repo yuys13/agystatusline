@@ -105,9 +105,9 @@ var widgetTypes = []struct {
 
 	// Quota Bar
 	{name: "Quota Bar: 5h", wType: "quota-bar", color: "", metadata: map[string]string{"key": "gemini-5h"}},
-	{name: "Quota Bar: Weekly", wType: "quota-bar", color: "", metadata: map[string]string{"key": "gemini-weekly"}},
+	{name: "Quota Bar: 7d", wType: "quota-bar", color: "", metadata: map[string]string{"key": "gemini-weekly"}},
 	{name: "Quota Bar: 3P 5h", wType: "quota-bar", color: "", metadata: map[string]string{"key": "3p-5h"}},
-	{name: "Quota Bar: 3P Weekly", wType: "quota-bar", color: "", metadata: map[string]string{"key": "3p-weekly"}},
+	{name: "Quota Bar: 3P 7d", wType: "quota-bar", color: "", metadata: map[string]string{"key": "3p-weekly"}},
 }
 
 func NewModel(settings types.Settings, configPath string) Model {

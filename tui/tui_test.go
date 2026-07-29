@@ -390,7 +390,7 @@ func TestTUI_AddQuotaBarWidgets(t *testing.T) {
 		}
 	}
 	if !foundG5hB || !foundGwkB || !found3p5hB || !found3pwkB {
-		t.Errorf("Expected all 4 quota-bar presets in widgetTypes, got Gemini 5h Bar:%t, Gemini Weekly Bar:%t, 3P 5h Bar:%t, 3P Weekly Bar:%t",
+		t.Errorf("Expected all 4 quota-bar presets in widgetTypes, got Gemini 5h Bar:%t, Gemini 7d Bar:%t, 3P 5h Bar:%t, 3P 7d Bar:%t",
 			foundG5hB, foundGwkB, found3p5hB, found3pwkB)
 	}
 

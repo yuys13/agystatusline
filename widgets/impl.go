@@ -641,7 +641,9 @@ func (q *QuotaBarWidget) Render(item types.WidgetItem, ctx types.RenderContext, 
 		case "gemini-5h":
 			label = "5h"
 		case "gemini-weekly":
-			label = "weekly"
+			label = "7d"
+		case "3p-weekly":
+			label = "3p-7d"
 		default:
 			label = key
 		}
