@@ -15,7 +15,8 @@ This file guides AI agents and developers on how to work with the `agystatusline
 
 Refer to the [tdd](.agents/skills/tdd/SKILL.md), [git_commit](.agents/skills/git_commit/SKILL.md), [code_verification](.agents/skills/code_verification/SKILL.md), and [github_pr_workflow](.agents/skills/github_pr_workflow/SKILL.md) skills for detailed guidelines on Test-Driven Development, formatting, verification, commit messages, and PR workflows.
 
-- **TDD Workflow**: Strictly follow the Red -> Green -> Refactor -> Commit loop.
+- **TDD Workflow**: Strictly follow the Red -> Green -> Refactor -> Verify -> Commit loop.
+- **Code Verification**: Before committing or finishing any code modifications, always view and execute the checks in [code_verification](.agents/skills/code_verification/SKILL.md) (`nix fmt`, `golangci-lint`, `go test -race`, `go build`).
 - **Commit Messages**: Use Conventional Commits and explain **why** a change was made rather than "what" was changed.
 - **Placeholder Domains in Tests & Docs**: Always use RFC-compliant reserved domains (such as `example.com`, `example.org`, or `example.net` according to RFC 2606) for test cases, sample codes, and documentation instead of arbitrary real-world domains.
 
