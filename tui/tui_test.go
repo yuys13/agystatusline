@@ -26,7 +26,7 @@ func TestInitialModel(t *testing.T) {
 	}
 
 	if m.activeMenu != "main" {
-		t.Errorf("Expected initial menu 'main', got '%s'", m.activeMenu)
+		t.Errorf("Expected initial menu %q, got %q", "main", m.activeMenu)
 	}
 }
 
@@ -381,7 +381,7 @@ func TestTUI_AddQuotaBarWidgets(t *testing.T) {
 	newModel := updatedModel.(Model)
 
 	if newModel.activeMenu != "add_widget" {
-		t.Fatalf("Expected activeMenu to be 'add_widget', got %s", newModel.activeMenu)
+		t.Fatalf("Expected activeMenu to be %q, got %q", "add_widget", newModel.activeMenu)
 	}
 
 	// 2. ウィジェット追加リストにクォータバーウィジェットが含まれているか確認
@@ -424,15 +424,15 @@ func TestTUI_AddQuotaBarWidgets(t *testing.T) {
 	finalBarModel := updatedModel.(Model)
 
 	if finalBarModel.activeMenu != "items" {
-		t.Fatalf("Expected activeMenu to return to 'items', got %s", finalBarModel.activeMenu)
+		t.Fatalf("Expected activeMenu to return to %q, got %q", "items", finalBarModel.activeMenu)
 	}
 
 	addedBarWidget := finalBarModel.settings.Lines[0][1]
 	if addedBarWidget.Type != "quota-bar" {
-		t.Errorf("Expected widget type 'quota-bar', got '%s'", addedBarWidget.Type)
+		t.Errorf("Expected widget type 'quota-bar', got %q", addedBarWidget.Type)
 	}
 	if addedBarWidget.Color != "" {
-		t.Errorf("Expected widget color to be empty, got '%s'", addedBarWidget.Color)
+		t.Errorf("Expected widget color to be empty, got %q", addedBarWidget.Color)
 	}
 	if addedBarWidget.Metadata == nil || addedBarWidget.Metadata["key"] != "gemini-5h" {
 		t.Errorf("Expected widget metadata key 'gemini-5h', got %v", addedBarWidget.Metadata)
@@ -1178,7 +1178,7 @@ func TestSaveSettings(t *testing.T) {
 
 			if tt.checkFileExist {
 				if _, err := os.Stat(targetPath); os.IsNotExist(err) {
-					t.Errorf("Expected settings file to exist at %s", targetPath)
+					t.Errorf("Expected settings file to exist at %q", targetPath)
 				}
 			}
 
@@ -1186,7 +1186,7 @@ func TestSaveSettings(t *testing.T) {
 			files, _ := os.ReadDir(tempDir)
 			for _, f := range files {
 				if strings.HasSuffix(f.Name(), ".tmp") {
-					t.Errorf("Expected no temporary files remaining in %s, but found %s", tempDir, f.Name())
+					t.Errorf("Expected no temporary files remaining in %q, but found %q", tempDir, f.Name())
 				}
 			}
 		})
@@ -1224,7 +1224,7 @@ func TestTUI_ViewSubmenus(t *testing.T) {
 
 			viewStr := m.View()
 			if !strings.Contains(viewStr, tt.wantSubstr) {
-				t.Errorf("Expected %q in view when activeMenu=%s, got:\n%s", tt.wantSubstr, tt.activeMenu, viewStr)
+				t.Errorf("Expected %q in view when activeMenu=%q, got:\n%s", tt.wantSubstr, tt.activeMenu, viewStr)
 			}
 		})
 	}

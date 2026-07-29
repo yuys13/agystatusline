@@ -16,7 +16,7 @@ func TestModelWidget(t *testing.T) {
 	}
 
 	if w.GetDefaultColor() != "brightMagenta" {
-		t.Errorf("Expected default color 'brightMagenta', got '%s'", w.GetDefaultColor())
+		t.Errorf("Expected default color %q, got %q", "brightMagenta", w.GetDefaultColor())
 	}
 
 	settings := types.DefaultSettings()

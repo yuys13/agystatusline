@@ -20,10 +20,10 @@ func TestParseStatusJSON(t *testing.T) {
 			}`,
 			verify: func(t *testing.T, status StatusJSON) {
 				if status.SessionID != "test-session" {
-					t.Errorf("Expected SessionID 'test-session', got '%s'", status.SessionID)
+					t.Errorf("Expected SessionID %q, got %q", "test-session", status.SessionID)
 				}
 				if status.Model.ID != "Claude 3.5 Sonnet" || status.Model.DisplayName != "Claude 3.5 Sonnet" {
-					t.Errorf("Expected Model string to be parsed into ID/DisplayName, got ID='%s', DisplayName='%s'", status.Model.ID, status.Model.DisplayName)
+					t.Errorf("Expected Model string to be parsed into ID/DisplayName, got ID=%q, DisplayName=%q", status.Model.ID, status.Model.DisplayName)
 				}
 			},
 		},
@@ -37,10 +37,10 @@ func TestParseStatusJSON(t *testing.T) {
 			}`,
 			verify: func(t *testing.T, status StatusJSON) {
 				if status.Model.ID != "claude-3-5-sonnet-20241022" {
-					t.Errorf("Expected Model.ID 'claude-3-5-sonnet-20241022', got '%s'", status.Model.ID)
+					t.Errorf("Expected Model.ID %q, got %q", "claude-3-5-sonnet-20241022", status.Model.ID)
 				}
 				if status.Model.DisplayName != "Claude 3.5 Sonnet" {
-					t.Errorf("Expected Model.DisplayName 'Claude 3.5 Sonnet', got '%s'", status.Model.DisplayName)
+					t.Errorf("Expected Model.DisplayName %q, got %q", "Claude 3.5 Sonnet", status.Model.DisplayName)
 				}
 			},
 		},
@@ -72,7 +72,7 @@ func TestParseStatusJSON(t *testing.T) {
 					t.Errorf("Expected gemini-5h RemainingFraction 0.5019274, got %v", g5h.RemainingFraction)
 				}
 				if g5h.ResetTime != "2026-06-20T11:27:27Z" {
-					t.Errorf("Expected gemini-5h ResetTime '2026-06-20T11:27:27Z', got '%s'", g5h.ResetTime)
+					t.Errorf("Expected gemini-5h ResetTime %q, got %q", "2026-06-20T11:27:27Z", g5h.ResetTime)
 				}
 				if g5h.ResetInSeconds == nil || *g5h.ResetInSeconds != 8891 {
 					t.Errorf("Expected gemini-5h ResetInSeconds 8891, got %v", g5h.ResetInSeconds)
@@ -151,7 +151,7 @@ func TestDefaultSettings(t *testing.T) {
 			t.Run(tc.name, func(t *testing.T) {
 				w := line0[tc.index]
 				if w.Type != tc.expectedType || w.Color != tc.expectedColor {
-					t.Errorf("Expected widget at index %d to be %s (%s), got Type='%s', Color='%s'",
+					t.Errorf("Expected widget at index %d to be %q (%q), got Type=%q, Color=%q",
 						tc.index, tc.expectedType, tc.expectedColor, w.Type, w.Color)
 				}
 			})
@@ -160,7 +160,7 @@ func TestDefaultSettings(t *testing.T) {
 
 	t.Run("powerline theme", func(t *testing.T) {
 		if settings.Powerline.Theme != "nord-aurora" {
-			t.Errorf("Expected default powerline theme 'nord-aurora', got '%s'", settings.Powerline.Theme)
+			t.Errorf("Expected default powerline theme %q, got %q", "nord-aurora", settings.Powerline.Theme)
 		}
 	})
 }
@@ -180,7 +180,7 @@ func TestModelInfo_UnmarshalJSON_Invalid(t *testing.T) {
 			var m ModelInfo
 			err := m.UnmarshalJSON([]byte(tc.input))
 			if err == nil {
-				t.Errorf("Expected error for invalid ModelInfo input '%s', got nil", tc.input)
+				t.Errorf("Expected error for invalid ModelInfo input %q, got nil", tc.input)
 			}
 		})
 	}
@@ -230,7 +230,7 @@ func TestContextUsage_UnmarshalJSON(t *testing.T) {
 			err := c.UnmarshalJSON([]byte(tc.input))
 			if tc.expectErr {
 				if err == nil {
-					t.Errorf("Expected error for invalid ContextUsage input '%s', got nil", tc.input)
+					t.Errorf("Expected error for invalid ContextUsage input %q, got nil", tc.input)
 				}
 				return
 			}
@@ -283,13 +283,13 @@ func TestRenderContext_Getters(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			if tc.ctx.GetCwd() != tc.expectedCwd {
-				t.Errorf("Expected GetCwd() '%s', got '%s'", tc.expectedCwd, tc.ctx.GetCwd())
+				t.Errorf("Expected GetCwd() %q, got %q", tc.expectedCwd, tc.ctx.GetCwd())
 			}
 			if tc.ctx.GetWorkspaceCurrentDir() != tc.expectedWorkCur {
-				t.Errorf("Expected GetWorkspaceCurrentDir() '%s', got '%s'", tc.expectedWorkCur, tc.ctx.GetWorkspaceCurrentDir())
+				t.Errorf("Expected GetWorkspaceCurrentDir() %q, got %q", tc.expectedWorkCur, tc.ctx.GetWorkspaceCurrentDir())
 			}
 			if tc.ctx.GetWorkspaceProjectDir() != tc.expectedWorkProj {
-				t.Errorf("Expected GetWorkspaceProjectDir() '%s', got '%s'", tc.expectedWorkProj, tc.ctx.GetWorkspaceProjectDir())
+				t.Errorf("Expected GetWorkspaceProjectDir() %q, got %q", tc.expectedWorkProj, tc.ctx.GetWorkspaceProjectDir())
 			}
 		})
 	}

@@ -30,7 +30,7 @@ func TestGetColorAnsiCode(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			actual := GetColorAnsiCode(tc.colorName, tc.colorLevel, tc.isBg)
 			if actual != tc.expected {
-				t.Errorf("For (%s, %s, %t) expected ANSI '%q', got '%q'", tc.colorName, tc.colorLevel, tc.isBg, tc.expected, actual)
+				t.Errorf("For (%q, %q, %t) expected ANSI %q, got %q", tc.colorName, tc.colorLevel, tc.isBg, tc.expected, actual)
 			}
 		})
 	}
@@ -43,13 +43,13 @@ func TestApplyColors(t *testing.T) {
 		actual := ApplyColors(text, "red", "", &bold, "ansi16", nil)
 
 		if !strings.Contains(actual, "Test") {
-			t.Errorf("Expected result to contain 'Test', got '%q'", actual)
+			t.Errorf("Expected result to contain 'Test', got %q", actual)
 		}
 		if !strings.HasPrefix(actual, "\x1b[1m\x1b[31m") && !strings.HasPrefix(actual, "\x1b[31m\x1b[1m") {
-			t.Errorf("Expected bold and red prefix, got '%q'", actual)
+			t.Errorf("Expected bold and red prefix, got %q", actual)
 		}
 		if !strings.HasSuffix(actual, "\x1b[39m\x1b[22m") && !strings.HasSuffix(actual, "\x1b[22m\x1b[39m") {
-			t.Errorf("Expected bold and red reset suffixes, got '%q'", actual)
+			t.Errorf("Expected bold and red reset suffixes, got %q", actual)
 		}
 	})
 
@@ -77,7 +77,7 @@ func TestBgToFg(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			actual := BgToFg(tc.input)
 			if actual != tc.expected {
-				t.Errorf("Expected BgToFg('%s') -> '%s', got '%s'", tc.input, tc.expected, actual)
+				t.Errorf("Expected BgToFg(%q) -> %q, got %q", tc.input, tc.expected, actual)
 			}
 		})
 	}
@@ -104,27 +104,27 @@ func TestGetPowerlineTheme(t *testing.T) {
 		t.Run(tc.id, func(t *testing.T) {
 			theme := GetPowerlineTheme(tc.id)
 			if theme == nil {
-				t.Fatalf("Expected '%s' theme to exist, got nil", tc.id)
+				t.Fatalf("Expected %q theme to exist, got nil", tc.id)
 			}
 			if theme.Name != tc.name {
-				t.Errorf("Expected %s theme name, got '%s'", tc.name, theme.Name)
+				t.Errorf("Expected %q theme name, got %q", tc.name, theme.Name)
 			}
 			if theme.Colors16 == nil {
-				t.Errorf("Expected Colors16 defined for '%s'", tc.id)
+				t.Errorf("Expected Colors16 defined for %q", tc.id)
 			} else if len(theme.Colors16.Fg) != 5 || len(theme.Colors16.Bg) != 5 {
-				t.Errorf("Expected 5 Colors16 levels for '%s', got Fg:%d, Bg:%d", tc.id, len(theme.Colors16.Fg), len(theme.Colors16.Bg))
+				t.Errorf("Expected 5 Colors16 levels for %q, got Fg:%d, Bg:%d", tc.id, len(theme.Colors16.Fg), len(theme.Colors16.Bg))
 			}
 
 			if theme.Colors256 == nil {
-				t.Errorf("Expected Colors256 defined for '%s'", tc.id)
+				t.Errorf("Expected Colors256 defined for %q", tc.id)
 			} else if len(theme.Colors256.Fg) != 5 || len(theme.Colors256.Bg) != 5 {
-				t.Errorf("Expected 5 Colors256 levels for '%s', got Fg:%d, Bg:%d", tc.id, len(theme.Colors256.Fg), len(theme.Colors256.Bg))
+				t.Errorf("Expected 5 Colors256 levels for %q, got Fg:%d, Bg:%d", tc.id, len(theme.Colors256.Fg), len(theme.Colors256.Bg))
 			}
 
 			if theme.Truecolor == nil {
-				t.Errorf("Expected Truecolor defined for '%s'", tc.id)
+				t.Errorf("Expected Truecolor defined for %q", tc.id)
 			} else if len(theme.Truecolor.Fg) != 5 || len(theme.Truecolor.Bg) != 5 {
-				t.Errorf("Expected 5 Truecolor levels for '%s', got Fg:%d, Bg:%d", tc.id, len(theme.Truecolor.Fg), len(theme.Truecolor.Bg))
+				t.Errorf("Expected 5 Truecolor levels for %q, got Fg:%d, Bg:%d", tc.id, len(theme.Truecolor.Fg), len(theme.Truecolor.Bg))
 			}
 		})
 	}

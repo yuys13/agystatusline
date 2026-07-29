@@ -14,7 +14,7 @@ func TestGitBranchWidget(t *testing.T) {
 		t.Fatalf("Git branch widget not found")
 	}
 	if w.GetDefaultColor() != "brightMagenta" {
-		t.Errorf("Expected default color 'brightMagenta', got '%s'", w.GetDefaultColor())
+		t.Errorf("Expected default color %q, got %q", "brightMagenta", w.GetDefaultColor())
 	}
 
 	settings := types.DefaultSettings()

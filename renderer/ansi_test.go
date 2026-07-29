@@ -29,7 +29,7 @@ func TestStripAnsi(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			actual := StripAnsi(tc.input)
 			if actual != tc.expected {
-				t.Errorf("Expected '%s', got '%s'", tc.expected, actual)
+				t.Errorf("Expected %q, got %q", tc.expected, actual)
 			}
 		})
 	}
@@ -52,7 +52,7 @@ func TestGetVisibleWidth(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			actual := GetVisibleWidth(tc.input)
 			if actual != tc.expected {
-				t.Errorf("For input '%s', expected width %d, got %d", tc.input, tc.expected, actual)
+				t.Errorf("For input %q, expected width %d, got %d", tc.input, tc.expected, actual)
 			}
 		})
 	}

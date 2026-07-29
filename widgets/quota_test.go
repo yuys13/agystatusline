@@ -17,7 +17,7 @@ func TestQuotaWidget(t *testing.T) {
 	}
 
 	if w.GetDefaultColor() != "brightWhite" {
-		t.Errorf("Expected default color 'brightWhite', got '%s'", w.GetDefaultColor())
+		t.Errorf("Expected default color %q, got %q", "brightWhite", w.GetDefaultColor())
 	}
 
 	remaining1 := float64(0.5019274)
@@ -246,7 +246,7 @@ func TestQuotaBarWidget(t *testing.T) {
 					},
 				}
 				if color := w.GetBodyColor(item, ctx); color != tt.expectedColor {
-					t.Errorf("For fraction %.2f expected color %s, got %s", tt.fraction, tt.expectedColor, color)
+					t.Errorf("For fraction %.2f expected color %q, got %q", tt.fraction, tt.expectedColor, color)
 				}
 			})
 		}
@@ -270,7 +270,7 @@ func TestQuotaBarWidget(t *testing.T) {
 
 				color := w.GetBodyColor(item, ctx)
 				if color != expectedColors[i] {
-					t.Errorf("Expected body color %s, got %s", expectedColors[i], color)
+					t.Errorf("Expected body color %q, got %q", expectedColors[i], color)
 				}
 
 				title, output, err := w.Render(item, ctx, settings)
@@ -355,11 +355,11 @@ func TestQuotaBarWidget(t *testing.T) {
 				}
 				_, output, err := w.Render(item, ctx, settings)
 				if err != nil {
-					t.Fatalf("Render error for %s: %v", tt.desc, err)
+					t.Fatalf("Render error for %q: %v", tt.desc, err)
 				}
 				parts := strings.Split(output, " ")
 				if parts[0] != tt.expectedBar {
-					t.Errorf("For %s expected bar %q, got %q", tt.desc, tt.expectedBar, parts[0])
+					t.Errorf("For %q expected bar %q, got %q", tt.desc, tt.expectedBar, parts[0])
 				}
 			})
 		}
