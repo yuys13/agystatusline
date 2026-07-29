@@ -609,7 +609,7 @@ func (q *QuotaBarWidget) Render(item types.WidgetItem, ctx types.RenderContext, 
 
 	pct := *quota.RemainingFraction * 100.0
 	pctInt := int(pct)
-	barLen := 15
+	barLen := 10
 	filled := pctInt * barLen / 100
 	remainder := (pctInt * barLen) % 100
 

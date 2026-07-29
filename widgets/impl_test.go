@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 	"testing"
+	"unicode/utf8"
 
 	"github.com/yuys13/agystatusline/types"
 )
@@ -687,6 +688,11 @@ func TestQuotaBarWidget(t *testing.T) {
 		if title != "5h" || !strings.Contains(output, expectedPctStr) {
 			t.Errorf("Expected title '5h' and body containing %q, got title %q and body %q", expectedPctStr, title, output)
 		}
+		parts := strings.Split(output, " ")
+		barRunes := utf8.RuneCountInString(parts[0])
+		if barRunes != 10 {
+			t.Errorf("Expected quota bar width of 10 characters, got %d (bar: %q)", barRunes, parts[0])
+		}
 		// Verify gemini-weekly maps to '7d'
 		itemWeekly := types.WidgetItem{
 			Type:     "quota-bar",
@@ -795,7 +801,7 @@ func TestQuotaBarWidget(t *testing.T) {
 	if titleReset != "5h" {
 		t.Errorf("Expected title '5h', got %q", titleReset)
 	}
-	expectedOutput := "███████▒······· 50.2% (12m 30s)"
+	expectedOutput := "█████····· 50.2% (12m 30s)"
 	if outputReset != expectedOutput {
 		t.Errorf("Expected body %q, got %q", expectedOutput, outputReset)
 	}
