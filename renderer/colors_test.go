@@ -7,63 +7,79 @@ import (
 
 func TestGetColorAnsiCode(t *testing.T) {
 	tests := []struct {
+		name       string
 		colorName  string
 		colorLevel string
 		isBg       bool
 		expected   string
 	}{
-		{"red", "ansi16", false, "\x1b[31m"},
-		{"bgRed", "ansi16", true, "\x1b[41m"},
-		{"brightRed", "ansi16", false, "\x1b[91m"},
-		{"bgBrightRed", "ansi16", true, "\x1b[101m"},
-		{"ansi256:160", "ansi256", false, "\x1b[38;5;160m"},
-		{"hex:ff0000", "truecolor", false, "\x1b[38;2;255;0;0m"},
-		{"hex:00ff00", "truecolor", true, "\x1b[48;2;0;255;0m"},
+		{"red foreground ansi16", "red", "ansi16", false, "\x1b[31m"},
+		{"red background ansi16", "bgRed", "ansi16", true, "\x1b[41m"},
+		{"brightRed foreground ansi16", "brightRed", "ansi16", false, "\x1b[91m"},
+		{"brightRed background ansi16", "bgBrightRed", "ansi16", true, "\x1b[101m"},
+		{"ansi256 foreground", "ansi256:160", "ansi256", false, "\x1b[38;5;160m"},
+		{"hex truecolor foreground", "hex:ff0000", "truecolor", false, "\x1b[38;2;255;0;0m"},
+		{"hex truecolor background", "hex:00ff00", "truecolor", true, "\x1b[48;2;0;255;0m"},
+		{"invalid hex string", "hex:invalid", "truecolor", false, ""},
+		{"short hex string", "hex:12", "truecolor", false, ""},
+		{"non-hex characters", "hex:zzzzzz", "truecolor", false, ""},
+		{"unknown color name", "unknown_color", "truecolor", false, ""},
 	}
 
 	for _, tc := range tests {
-		actual := GetColorAnsiCode(tc.colorName, tc.colorLevel, tc.isBg)
-		if actual != tc.expected {
-			t.Errorf("For (%s, %s, %t) expected ANSI '%q', got '%q'", tc.colorName, tc.colorLevel, tc.isBg, tc.expected, actual)
-		}
+		t.Run(tc.name, func(t *testing.T) {
+			actual := GetColorAnsiCode(tc.colorName, tc.colorLevel, tc.isBg)
+			if actual != tc.expected {
+				t.Errorf("For (%s, %s, %t) expected ANSI '%q', got '%q'", tc.colorName, tc.colorLevel, tc.isBg, tc.expected, actual)
+			}
+		})
 	}
 }
 
 func TestApplyColors(t *testing.T) {
-	text := "Test"
-	// Bold and red foreground
-	bold := true
-	actual := ApplyColors(text, "red", "", &bold, "ansi16", nil)
+	t.Run("bold and red foreground", func(t *testing.T) {
+		text := "Test"
+		bold := true
+		actual := ApplyColors(text, "red", "", &bold, "ansi16", nil)
 
-	// Expect \x1b[1m (bold) + \x1b[31m (red) + Test + \x1b[39m (fg reset) + \x1b[22m (bold reset)
-	// Order could depend on implementation, but let's verify containment and resets.
-	if !strings.Contains(actual, "Test") {
-		t.Errorf("Expected result to contain 'Test', got '%q'", actual)
-	}
-	if !strings.HasPrefix(actual, "\x1b[1m\x1b[31m") && !strings.HasPrefix(actual, "\x1b[31m\x1b[1m") {
-		t.Errorf("Expected bold and red prefix, got '%q'", actual)
-	}
-	if !strings.HasSuffix(actual, "\x1b[39m\x1b[22m") && !strings.HasSuffix(actual, "\x1b[22m\x1b[39m") {
-		t.Errorf("Expected bold and red reset suffixes, got '%q'", actual)
-	}
+		if !strings.Contains(actual, "Test") {
+			t.Errorf("Expected result to contain 'Test', got '%q'", actual)
+		}
+		if !strings.HasPrefix(actual, "\x1b[1m\x1b[31m") && !strings.HasPrefix(actual, "\x1b[31m\x1b[1m") {
+			t.Errorf("Expected bold and red prefix, got '%q'", actual)
+		}
+		if !strings.HasSuffix(actual, "\x1b[39m\x1b[22m") && !strings.HasSuffix(actual, "\x1b[22m\x1b[39m") {
+			t.Errorf("Expected bold and red reset suffixes, got '%q'", actual)
+		}
+	})
+
+	t.Run("invalid gradient fallback", func(t *testing.T) {
+		res := ApplyColors("Text", "gradient:hex:invalid,hex:0000FF", "ansi16", nil, "truecolor", nil)
+		if res == "" {
+			t.Errorf("Expected ApplyColors to handle invalid gradient gracefully, got empty string")
+		}
+	})
 }
 
 func TestBgToFg(t *testing.T) {
 	tests := []struct {
+		name     string
 		input    string
 		expected string
 	}{
-		{"bgRed", "red"},
-		{"bgBrightGreen", "brightGreen"},
-		{"ansi256:123", "ansi256:123"},
-		{"hex:ffffff", "hex:ffffff"},
+		{"bgRed to red", "bgRed", "red"},
+		{"bgBrightGreen to brightGreen", "bgBrightGreen", "brightGreen"},
+		{"ansi256 unchanged", "ansi256:123", "ansi256:123"},
+		{"hex unchanged", "hex:ffffff", "hex:ffffff"},
 	}
 
 	for _, tc := range tests {
-		actual := BgToFg(tc.input)
-		if actual != tc.expected {
-			t.Errorf("Expected BgToFg('%s') -> '%s', got '%s'", tc.input, tc.expected, actual)
-		}
+		t.Run(tc.name, func(t *testing.T) {
+			actual := BgToFg(tc.input)
+			if actual != tc.expected {
+				t.Errorf("Expected BgToFg('%s') -> '%s', got '%s'", tc.input, tc.expected, actual)
+			}
+		})
 	}
 }
 
@@ -112,76 +128,92 @@ func TestGetPowerlineTheme(t *testing.T) {
 			}
 		})
 	}
-}
 
-func TestGetColorAnsiCode_InvalidHex(t *testing.T) {
-	tests := []struct {
-		colorName  string
-		colorLevel string
-		isBg       bool
-		expected   string
-	}{
-		{"hex:invalid", "truecolor", false, ""},
-		{"hex:12", "truecolor", false, ""},
-		{"hex:zzzzzz", "truecolor", false, ""},
-		{"unknown_color", "truecolor", false, ""},
-	}
-
-	for _, tc := range tests {
-		actual := GetColorAnsiCode(tc.colorName, tc.colorLevel, tc.isBg)
-		if actual != tc.expected {
-			t.Errorf("For invalid color (%s, %s, %t) expected empty string, got %q", tc.colorName, tc.colorLevel, tc.isBg, actual)
+	t.Run("nonexistent fallback", func(t *testing.T) {
+		theme := GetPowerlineTheme("nonexistent-theme-name")
+		if theme != nil {
+			t.Errorf("Expected nil for nonexistent powerline theme, got %v", theme)
 		}
-	}
-}
-
-func TestApplyColors_InvalidGradient(t *testing.T) {
-	// Gradient with invalid hex stop should safely fallback or ignore invalid stops
-	res := ApplyColors("Text", "gradient:hex:invalid,hex:0000FF", "ansi16", nil, "truecolor", nil)
-	if res == "" {
-		t.Errorf("Expected ApplyColors to handle invalid gradient gracefully, got empty string")
-	}
+	})
 }
 
 func TestApplyGradientToText_EdgeCases(t *testing.T) {
 	stops := []RGB{{R: 255, G: 0, B: 0}, {R: 0, G: 255, B: 0}}
 
-	// 1. Empty text
-	resEmpty := applyGradientToText("", stops, "truecolor")
-	if resEmpty != "" {
-		t.Errorf("Expected empty string for empty text gradient, got %q", resEmpty)
+	tests := []struct {
+		name   string
+		input  string
+		verify func(t *testing.T, result string)
+	}{
+		{
+			name:  "empty text",
+			input: "",
+			verify: func(t *testing.T, res string) {
+				if res != "" {
+					t.Errorf("Expected empty string for empty text gradient, got %q", res)
+				}
+			},
+		},
+		{
+			name:  "single character text",
+			input: "X",
+			verify: func(t *testing.T, res string) {
+				if !strings.Contains(res, "X") {
+					t.Errorf("Expected result to contain 'X', got %q", res)
+				}
+			},
+		},
+		{
+			name:  "text with ANSI escape sequences",
+			input: "BoldText",
+			verify: func(t *testing.T, res string) {
+				if !strings.Contains(res, "B") || !strings.Contains(res, "t") {
+					t.Errorf("Expected result to contain characters from 'BoldText', got %q", res)
+				}
+			},
+		},
 	}
 
-	// 2. Single character text
-	resSingle := applyGradientToText("X", stops, "truecolor")
-	if !strings.Contains(resSingle, "X") {
-		t.Errorf("Expected result to contain 'X', got %q", resSingle)
-	}
-
-	// 3. Text with ANSI escape sequences
-	ansiText := "BoldText"
-	resAnsi := applyGradientToText(ansiText, stops, "truecolor")
-	if !strings.Contains(resAnsi, "B") || !strings.Contains(resAnsi, "t") {
-		t.Errorf("Expected result to contain characters from 'BoldText', got %q", resAnsi)
-	}
-}
-
-func TestGetPowerlineTheme_Fallback(t *testing.T) {
-	theme := GetPowerlineTheme("nonexistent-theme-name")
-	if theme != nil {
-		t.Errorf("Expected nil for nonexistent powerline theme, got %v", theme)
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			res := applyGradientToText(tc.input, stops, "truecolor")
+			tc.verify(t, res)
+		})
 	}
 }
 
 func TestWrapSolidColor(t *testing.T) {
 	c := RGB{R: 255, G: 128, B: 0}
-	resTrue := wrapSolidColor("test", c, "truecolor")
-	if !strings.Contains(resTrue, "255;128;0") || !strings.Contains(resTrue, "test") {
-		t.Errorf("Expected truecolor wrap, got %q", resTrue)
+
+	tests := []struct {
+		name       string
+		colorLevel string
+		verify     func(t *testing.T, result string)
+	}{
+		{
+			name:       "truecolor mode",
+			colorLevel: "truecolor",
+			verify: func(t *testing.T, res string) {
+				if !strings.Contains(res, "255;128;0") || !strings.Contains(res, "test") {
+					t.Errorf("Expected truecolor wrap, got %q", res)
+				}
+			},
+		},
+		{
+			name:       "ansi256 mode",
+			colorLevel: "ansi256",
+			verify: func(t *testing.T, res string) {
+				if !strings.Contains(res, "\x1b[38;5;") || !strings.Contains(res, "test") {
+					t.Errorf("Expected ansi256 wrap, got %q", res)
+				}
+			},
+		},
 	}
 
-	res256 := wrapSolidColor("test", c, "ansi256")
-	if !strings.Contains(res256, "\x1b[38;5;") || !strings.Contains(res256, "test") {
-		t.Errorf("Expected ansi256 wrap, got %q", res256)
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			res := wrapSolidColor("test", c, tc.colorLevel)
+			tc.verify(t, res)
+		})
 	}
 }
