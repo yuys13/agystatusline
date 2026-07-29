@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 	"testing"
+	"unicode/utf8"
 
 	"github.com/yuys13/agystatusline/types"
 )
@@ -687,6 +688,11 @@ func TestQuotaBarWidget(t *testing.T) {
 		if title != "5h" || !strings.Contains(output, expectedPctStr) {
 			t.Errorf("Expected title '5h' and body containing %q, got title %q and body %q", expectedPctStr, title, output)
 		}
+		parts := strings.Split(output, " ")
+		barRunes := utf8.RuneCountInString(parts[0])
+		if barRunes != 10 {
+			t.Errorf("Expected quota bar width of 10 characters, got %d (bar: %q)", barRunes, parts[0])
+		}
 		// Verify gemini-weekly maps to '7d'
 		itemWeekly := types.WidgetItem{
 			Type:     "quota-bar",
@@ -772,6 +778,35 @@ func TestQuotaBarWidget(t *testing.T) {
 		}
 	}
 
+	// Test 3: Fractional progress block characters (▓, ▒, ░)
+	fractionalTests := []struct {
+		pct         float64
+		expectedBar string
+		desc        string
+	}{
+		{pct: 0.28, expectedBar: "██▓·······", desc: "remainder >= 75 (28%)"},
+		{pct: 0.27, expectedBar: "██▒·······", desc: "remainder >= 50 (27%)"},
+		{pct: 0.23, expectedBar: "██░·······", desc: "remainder >= 25 (23%)"},
+	}
+
+	for _, tt := range fractionalTests {
+		ctx := types.RenderContext{
+			Data: types.StatusJSON{
+				Quota: map[string]types.QuotaInfo{
+					"gemini-5h": {RemainingFraction: &tt.pct},
+				},
+			},
+		}
+		_, output, err := w.Render(item, ctx, settings)
+		if err != nil {
+			t.Fatalf("Render error for %s: %v", tt.desc, err)
+		}
+		parts := strings.Split(output, " ")
+		if parts[0] != tt.expectedBar {
+			t.Errorf("For %s, expected bar %q, got %q", tt.desc, tt.expectedBar, parts[0])
+		}
+	}
+
 	// Test 4: Reset time inclusion
 	resetSecs := 750.0 // 12m 30s
 	ctxWithReset := types.RenderContext{
@@ -795,7 +830,7 @@ func TestQuotaBarWidget(t *testing.T) {
 	if titleReset != "5h" {
 		t.Errorf("Expected title '5h', got %q", titleReset)
 	}
-	expectedOutput := "███████▒······· 50.2% (12m 30s)"
+	expectedOutput := "█████····· 50.2% (12m 30s)"
 	if outputReset != expectedOutput {
 		t.Errorf("Expected body %q, got %q", expectedOutput, outputReset)
 	}
