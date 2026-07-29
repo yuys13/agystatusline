@@ -19,9 +19,10 @@ Never perform work directly on the `main` branch.
 
 ## 2. Commit Cleanup
 
-Before opening a Pull Request:
+When creating commits or before opening a Pull Request:
 
 - Ensure all relevant code verification steps pass (see `code_verification` skill).
+- Always read and strictly follow the [git_commit](../git_commit/SKILL.md) skill guidelines when creating git commits (individual staging, Conventional Commits format, and why-focused messages).
 - Clean up and organize commits so they are logical, atomic, and follow Conventional Commits.
 - **Do NOT amend or rewrite commits once pushed to remote**, unless explicitly instructed by the user.
 
