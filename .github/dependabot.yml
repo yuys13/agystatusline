@@ -8,7 +8,6 @@ updates:
       actions-dependencies:
         patterns:
           - "*"
-
   - package-ecosystem: "gomod"
     directory: "/"
     schedule:
