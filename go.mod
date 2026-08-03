@@ -5,8 +5,8 @@ go 1.26.4
 require (
 	github.com/charmbracelet/bubbletea v1.3.10
 	github.com/charmbracelet/lipgloss v1.1.0
-	github.com/mattn/go-isatty v0.0.20
-	github.com/mattn/go-runewidth v0.0.19
+	github.com/mattn/go-isatty v0.0.24
+	github.com/mattn/go-runewidth v0.0.27
 )
 
 require (
