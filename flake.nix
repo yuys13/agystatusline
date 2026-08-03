@@ -55,7 +55,7 @@
             version = "0.1.0";
             src = ./.;
 
-            vendorHash = "sha256-YSjJ8NOL97hXZLnfGYIjoKmARv+gWOsv+5qkl9konnA=";
+            vendorHash = "sha256-9q+3LMeOAJxpOdFTSfeMoN2HVxeOUXG7ohKPsXR7qO0=";
           };
 
           apps.default = {
