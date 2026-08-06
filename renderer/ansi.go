@@ -7,8 +7,8 @@ import (
 	"github.com/mattn/go-runewidth"
 )
 
-// ansiRegexp matches ANSI escape sequences.
-var ansiRegexp = regexp.MustCompile(`[\x1b\x9b][[()#;?]*[0-9;]*[a-zA-Z]`)
+// ansiRegexp matches ANSI escape sequences including CSI, OSC (even unterminated at EOF), and 2-byte escape codes.
+var ansiRegexp = regexp.MustCompile(`\x1b\][0-9]*;.*?(?:\x07|\x1b\\|$)|[\x1b\x9b][[()#;?]*[0-9;:.]*[@-~]|\x1b[A-Za-z0-9=><]`)
 
 // StripAnsi removes ANSI escape sequences from a string.
 func StripAnsi(str string) string {
@@ -34,6 +34,17 @@ type parsedEscape struct {
 	isClose   bool
 }
 
+func isOsc8Sequence(body string) (bool, bool) {
+	if !strings.HasPrefix(body, "8;") {
+		return false, false
+	}
+	rest := body[2:]
+	if idx := strings.Index(rest, ";"); idx != -1 {
+		return true, rest[idx+1:] == ""
+	}
+	return true, true
+}
+
 func parseEscape(text string, index int) (parsedEscape, bool) {
 	if index >= len(text) {
 		return parsedEscape{}, false
@@ -42,7 +53,7 @@ func parseEscape(text string, index int) (parsedEscape, bool) {
 		return parsedEscape{}, false
 	}
 	if index+1 >= len(text) {
-		return parsedEscape{nextIndex: len(text), sequence: text[index:]}, true
+		return parsedEscape{nextIndex: index + 1, sequence: text[index : index+1]}, true
 	}
 
 	next := text[index+1]
@@ -54,7 +65,7 @@ func parseEscape(text string, index int) (parsedEscape, bool) {
 				return parsedEscape{nextIndex: end, sequence: text[index:end]}, true
 			}
 		}
-		return parsedEscape{nextIndex: len(text), sequence: text[index:]}, true
+		return parsedEscape{nextIndex: index + 1, sequence: text[index : index+1]}, true
 	}
 
 	if next == ']' { // OSC
@@ -63,16 +74,14 @@ func parseEscape(text string, index int) (parsedEscape, bool) {
 				end := i + 1
 				seq := text[index:end]
 				body := text[index+2 : i]
-				isOsc8 := strings.HasPrefix(body, "8;")
-				isClose := isOsc8 && (body == "8;" || strings.HasSuffix(body, ";"))
+				isOsc8, isClose := isOsc8Sequence(body)
 				return parsedEscape{nextIndex: end, sequence: seq, isOsc8: isOsc8, isClose: isClose}, true
 			}
 			if text[i] == '\x1b' && i+1 < len(text) && text[i+1] == '\\' {
 				end := i + 2
 				seq := text[index:end]
 				body := text[index+2 : i]
-				isOsc8 := strings.HasPrefix(body, "8;")
-				isClose := isOsc8 && (body == "8;;" || strings.HasSuffix(body, ";"))
+				isOsc8, isClose := isOsc8Sequence(body)
 				return parsedEscape{nextIndex: end, sequence: seq, isOsc8: isOsc8, isClose: isClose}, true
 			}
 		}

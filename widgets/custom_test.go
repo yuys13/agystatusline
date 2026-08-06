@@ -39,3 +39,40 @@ func TestWidgetInterfaces(t *testing.T) {
 		})
 	}
 }
+
+func TestCustomTextWidget_Formatting(t *testing.T) {
+	RegisterAll()
+	settings := types.DefaultSettings()
+
+	w := GetWidget("custom-text")
+	if w == nil {
+		t.Fatalf("custom-text widget not found")
+	}
+
+	customCases := []struct {
+		name     string
+		text     string
+		expected string
+	}{
+		{"Empty text", "", ""},
+		{"Unicode Japanese text", "ステータスライン", "ステータスライン"},
+		{"ANSI styled text", "\x1b[31mRed Text\x1b[0m", "\x1b[31mRed Text\x1b[0m"},
+		{"RFC 2606 URL", "https://example.com/api/v1", "https://example.com/api/v1"},
+	}
+
+	for _, tc := range customCases {
+		t.Run(tc.name, func(t *testing.T) {
+			item := types.WidgetItem{Type: "custom-text", CustomText: tc.text}
+			title, body, err := w.Render(item, types.RenderContext{}, settings)
+			if err != nil {
+				t.Fatalf("Unexpected error: %v", err)
+			}
+			if title != "" {
+				t.Errorf("Expected empty title, got %q", title)
+			}
+			if body != tc.expected {
+				t.Errorf("Expected body %q, got %q", tc.expected, body)
+			}
+		})
+	}
+}

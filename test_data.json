@@ -1,0 +1,38 @@
+{
+  "hook_event_name": "status",
+  "session_id": "test-session-e2e-12345",
+  "transcript_path": "/tmp/transcript.jsonl",
+  "cwd": "/tmp/test-repo",
+  "model": {
+    "id": "gemini-3.5-flash-medium",
+    "display_name": "Gemini 3.5 Flash (Medium)"
+  },
+  "workspace": {
+    "current_dir": "/tmp/test-repo",
+    "project_dir": "/tmp/test-repo"
+  },
+  "version": "1.0.0",
+  "context_window": {
+    "context_window_size": 2000000.0,
+    "total_input_tokens": 14200.0,
+    "total_output_tokens": 850.0,
+    "used_percentage": 20.0,
+    "remaining_percentage": 80.0
+  },
+  "vcs": {
+    "type": "git",
+    "branch": "feature/e2e-test",
+    "dirty": true
+  },
+  "quotas": {
+    "gemini-5h": {
+      "used_percentage": 50.2,
+      "remaining_percentage": 49.8,
+      "reset_in_seconds": 1200.0
+    }
+  },
+  "terminal_width": 120,
+  "sandbox": {
+    "enabled": true
+  }
+}
