@@ -1229,3 +1229,612 @@ func TestTUI_ViewSubmenus(t *testing.T) {
 		})
 	}
 }
+
+func TestTUI_InitAndMainChoices(t *testing.T) {
+	settings := types.DefaultSettings()
+	m := NewModel(settings, "/tmp/settings.json")
+
+	cmd := m.Init()
+	if cmd != nil {
+		t.Errorf("Expected Init() to return nil, got %v", cmd)
+	}
+
+	// Main menu item 7: Save & Exit
+	m.cursor = 7
+	tempDir := t.TempDir()
+	m.configPath = filepath.Join(tempDir, "settings.json")
+	updatedModel, quitCmd := m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("\n")})
+	mSave := updatedModel.(Model)
+	if !mSave.saved {
+		t.Errorf("Expected saved to be true after selecting Save & Exit")
+	}
+	if !mSave.quitting {
+		t.Errorf("Expected quitting to be true after selecting Save & Exit")
+	}
+	if quitCmd == nil {
+		t.Errorf("Expected Quit command after selecting Save & Exit")
+	}
+
+	// Main menu item 8: Discard & Exit
+	m.cursor = 8
+	m.saved = false
+	updatedModel, quitCmd = m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("\n")})
+	mDiscard := updatedModel.(Model)
+	if mDiscard.saved {
+		t.Errorf("Expected saved to be false after selecting Discard & Exit")
+	}
+	if !mDiscard.quitting {
+		t.Errorf("Expected quitting to be true after selecting Discard & Exit")
+	}
+	if quitCmd == nil {
+		t.Errorf("Expected Quit command after selecting Discard & Exit")
+	}
+}
+
+func TestTUI_UpdateMain_BoundaryAndEdgeCases(t *testing.T) {
+	settings := types.DefaultSettings()
+	m := NewModel(settings, "/tmp/settings.json")
+
+	// 1. Up key at cursor == 0 (upper boundary limit)
+	m.cursor = 0
+	updatedModel, _ := m.Update(tea.KeyMsg{Type: tea.KeyUp})
+	mResult := updatedModel.(Model)
+	if mResult.cursor != 0 {
+		t.Errorf("Expected cursor to remain 0 when pressing Up at upper bound, got %d", mResult.cursor)
+	}
+
+	updatedModel, _ = m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("k")})
+	mResult = updatedModel.(Model)
+	if mResult.cursor != 0 {
+		t.Errorf("Expected cursor to remain 0 when pressing 'k' at upper bound, got %d", mResult.cursor)
+	}
+
+	// 2. Down key at cursor == 8 (lower boundary limit, maxItems - 1)
+	m.cursor = 8
+	updatedModel, _ = m.Update(tea.KeyMsg{Type: tea.KeyDown})
+	mResult = updatedModel.(Model)
+	if mResult.cursor != 8 {
+		t.Errorf("Expected cursor to remain 8 when pressing Down at lower bound, got %d", mResult.cursor)
+	}
+
+	updatedModel, _ = m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("j")})
+	mResult = updatedModel.(Model)
+	if mResult.cursor != 8 {
+		t.Errorf("Expected cursor to remain 8 when pressing 'j' at lower bound, got %d", mResult.cursor)
+	}
+
+	// 3. Item 1 Enter: Toggle Powerline mode
+	m.cursor = 1
+	initialPowerline := m.settings.Powerline.Enabled
+	updatedModel, _ = m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("\n")})
+	mToggle := updatedModel.(Model)
+	if mToggle.settings.Powerline.Enabled == initialPowerline {
+		t.Errorf("Expected Powerline.Enabled to toggle from %v to %v", initialPowerline, !initialPowerline)
+	}
+
+	// 4. Item 7 Enter: Save & Exit with save error
+	m.cursor = 7
+	// Set invalid configPath where parent directory is a regular file
+	tempDir := t.TempDir()
+	invalidFile := filepath.Join(tempDir, "invalid_parent_file")
+	if err := os.WriteFile(invalidFile, []byte("data"), 0644); err != nil {
+		t.Fatalf("Failed to create invalid parent file: %v", err)
+	}
+	m.configPath = filepath.Join(invalidFile, "settings.json")
+
+	updatedModel, quitCmd := m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("\n")})
+	mSaveErr := updatedModel.(Model)
+	if mSaveErr.saved {
+		t.Errorf("Expected saved to be false on save error")
+	}
+	if !mSaveErr.quitting {
+		t.Errorf("Expected quitting to be true on save error exit")
+	}
+	if quitCmd == nil {
+		t.Errorf("Expected Quit command when Save & Exit fails")
+	}
+
+	// 5. Non-KeyMsg message handling in Update
+	_, cmd := m.Update(tea.WindowSizeMsg{Width: 100, Height: 30})
+	if cmd != nil {
+		t.Errorf("Expected nil command for non-KeyMsg input, got %v", cmd)
+	}
+
+	// 6. Unknown activeMenu handling in Update
+	mUnknown := m
+	mUnknown.activeMenu = "unknown_menu_type"
+	updatedModel, cmd = mUnknown.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("a")})
+	mResult = updatedModel.(Model)
+	if mResult.activeMenu != "unknown_menu_type" {
+		t.Errorf("Expected activeMenu to remain 'unknown_menu_type', got %q", mResult.activeMenu)
+	}
+	if cmd != nil {
+		t.Errorf("Expected nil command for unknown activeMenu, got %v", cmd)
+	}
+}
+
+func TestTUI_UpdateLines_BoundaryAndMoveMode(t *testing.T) {
+	settings := types.DefaultSettings()
+	m := NewModel(settings, "/tmp/settings.json")
+	m.activeMenu = "lines"
+
+	// 1. Move up boundary in moveMode (cursor == 0)
+	m.cursor = 0
+	m.moveMode = true
+	updatedModel, _ := m.Update(tea.KeyMsg{Type: tea.KeyUp})
+	mResult := updatedModel.(Model)
+	if mResult.cursor != 0 {
+		t.Errorf("Expected cursor to remain 0 when moving up in moveMode at top, got %d", mResult.cursor)
+	}
+
+	// 2. Move up/down in moveMode with single line only
+	singleLineSettings := types.DefaultSettings()
+	singleLineSettings.Lines = [][]types.WidgetItem{{}}
+	mSingle := NewModel(singleLineSettings, "/tmp/settings.json")
+	mSingle.activeMenu = "lines"
+	mSingle.cursor = 0
+	mSingle.moveMode = true
+
+	updatedModel, _ = mSingle.Update(tea.KeyMsg{Type: tea.KeyUp})
+	if updatedModel.(Model).cursor != 0 {
+		t.Errorf("Expected cursor to remain 0 for single line move up")
+	}
+
+	updatedModel, _ = mSingle.Update(tea.KeyMsg{Type: tea.KeyDown})
+	if updatedModel.(Model).cursor != 0 {
+		t.Errorf("Expected cursor to remain 0 for single line move down")
+	}
+
+	// 3. Move up boundary when moveMode == false (cursor == 0)
+	m.moveMode = false
+	m.cursor = 0
+	updatedModel, _ = m.Update(tea.KeyMsg{Type: tea.KeyUp})
+	if updatedModel.(Model).cursor != 0 {
+		t.Errorf("Expected cursor to remain 0 when moveMode=false at top")
+	}
+
+	// 4. Move down boundary in moveMode (cursor == len(lines)-1)
+	linesCount := len(m.settings.Lines)
+	m.cursor = linesCount - 1
+	m.moveMode = true
+	updatedModel, _ = m.Update(tea.KeyMsg{Type: tea.KeyDown})
+	if updatedModel.(Model).cursor != linesCount-1 {
+		t.Errorf("Expected cursor to remain %d when moving down in moveMode at bottom", linesCount-1)
+	}
+
+	// 5. Move down boundary when moveMode == false (cursor == len(lines)-1)
+	m.moveMode = false
+	m.cursor = linesCount - 1
+	updatedModel, _ = m.Update(tea.KeyMsg{Type: tea.KeyDown})
+	if updatedModel.(Model).cursor != linesCount-1 {
+		t.Errorf("Expected cursor to remain %d when moveMode=false at bottom", linesCount-1)
+	}
+
+	// 6. Move down swap in moveMode (valid swap)
+	multiLineSettings := types.DefaultSettings()
+	multiLineSettings.Lines = [][]types.WidgetItem{
+		{{ID: "line1_w", Type: "model"}},
+		{{ID: "line2_w", Type: "sandbox"}},
+	}
+	mMulti := NewModel(multiLineSettings, "/tmp/settings.json")
+	mMulti.activeMenu = "lines"
+	mMulti.cursor = 0
+	mMulti.moveMode = true
+	updatedModel, _ = mMulti.Update(tea.KeyMsg{Type: tea.KeyDown})
+	mSwapped := updatedModel.(Model)
+	if mSwapped.cursor != 1 {
+		t.Errorf("Expected cursor to move to 1 after moving line down in moveMode, got %d", mSwapped.cursor)
+	}
+
+	// 7. Reset moveMode via Esc key
+	m.moveMode = true
+	updatedModel, _ = m.Update(tea.KeyMsg{Type: tea.KeyEsc})
+	mEsc := updatedModel.(Model)
+	if mEsc.moveMode {
+		t.Errorf("Expected moveMode to be false after pressing Esc")
+	}
+	if mEsc.activeMenu != "lines" {
+		t.Errorf("Expected activeMenu to stay 'lines' when exiting moveMode with Esc, got %q", mEsc.activeMenu)
+	}
+}
+
+func TestTUI_UpdateItems_BoundaryAndMoveMode(t *testing.T) {
+	settings := types.DefaultSettings()
+	settings.Lines[0] = []types.WidgetItem{
+		{ID: "w1", Type: "model"},
+		{ID: "w2", Type: "separator"},
+		{ID: "w3", Type: "sandbox"},
+	}
+	m := NewModel(settings, "/tmp/settings.json")
+	m.activeMenu = "items"
+	m.selectedLine = 0
+
+	// 1. Move up boundary in moveMode (cursor == 0)
+	m.cursor = 0
+	m.moveMode = true
+	updatedModel, _ := m.Update(tea.KeyMsg{Type: tea.KeyUp})
+	if updatedModel.(Model).cursor != 0 {
+		t.Errorf("Expected cursor to remain 0 when moving item up at top")
+	}
+
+	// Move up swap in moveMode (valid swap when cursor == 1)
+	m.cursor = 1
+	m.moveMode = true
+	updatedModel, _ = m.Update(tea.KeyMsg{Type: tea.KeyUp})
+	mItemSwapped := updatedModel.(Model)
+	if mItemSwapped.cursor != 0 {
+		t.Errorf("Expected cursor to follow item up to 0, got %d", mItemSwapped.cursor)
+	}
+	if mItemSwapped.settings.Lines[0][0].ID != "w2" {
+		t.Errorf("Expected w2 to move to index 0, got %q", mItemSwapped.settings.Lines[0][0].ID)
+	}
+
+	// Reset moveMode in items menu using Esc key
+	m.moveMode = true
+	updatedModel, _ = m.Update(tea.KeyMsg{Type: tea.KeyEsc})
+	if updatedModel.(Model).moveMode {
+		t.Errorf("Expected Esc key to reset moveMode to false in items menu")
+	}
+
+	// 2. Move up boundary when moveMode == false (cursor == 0)
+	m.moveMode = false
+	updatedModel, _ = m.Update(tea.KeyMsg{Type: tea.KeyUp})
+	if updatedModel.(Model).cursor != 0 {
+		t.Errorf("Expected cursor to remain 0 when moveMode=false at top")
+	}
+
+	// 3. Move down boundary in moveMode (cursor == len(widgets)-1)
+	m.cursor = 2
+	m.moveMode = true
+	updatedModel, _ = m.Update(tea.KeyMsg{Type: tea.KeyDown})
+	if updatedModel.(Model).cursor != 2 {
+		t.Errorf("Expected cursor to remain 2 when moving item down at bottom")
+	}
+
+	// 4. Move down boundary when moveMode == false (cursor == len(widgets)-1)
+	m.moveMode = false
+	updatedModel, _ = m.Update(tea.KeyMsg{Type: tea.KeyDown})
+	if updatedModel.(Model).cursor != 2 {
+		t.Errorf("Expected cursor to remain 2 when moveMode=false at bottom")
+	}
+
+	// 5. Delete last widget ('d') and test cursor clamping (m.cursor >= len)
+	m.cursor = 2 // pointing to w3 (last item)
+	updatedModel, _ = m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("d")})
+	mDeleted := updatedModel.(Model)
+	if len(mDeleted.settings.Lines[0]) != 2 {
+		t.Fatalf("Expected 2 widgets remaining, got %d", len(mDeleted.settings.Lines[0]))
+	}
+	if mDeleted.cursor != 1 {
+		t.Errorf("Expected cursor to clamp to last index (1), got %d", mDeleted.cursor)
+	}
+
+	// 6. Delete only remaining widget and test cursor clamping to 0 (len == 0)
+	singleWidgetSettings := types.DefaultSettings()
+	singleWidgetSettings.Lines[0] = []types.WidgetItem{{ID: "only_w", Type: "model"}}
+	mSingle := NewModel(singleWidgetSettings, "/tmp/settings.json")
+	mSingle.activeMenu = "items"
+	mSingle.selectedLine = 0
+	mSingle.cursor = 0
+
+	updatedModel, _ = mSingle.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("d")})
+	mEmpty := updatedModel.(Model)
+	if len(mEmpty.settings.Lines[0]) != 0 {
+		t.Fatalf("Expected 0 widgets remaining, got %d", len(mEmpty.settings.Lines[0]))
+	}
+	if mEmpty.cursor != 0 {
+		t.Errorf("Expected cursor to clamp to 0 when line is empty, got %d", mEmpty.cursor)
+	}
+
+	// 7. Toggle moveMode off via 'm' key
+	m.moveMode = true
+	m.cursor = 0
+	updatedModel, _ = m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("m")})
+	if updatedModel.(Model).moveMode {
+		t.Errorf("Expected 'm' key to toggle moveMode off when moveMode=true")
+	}
+
+	// 8. Toggle moveMode off via Enter key
+	m.moveMode = true
+	updatedModel, _ = m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("\n")})
+	if updatedModel.(Model).moveMode {
+		t.Errorf("Expected Enter key to toggle moveMode off when moveMode=true")
+	}
+}
+
+func TestTUI_UpdateAddWidget_NavigationAndEdgeCases(t *testing.T) {
+	settings := types.DefaultSettings()
+	m := NewModel(settings, "/tmp/settings.json")
+	m.activeMenu = "add_widget"
+	m.selectedLine = 0
+
+	// 1. Navigation up when cursor > 0
+	m.cursor = 2
+	updatedModel, _ := m.Update(tea.KeyMsg{Type: tea.KeyUp})
+	if updatedModel.(Model).cursor != 1 {
+		t.Errorf("Expected cursor to decrease to 1, got %d", updatedModel.(Model).cursor)
+	}
+
+	// 2. Navigation up boundary when cursor == 0
+	m.cursor = 0
+	updatedModel, _ = m.Update(tea.KeyMsg{Type: tea.KeyUp})
+	if updatedModel.(Model).cursor != 0 {
+		t.Errorf("Expected cursor to stay 0, got %d", updatedModel.(Model).cursor)
+	}
+
+	// 3. Navigation down boundary when cursor == len(widgetTypes)-1
+	m.cursor = len(widgetTypes) - 1
+	updatedModel, _ = m.Update(tea.KeyMsg{Type: tea.KeyDown})
+	if updatedModel.(Model).cursor != len(widgetTypes)-1 {
+		t.Errorf("Expected cursor to stay %d at bottom, got %d", len(widgetTypes)-1, updatedModel.(Model).cursor)
+	}
+
+	// 4. Esc key handling (cancels and returns to items menu)
+	m.itemIndex = 3
+	updatedModel, _ = m.Update(tea.KeyMsg{Type: tea.KeyEsc})
+	mEsc := updatedModel.(Model)
+	if mEsc.activeMenu != "items" {
+		t.Errorf("Expected activeMenu to return to 'items' on Esc, got %q", mEsc.activeMenu)
+	}
+	if mEsc.cursor != 3 {
+		t.Errorf("Expected cursor to reset to itemIndex 3, got %d", mEsc.cursor)
+	}
+
+	// 5. Empty line insertion (len(widgets) == 0)
+	emptyLineSettings := types.DefaultSettings()
+	emptyLineSettings.Lines[0] = []types.WidgetItem{}
+	mEmpty := NewModel(emptyLineSettings, "/tmp/settings.json")
+	mEmpty.activeMenu = "add_widget"
+	mEmpty.selectedLine = 0
+	mEmpty.cursor = 0 // add first widget type
+
+	updatedModel, _ = mEmpty.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("\n")})
+	mAdded := updatedModel.(Model)
+	if len(mAdded.settings.Lines[0]) != 1 {
+		t.Fatalf("Expected 1 widget in empty line after insert, got %d", len(mAdded.settings.Lines[0]))
+	}
+	if mAdded.cursor != 0 {
+		t.Errorf("Expected cursor to be 0 for first widget insert in empty line, got %d", mAdded.cursor)
+	}
+
+	// 6. Custom text widget handling (simulated with customText field)
+	origCustomText := widgetTypes[0].customText
+	widgetTypes[0].customText = "Custom Test String"
+	defer func() { widgetTypes[0].customText = origCustomText }()
+
+	mCustom := NewModel(settings, "/tmp/settings.json")
+	mCustom.activeMenu = "add_widget"
+	mCustom.selectedLine = 0
+	mCustom.cursor = 0
+
+	// Test live preview rendering with customText
+	viewWithCustomText := mCustom.View()
+	if viewWithCustomText == "" {
+		t.Errorf("Expected non-empty view string when rendering live preview with custom text")
+	}
+
+	// Add the widget with customText
+	updatedModel, _ = mCustom.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("\n")})
+	mAddedCustom := updatedModel.(Model)
+	if mAddedCustom.settings.Lines[0][1].CustomText != "Custom Test String" {
+		t.Errorf("Expected added widget to have CustomText %q, got %q", "Custom Test String", mAddedCustom.settings.Lines[0][1].CustomText)
+	}
+}
+
+func TestTUI_SelectSubmenus_BoundariesAndNoneCaps(t *testing.T) {
+	settings := types.DefaultSettings()
+	m := NewModel(settings, "/tmp/settings.json")
+
+	// 1. Theme selection boundary checks
+	m.activeMenu = "select_theme"
+	m.cursor = 0
+	updatedModel, _ := m.Update(tea.KeyMsg{Type: tea.KeyUp})
+	if updatedModel.(Model).cursor != 0 {
+		t.Errorf("Expected select_theme cursor to stay 0 on Up")
+	}
+	updatedModel, _ = m.Update(tea.KeyMsg{Type: tea.KeyDown})
+	if updatedModel.(Model).cursor != 1 {
+		t.Errorf("Expected select_theme cursor to move to 1 on Down, got %d", updatedModel.(Model).cursor)
+	}
+	m.cursor = len(themesList) - 1
+	updatedModel, _ = m.Update(tea.KeyMsg{Type: tea.KeyDown})
+	if updatedModel.(Model).cursor != len(themesList)-1 {
+		t.Errorf("Expected select_theme cursor to stay %d on Down at bottom", len(themesList)-1)
+	}
+
+	// 2. Separator selection boundary checks
+	m.activeMenu = "select_separator"
+	m.cursor = 0
+	updatedModel, _ = m.Update(tea.KeyMsg{Type: tea.KeyUp})
+	if updatedModel.(Model).cursor != 0 {
+		t.Errorf("Expected select_separator cursor to stay 0 on Up")
+	}
+	updatedModel, _ = m.Update(tea.KeyMsg{Type: tea.KeyDown})
+	if updatedModel.(Model).cursor != 1 {
+		t.Errorf("Expected select_separator cursor to move to 1 on Down, got %d", updatedModel.(Model).cursor)
+	}
+	m.cursor = len(separatorsList) - 1
+	updatedModel, _ = m.Update(tea.KeyMsg{Type: tea.KeyDown})
+	if updatedModel.(Model).cursor != len(separatorsList)-1 {
+		t.Errorf("Expected select_separator cursor to stay %d on Down at bottom", len(separatorsList)-1)
+	}
+
+	// 3. StartCap selection boundary & "None" cap
+	m.activeMenu = "select_start_cap"
+	m.cursor = 0
+	updatedModel, _ = m.Update(tea.KeyMsg{Type: tea.KeyUp})
+	if updatedModel.(Model).cursor != 0 {
+		t.Errorf("Expected select_start_cap cursor to stay 0 on Up")
+	}
+	updatedModel, _ = m.Update(tea.KeyMsg{Type: tea.KeyDown})
+	if updatedModel.(Model).cursor != 1 {
+		t.Errorf("Expected select_start_cap cursor to move to 1 on Down, got %d", updatedModel.(Model).cursor)
+	}
+	m.cursor = len(startCapsList) - 1
+	updatedModel, _ = m.Update(tea.KeyMsg{Type: tea.KeyDown})
+	if updatedModel.(Model).cursor != len(startCapsList)-1 {
+		t.Errorf("Expected select_start_cap cursor to stay %d on Down at bottom", len(startCapsList)-1)
+	}
+
+	// Test "None" cap selection (cursor = 0, value == "")
+	m.cursor = 0 // "None" cap
+	viewNoneStart := m.View()
+	if viewNoneStart == "" {
+		t.Errorf("Expected non-empty View string for None start cap preview")
+	}
+
+	updatedModel, _ = m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("\n")})
+	mNoneStart := updatedModel.(Model)
+	if len(mNoneStart.settings.Powerline.StartCaps) != 0 {
+		t.Errorf("Expected empty StartCaps slice when selecting None, got %v", mNoneStart.settings.Powerline.StartCaps)
+	}
+
+	// 4. EndCap selection boundary & "None" cap
+	m.activeMenu = "select_end_cap"
+	m.cursor = 0
+	updatedModel, _ = m.Update(tea.KeyMsg{Type: tea.KeyUp})
+	if updatedModel.(Model).cursor != 0 {
+		t.Errorf("Expected select_end_cap cursor to stay 0 on Up")
+	}
+	updatedModel, _ = m.Update(tea.KeyMsg{Type: tea.KeyDown})
+	if updatedModel.(Model).cursor != 1 {
+		t.Errorf("Expected select_end_cap cursor to move to 1 on Down, got %d", updatedModel.(Model).cursor)
+	}
+	m.cursor = len(endCapsList) - 1
+	updatedModel, _ = m.Update(tea.KeyMsg{Type: tea.KeyDown})
+	if updatedModel.(Model).cursor != len(endCapsList)-1 {
+		t.Errorf("Expected select_end_cap cursor to stay %d on Down at bottom", len(endCapsList)-1)
+	}
+
+	// Test "None" cap selection (cursor = 0, value == "")
+	m.cursor = 0 // "None" cap
+	viewNoneEnd := m.View()
+	if viewNoneEnd == "" {
+		t.Errorf("Expected non-empty View string for None end cap preview")
+	}
+
+	updatedModel, _ = m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("\n")})
+	mNoneEnd := updatedModel.(Model)
+	if len(mNoneEnd.settings.Powerline.EndCaps) != 0 {
+		t.Errorf("Expected empty EndCaps slice when selecting None, got %v", mNoneEnd.settings.Powerline.EndCaps)
+	}
+
+	// 5. ColorLevel selection boundary checks
+	m.activeMenu = "select_color_level"
+	m.cursor = 0
+	updatedModel, _ = m.Update(tea.KeyMsg{Type: tea.KeyUp})
+	if updatedModel.(Model).cursor != 0 {
+		t.Errorf("Expected select_color_level cursor to stay 0 on Up")
+	}
+	updatedModel, _ = m.Update(tea.KeyMsg{Type: tea.KeyDown})
+	if updatedModel.(Model).cursor != 1 {
+		t.Errorf("Expected select_color_level cursor to move to 1 on Down, got %d", updatedModel.(Model).cursor)
+	}
+	m.cursor = len(colorLevelsList) - 1
+	updatedModel, _ = m.Update(tea.KeyMsg{Type: tea.KeyDown})
+	if updatedModel.(Model).cursor != len(colorLevelsList)-1 {
+		t.Errorf("Expected select_color_level cursor to stay %d on Down at bottom", len(colorLevelsList)-1)
+	}
+}
+
+func TestTUI_CustomCaps_Initialization(t *testing.T) {
+	settings := types.DefaultSettings()
+	settings.Powerline.StartCaps = []string{"[CUSTOM_START]"}
+	settings.Powerline.EndCaps = []string{"[CUSTOM_END]"}
+
+	m := NewModel(settings, "/tmp/settings.json")
+
+	if m.startCapIndex == -1 || startCapsList[m.startCapIndex].value != "[CUSTOM_START]" {
+		t.Errorf("Expected custom start cap to be initialized and appended to startCapsList")
+	}
+	if m.endCapIndex == -1 || endCapsList[m.endCapIndex].value != "[CUSTOM_END]" {
+		t.Errorf("Expected custom end cap to be initialized and appended to endCapsList")
+	}
+}
+
+func TestSaveSettings_ErrorPaths(t *testing.T) {
+	settings := types.DefaultSettings()
+
+	t.Run("MkdirAll error simulation", func(t *testing.T) {
+		tempDir := t.TempDir()
+		parentFile := filepath.Join(tempDir, "file_blocking_mkdir")
+		if err := os.WriteFile(parentFile, []byte("data"), 0644); err != nil {
+			t.Fatalf("Failed to create file blocking mkdir: %v", err)
+		}
+		targetPath := filepath.Join(parentFile, "config.json")
+
+		err := saveSettings(targetPath, settings)
+		if err == nil {
+			t.Errorf("Expected saveSettings to fail when parent path is a regular file")
+		}
+	})
+
+	t.Run("OpenFile error simulation and cleanup execution", func(t *testing.T) {
+		tempDir := t.TempDir()
+		readOnlyDir := filepath.Join(tempDir, "read_only_dir")
+		if err := os.Mkdir(readOnlyDir, 0555); err != nil {
+			t.Fatalf("Failed to create read only dir: %v", err)
+		}
+		t.Cleanup(func() {
+			_ = os.Chmod(readOnlyDir, 0755)
+		})
+
+		targetPath := filepath.Join(readOnlyDir, "config.json")
+		err := saveSettings(targetPath, settings)
+		if err == nil {
+			t.Errorf("Expected saveSettings to fail when target directory is read-only")
+		}
+	})
+}
+
+func TestTUI_View_QuittingScreensAndMoveIndicators(t *testing.T) {
+	settings := types.DefaultSettings()
+	m := NewModel(settings, "/tmp/settings.json")
+
+	// 1. View when quitting and saved == true
+	m.quitting = true
+	m.saved = true
+	viewSaved := m.View()
+	if !strings.Contains(viewSaved, "Configuration saved successfully. Exiting...") {
+		t.Errorf("Expected quitting view with saved=true to contain saved success message, got:\n%s", viewSaved)
+	}
+
+	// 2. View when quitting and saved == false
+	m.quitting = true
+	m.saved = false
+	viewDiscarded := m.View()
+	if !strings.Contains(viewDiscarded, "Changes discarded. Exiting...") {
+		t.Errorf("Expected quitting view with saved=false to contain changes discarded message, got:\n%s", viewDiscarded)
+	}
+
+	// 3. viewLines moveMode indicator ("M")
+	m.quitting = false
+	m.activeMenu = "lines"
+	m.cursor = 0
+	m.moveMode = true
+	viewLinesMove := m.View()
+	if !strings.Contains(viewLinesMove, "M Line 1:") {
+		t.Errorf("Expected viewLines to display 'M Line 1:' when moveMode=true, got:\n%s", viewLinesMove)
+	}
+
+	// 4. viewItems moveMode indicator ("M") and empty widget line message
+	m.activeMenu = "items"
+	m.selectedLine = 0
+	m.cursor = 0
+	m.moveMode = true
+	viewItemsMove := m.View()
+	if !strings.Contains(viewItemsMove, "M ") {
+		t.Errorf("Expected viewItems to display 'M ' cursor when moveMode=true, got:\n%s", viewItemsMove)
+	}
+
+	// Empty line message in viewItems
+	emptySettings := types.DefaultSettings()
+	emptySettings.Lines[0] = []types.WidgetItem{}
+	mEmpty := NewModel(emptySettings, "/tmp/settings.json")
+	mEmpty.activeMenu = "items"
+	mEmpty.selectedLine = 0
+	viewEmptyLine := mEmpty.View()
+	if !strings.Contains(viewEmptyLine, "(No widgets in this line)") {
+		t.Errorf("Expected viewItems to display '(No widgets in this line)' for empty line, got:\n%s", viewEmptyLine)
+	}
+}
