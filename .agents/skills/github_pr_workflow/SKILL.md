@@ -35,7 +35,9 @@ Before running `git push` or `gh pr create`:
 
 ## 4. Monitor CI Status Post-PR Creation
 
-Immediately after creating the PR with `gh pr create`:
+After creating the PR with `gh pr create`:
 
-- Run `gh pr checks --watch` to monitor and verify the execution of GitHub Actions CI checks.
-- If any check fails, fetch and inspect the failed logs using `gh run view <run-id> --log-failed` to diagnose and resolve the issue.
+1. Wait a few seconds for GitHub Actions workflows to be triggered by the PR event.
+2. Confirm that the CI run has started (e.g. status is `queued` or `in_progress`) using `gh run list --branch <branch>` or `gh pr checks`.
+3. Run `gh pr checks --watch` to monitor and verify the execution of GitHub Actions CI checks.
+4. If any check fails, fetch and inspect the failed logs using `gh run view <run-id> --log-failed` (or `gh run view <run-id> --job <job-id>`) to diagnose and resolve the issue.
