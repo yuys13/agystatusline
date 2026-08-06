@@ -107,11 +107,21 @@ func upgradeLegacyWidgetTypes(lines [][]types.WidgetItem) [][]types.WidgetItem {
 }
 
 func main() {
-	// Parse CLI options
-	args := os.Args
+	os.Exit(runMain(os.Args, os.Stdin, os.Stdout, os.Stderr, isatty.IsTerminal))
+}
+
+func runMain(args []string, stdin io.Reader, stdout, stderr io.Writer, isTerminal func(fd uintptr) bool) int {
+	home, _ := os.UserHomeDir()
+	settingsPath = filepath.Join(home, ".config", "agystatusline", "settings.json")
+
 	if contains(args, "--version") {
-		fmt.Println("agystatusline version 1.0.0")
-		os.Exit(0)
+		_, _ = fmt.Fprintln(stdout, "agystatusline version 1.0.0")
+		return 0
+	}
+
+	if contains(args, "--help") || contains(args, "-h") {
+		_, _ = fmt.Fprintln(stdout, "Usage: agystatusline [--version] [--help] [--config <path>] [--hook]")
+		return 0
 	}
 
 	configPath, args := parseConfigArg(args)
@@ -121,72 +131,78 @@ func main() {
 
 	if contains(args, "--hook") {
 		// Hook stub
-		os.Exit(0)
+		return 0
 	}
 
 	// Register all widgets
 	widgets.RegisterAll()
 
+	var stdinFd uintptr
+	if f, ok := stdin.(*os.File); ok {
+		stdinFd = f.Fd()
+	}
+
 	// Check if stdin is a TTY
-	if isatty.IsTerminal(os.Stdin.Fd()) {
+	if isTerminal(stdinFd) {
 		// Interactive TUI mode (will launch Bubble Tea TUI)
 		settings, err := loadSettings()
 		if err != nil {
-			fmt.Fprintln(os.Stderr, "Failed to load settings:", err)
-			os.Exit(1)
+			_, _ = fmt.Fprintln(stderr, "Failed to load settings:", err)
+			return 1
 		}
 
 		err = tui.RunTUI(settings, settingsPath)
 		if err != nil {
-			fmt.Fprintln(os.Stderr, "TUI error:", err)
-			os.Exit(1)
+			_, _ = fmt.Fprintln(stderr, "TUI error:", err)
+			return 1
 		}
-	} else {
-		// Piped non-TTY mode
-		bytes, err := io.ReadAll(os.Stdin)
-		if err != nil {
-			fmt.Fprintln(os.Stderr, "Error reading stdin:", err)
-			os.Exit(1)
-		}
-
-		if len(strings.TrimSpace(string(bytes))) == 0 {
-			fmt.Fprintln(os.Stderr, "No input received")
-			os.Exit(1)
-		}
-
-		var status types.StatusJSON
-		err = json.Unmarshal(bytes, &status)
-		if err != nil {
-			fmt.Fprintln(os.Stderr, "Invalid status JSON format:", err)
-			os.Exit(1)
-		}
-
-		settings, err := loadSettings()
-		if err != nil {
-			fmt.Fprintln(os.Stderr, "Failed to load settings:", err)
-			os.Exit(1)
-		}
-
-		// Build render context
-		// Terminal width detection (can use os.Stdout term size or telemetry data)
-		termWidth := 80 // fallback
-		if status.TerminalWidth != nil {
-			termWidth = *status.TerminalWidth
-		}
-		ctx := types.RenderContext{
-			Data:               status,
-			TerminalWidth:      &termWidth,
-			IsPreview:          false,
-			Minimalist:         settings.MinimalistMode,
-			GitCacheTTLSeconds: settings.GitCacheTTLSeconds,
-		}
-
-		lines := renderer.RenderStatusLines(settings, ctx)
-		for _, line := range lines {
-			// Claude Code's reset handling
-			fmt.Println("\x1b[0m" + line)
-		}
+		return 0
 	}
+
+	// Piped non-TTY mode
+	bytes, err := io.ReadAll(stdin)
+	if err != nil {
+		_, _ = fmt.Fprintln(stderr, "Error reading stdin:", err)
+		return 1
+	}
+
+	if len(strings.TrimSpace(string(bytes))) == 0 {
+		_, _ = fmt.Fprintln(stderr, "No input received")
+		return 1
+	}
+
+	var status types.StatusJSON
+	err = json.Unmarshal(bytes, &status)
+	if err != nil {
+		_, _ = fmt.Fprintln(stderr, "Invalid status JSON format:", err)
+		return 1
+	}
+
+	settings, err := loadSettings()
+	if err != nil {
+		_, _ = fmt.Fprintln(stderr, "Failed to load settings:", err)
+		return 1
+	}
+
+	// Build render context
+	termWidth := 80 // fallback
+	if status.TerminalWidth != nil {
+		termWidth = *status.TerminalWidth
+	}
+	ctx := types.RenderContext{
+		Data:               status,
+		TerminalWidth:      &termWidth,
+		IsPreview:          false,
+		Minimalist:         settings.MinimalistMode,
+		GitCacheTTLSeconds: settings.GitCacheTTLSeconds,
+	}
+
+	lines := renderer.RenderStatusLines(settings, ctx)
+	for _, line := range lines {
+		// Claude Code's reset handling
+		_, _ = fmt.Fprintln(stdout, "\x1b[0m"+line)
+	}
+	return 0
 }
 
 func contains(slice []string, val string) bool {
