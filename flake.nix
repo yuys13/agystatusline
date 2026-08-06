@@ -55,6 +55,8 @@
             version = "0.1.0";
             src = ./.;
 
+            nativeCheckInputs = [ pkgs.gitMinimal ];
+
             vendorHash = "sha256-9q+3LMeOAJxpOdFTSfeMoN2HVxeOUXG7ohKPsXR7qO0=";
           };
 
