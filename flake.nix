@@ -67,7 +67,11 @@
           };
 
           devShells.default = pkgs.mkShell {
-            inputsFrom = [ self'.packages.default ];
+            inputsFrom = [
+              (self'.packages.default.overrideAttrs (_: {
+                nativeCheckInputs = [ ];
+              }))
+            ];
             packages = with pkgs; [
               gopls
               golangci-lint
