@@ -82,3 +82,56 @@ func TestContextBarWidget(t *testing.T) {
 		})
 	}
 }
+
+func TestContextBarWidget_Percentages(t *testing.T) {
+	RegisterAll()
+	settings := types.DefaultSettings()
+
+	w := GetWidget("context-bar")
+	if w == nil {
+		t.Fatalf("context-bar widget not found")
+	}
+
+	pctNegative := -25.5
+	pctZero := 0.0
+	pct100 := 100.0
+	pct150 := 150.0
+
+	testCases := []struct {
+		name          string
+		pct           *float64
+		expectedTitle string
+		expectedColor string
+	}{
+		{"Negative percentage", &pctNegative, "ctx", "brightWhite"},
+		{"Zero percentage", &pctZero, "ctx", "brightWhite"},
+		{"100% percentage", &pct100, "ctx", "brightRed"},
+		{"150% percentage", &pct150, "ctx", "brightRed"},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			ctx := types.RenderContext{
+				Data: types.StatusJSON{
+					ContextWindow: &types.ContextWindowInfo{
+						UsedPercentage: tc.pct,
+					},
+				},
+			}
+			title, body, err := w.Render(types.WidgetItem{Type: "context-bar"}, ctx, settings)
+			if err != nil {
+				t.Fatalf("Unexpected render error: %v", err)
+			}
+			if title != tc.expectedTitle {
+				t.Errorf("Expected title %q, got %q", tc.expectedTitle, title)
+			}
+			if body == "" {
+				t.Errorf("Expected non-empty body for pct %v", tc.pct)
+			}
+			color := w.GetBodyColor(types.WidgetItem{Type: "context-bar"}, ctx)
+			if color != tc.expectedColor {
+				t.Errorf("Expected body color %q, got %q", tc.expectedColor, color)
+			}
+		})
+	}
+}

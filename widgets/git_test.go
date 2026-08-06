@@ -238,3 +238,41 @@ func TestParseShortStat(t *testing.T) {
 		})
 	}
 }
+
+func TestGitWidgets_CommandTimeoutAndFallback(t *testing.T) {
+	RegisterAll()
+	settings := types.DefaultSettings()
+
+	oldRunner := runGitCommand
+	defer func() { runGitCommand = oldRunner }()
+
+	// Mock a timing out or slow runner
+	runGitCommand = func(command string, ctx CwdResolver, ttlSeconds int) (string, error) {
+		if command == "rev-parse --is-inside-work-tree" {
+			return "", fmt.Errorf("git command timed out after 200ms")
+		}
+		return "", fmt.Errorf("git error")
+	}
+
+	gb := GetWidget("git-branch")
+	ctx := types.RenderContext{
+		Data: types.StatusJSON{CWD: "/some/path"},
+	}
+
+	title, body, err := gb.Render(types.WidgetItem{Type: "git-branch"}, ctx, settings)
+	if err != nil {
+		t.Fatalf("GitBranch render error: %v", err)
+	}
+	if title != "" || body != "⎇ no git" {
+		t.Errorf("Expected fallback '⎇ no git', got title %q, body %q", title, body)
+	}
+
+	gc := GetWidget("git-changes")
+	title, body, err = gc.Render(types.WidgetItem{Type: "git-changes"}, ctx, settings)
+	if err != nil {
+		t.Fatalf("GitChanges render error: %v", err)
+	}
+	if title != "" || body != "(no git)" {
+		t.Errorf("Expected fallback '(no git)', got title %q, body %q", title, body)
+	}
+}
