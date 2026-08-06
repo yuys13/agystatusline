@@ -11,8 +11,17 @@ This skill outlines the process for Test-Driven Development (TDD) cycles, ensuri
 
 When tasked with implementing features, follow this strict 5-step loop for every component, package, or major logical block:
 
-1. **Red**: Write unit tests (`*_test.go` or equivalent for other languages) covering the expected requirements before writing any production code. Run tests to verify failure (compilation or test failure).
+1. **Red**: Write unit tests covering the expected requirements before writing any production code. Run tests to verify failure (compilation or test failure).
 2. **Green**: Write the minimum necessary production code to make the tests pass.
 3. **Refactor**: Clean up both the production code and the test code for readability and design without breaking functionality.
 4. **Verify**: Before committing, refer to the [code_verification](../code_verification/SKILL.md) skill to run required formatting (`nix fmt`), linting (`golangci-lint`), tests, and build checks.
 5. **Commit**: Git commit immediately after verification passes. Refer to the [git_commit](../git_commit/SKILL.md) skill for details on staging files and writing commit messages.
+
+## Best Practices for Writing Go Unit Tests
+
+When writing or refactoring Go unit tests, strictly adhere to the following principles:
+
+1. **Table-Driven Tests**: Utilize table-driven tests (`tests := []struct{ ... }`) for parameterized inputs, edge cases, and option permutations to keep test cases structured, readable, and maintainable.
+2. **Single Concern per Test Function / Subtest**: Each test function or `t.Run` subtest must focus on verifying a single concern or behavior. Do not combine multiple unrelated function calls or distinct test scenarios into a single test block.
+3. **Strict Assertions (No Dummy Tests)**: Never create "no-crash" tests that merely execute production code without inspecting return values or side effects to boost coverage. Every test case must explicitly assert expected values (`want` vs `got`), error occurrences, or state mutations.
+4. **Standard Test File Organization**: Follow standard Go conventions (`foo.go` -> `foo_test.go`). Do not create arbitrary custom test files (e.g., `stress_*.go`, `adversarial_*.go`) just for grouping test cases. Dedicated `integration_*_test.go` files are reserved for package-boundary or CLI integration tests.
