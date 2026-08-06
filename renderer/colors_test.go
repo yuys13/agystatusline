@@ -217,3 +217,132 @@ func TestWrapSolidColor(t *testing.T) {
 		})
 	}
 }
+
+func TestGetColorAnsiCode_InvalidColorsAndLevels(t *testing.T) {
+	invalidColors := []string{
+		"ansi256:-1",
+		"ansi256:256",
+		"ansi256:99999",
+		"ansi256:abc",
+		"ansi256:",
+		"hex:",
+		"hex:123",
+		"hex:ZZZZZZ",
+		"hex:1234567",
+		"gradient:",
+		"gradient:invalid",
+		"gradient:hex:123",
+		"nonexistent_color",
+		"",
+	}
+
+	levels := []string{"ansi16", "ansi256", "truecolor", "invalid_level", ""}
+
+	for _, c := range invalidColors {
+		for _, lvl := range levels {
+			for _, isBg := range []bool{false, true} {
+				code := GetColorAnsiCode(c, lvl, isBg)
+				if code != "" {
+					t.Errorf("GetColorAnsiCode(%q, %q, %v) = %q; want empty string", c, lvl, isBg, code)
+				}
+			}
+		}
+	}
+}
+
+func TestBgToFg_EdgeCases(t *testing.T) {
+	inputs := []struct {
+		input    string
+		expected string
+	}{
+		{"", ""},
+		{"bg", "bg"},
+		{"bgBright", "bgBright"},
+		{"bgRed", "red"},
+		{"bgBrightRed", "brightRed"},
+		{"bgBlack", "black"},
+		{"bgBrightBlack", "brightBlack"},
+		{"ansi256:100", "ansi256:100"},
+		{"hex:123456", "hex:123456"},
+		{"gradient:red,blue", "gradient:red,blue"},
+		{"customColor", "customColor"},
+	}
+
+	for _, tt := range inputs {
+		got := BgToFg(tt.input)
+		if got != tt.expected {
+			t.Errorf("BgToFg(%q) = %q, expected %q", tt.input, got, tt.expected)
+		}
+	}
+}
+
+func TestApplyGradientToText_WithAnsiSequences(t *testing.T) {
+	stops := parseGradientStops("gradient:red,blue")
+	plainText := "Hello World"
+	res := applyGradientToText(plainText, stops, "truecolor")
+
+	if res == "" {
+		t.Fatalf("Expected non-empty result from applyGradientToText")
+	}
+	if !strings.Contains(StripAnsi(res), "Hello World") {
+		t.Errorf("Expected gradient text to retain visible characters 'Hello World', got %q", StripAnsi(res))
+	}
+	if GetVisibleWidth(res) != GetVisibleWidth(plainText) {
+		t.Errorf("Expected visible width %d, got %d for gradient text", GetVisibleWidth(plainText), GetVisibleWidth(res))
+	}
+}
+
+func TestApplyColors_DimTypes(t *testing.T) {
+	bTrue := true
+
+	tests := []struct {
+		name    string
+		text    string
+		color   string
+		bgColor string
+		bold    *bool
+		level   string
+		dim     any
+		wantSeq string
+	}{
+		{
+			name:    "Parens dim type",
+			text:    "test (parens)",
+			color:   "red",
+			bgColor: "",
+			bold:    &bTrue,
+			level:   "truecolor",
+			dim:     "parens",
+			wantSeq: "\x1b[2m(parens)",
+		},
+		{
+			name:    "Boolean true dim type",
+			text:    "test",
+			color:   "red",
+			bgColor: "",
+			bold:    &bTrue,
+			level:   "truecolor",
+			dim:     true,
+			wantSeq: "\x1b[2m",
+		},
+		{
+			name:    "Boolean false dim type",
+			text:    "test",
+			color:   "red",
+			bgColor: "",
+			bold:    &bTrue,
+			level:   "truecolor",
+			dim:     false,
+			wantSeq: "\x1b[1m",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := ApplyColors(tt.text, tt.color, tt.bgColor, tt.bold, tt.level, tt.dim)
+			if !strings.Contains(got, tt.wantSeq) {
+				t.Errorf("ApplyColors(%q) = %q; want sequence %q contained in output", tt.text, got, tt.wantSeq)
+			}
+		})
+	}
+}
