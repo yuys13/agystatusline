@@ -218,6 +218,8 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		switch m.activeMenu {
 		case "main":
 			return m.updateMain(msg)
+		case "powerline":
+			return m.updatePowerline(msg)
 		case "lines":
 			return m.updateLines(msg)
 		case "items":
@@ -247,7 +249,7 @@ func (m Model) updateMain(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		}
 
 	case "down", "j":
-		maxItems := 9
+		maxItems := 5
 		if m.cursor < maxItems-1 {
 			m.cursor++
 		}
@@ -259,30 +261,15 @@ func (m Model) updateMain(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			m.cursor = 0
 			m.moveMode = false
 
-		case 1: // Toggle Powerline Mode
-			m.settings.Powerline.Enabled = !m.settings.Powerline.Enabled
+		case 1: // Powerline Settings
+			m.activeMenu = "powerline"
+			m.cursor = 0
 
-		case 2: // Select Powerline Theme
-			m.activeMenu = "select_theme"
-			m.cursor = m.themeIndex
-
-		case 3: // Select Powerline Separator
-			m.activeMenu = "select_separator"
-			m.cursor = m.separatorIndex
-
-		case 4: // Select Powerline Start Cap
-			m.activeMenu = "select_start_cap"
-			m.cursor = m.startCapIndex
-
-		case 5: // Select Powerline End Cap
-			m.activeMenu = "select_end_cap"
-			m.cursor = m.endCapIndex
-
-		case 6: // Select Color Level
+		case 2: // Select Color Level
 			m.activeMenu = "select_color_level"
 			m.cursor = m.colorLevelIndex
 
-		case 7: // Save & Exit
+		case 3: // Save & Exit
 			err := saveSettings(m.configPath, m.settings)
 			if err == nil {
 				m.saved = true
@@ -290,10 +277,56 @@ func (m Model) updateMain(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			m.quitting = true
 			return m, tea.Quit
 
-		case 8: // Discard & Exit
+		case 4: // Discard & Exit
 			m.quitting = true
 			return m, tea.Quit
 		}
+	}
+	return m, nil
+}
+
+func (m Model) updatePowerline(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	switch msg.String() {
+	case "up", "k":
+		if m.cursor > 0 {
+			m.cursor--
+		}
+
+	case "down", "j":
+		maxItems := 6
+		if m.cursor < maxItems-1 {
+			m.cursor++
+		}
+
+	case "enter", "\n":
+		switch m.cursor {
+		case 0: // Toggle Powerline Mode
+			m.settings.Powerline.Enabled = !m.settings.Powerline.Enabled
+
+		case 1: // Select Powerline Theme
+			m.activeMenu = "select_theme"
+			m.cursor = m.themeIndex
+
+		case 2: // Select Powerline Separator
+			m.activeMenu = "select_separator"
+			m.cursor = m.separatorIndex
+
+		case 3: // Select Powerline Start Cap
+			m.activeMenu = "select_start_cap"
+			m.cursor = m.startCapIndex
+
+		case 4: // Select Powerline End Cap
+			m.activeMenu = "select_end_cap"
+			m.cursor = m.endCapIndex
+
+		case 5: // Back to Main Menu
+			m.activeMenu = "main"
+			m.cursor = 1
+		}
+
+	case "esc":
+		m.activeMenu = "main"
+		m.cursor = 1
 	}
 	return m, nil
 }
@@ -504,12 +537,12 @@ func (m Model) updateSelectTheme(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	case "enter", "\n":
 		m.themeIndex = m.cursor
 		m.settings.Powerline.Theme = themesList[m.themeIndex]
-		m.activeMenu = "main"
-		m.cursor = 2
+		m.activeMenu = "powerline"
+		m.cursor = 1
 
 	case "esc":
-		m.activeMenu = "main"
-		m.cursor = 2
+		m.activeMenu = "powerline"
+		m.cursor = 1
 	}
 	return m, nil
 }
@@ -529,12 +562,12 @@ func (m Model) updateSelectSeparator(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	case "enter", "\n":
 		m.separatorIndex = m.cursor
 		m.settings.Powerline.Separators = []string{separatorsList[m.separatorIndex].value}
-		m.activeMenu = "main"
-		m.cursor = 3
+		m.activeMenu = "powerline"
+		m.cursor = 2
 
 	case "esc":
-		m.activeMenu = "main"
-		m.cursor = 3
+		m.activeMenu = "powerline"
+		m.cursor = 2
 	}
 	return m, nil
 }
@@ -558,12 +591,12 @@ func (m Model) updateSelectStartCap(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		} else {
 			m.settings.Powerline.StartCaps = []string{startCapsList[m.startCapIndex].value}
 		}
-		m.activeMenu = "main"
-		m.cursor = 4
+		m.activeMenu = "powerline"
+		m.cursor = 3
 
 	case "esc":
-		m.activeMenu = "main"
-		m.cursor = 4
+		m.activeMenu = "powerline"
+		m.cursor = 3
 	}
 	return m, nil
 }
@@ -587,12 +620,12 @@ func (m Model) updateSelectEndCap(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		} else {
 			m.settings.Powerline.EndCaps = []string{endCapsList[m.endCapIndex].value}
 		}
-		m.activeMenu = "main"
-		m.cursor = 5
+		m.activeMenu = "powerline"
+		m.cursor = 4
 
 	case "esc":
-		m.activeMenu = "main"
-		m.cursor = 5
+		m.activeMenu = "powerline"
+		m.cursor = 4
 	}
 	return m, nil
 }
@@ -613,11 +646,11 @@ func (m Model) updateSelectColorLevel(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.colorLevelIndex = m.cursor
 		m.settings.ColorLevel = colorLevelsList[m.colorLevelIndex].value
 		m.activeMenu = "main"
-		m.cursor = 6
+		m.cursor = 2
 
 	case "esc":
 		m.activeMenu = "main"
-		m.cursor = 6
+		m.cursor = 2
 	}
 	return m, nil
 }
@@ -768,6 +801,8 @@ func (m Model) View() string {
 	switch m.activeMenu {
 	case "main":
 		m.viewMain(&s)
+	case "powerline":
+		m.viewPowerline(&s)
 	case "lines":
 		m.viewLines(&s)
 	case "items":
@@ -795,11 +830,7 @@ func (m Model) viewMain(s *stringsBuilder) {
 
 	menuItems := []string{
 		"Edit Lines",
-		fmt.Sprintf("Toggle Powerline Mode       [%t]", m.settings.Powerline.Enabled),
-		fmt.Sprintf("Select Powerline Theme      [%s]", m.settings.Powerline.Theme),
-		fmt.Sprintf("Select Powerline Separator  [%s]", separatorsList[m.separatorIndex].name),
-		fmt.Sprintf("Select Powerline Start Cap  [%s]", startCapsList[m.startCapIndex].name),
-		fmt.Sprintf("Select Powerline End Cap    [%s]", endCapsList[m.endCapIndex].name),
+		fmt.Sprintf("Powerline Settings          [%s / %t]", m.settings.Powerline.Theme, m.settings.Powerline.Enabled),
 		fmt.Sprintf("Select Color Level          [%s]", colorLevelsList[m.colorLevelIndex].name),
 		"Save & Exit",
 		"Discard & Exit",
@@ -818,7 +849,36 @@ func (m Model) viewMain(s *stringsBuilder) {
 		s.WriteString(fmt.Sprintf("%s %s\n", cursorStr, style.Render(item)))
 	}
 
-	s.WriteString("\n(Use arrows/jk to navigate, Enter to toggle/select, q to quit)\n")
+	s.WriteString("\n(Use arrows/jk to navigate, Enter to select, q to quit)\n")
+}
+
+func (m Model) viewPowerline(s *stringsBuilder) {
+	s.WriteString(lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("39")).Render("Powerline Settings"))
+	s.WriteString("\n\n")
+
+	menuItems := []string{
+		fmt.Sprintf("Toggle Powerline Mode       [%t]", m.settings.Powerline.Enabled),
+		fmt.Sprintf("Select Powerline Theme      [%s]", m.settings.Powerline.Theme),
+		fmt.Sprintf("Select Powerline Separator  [%s]", separatorsList[m.separatorIndex].name),
+		fmt.Sprintf("Select Powerline Start Cap  [%s]", startCapsList[m.startCapIndex].name),
+		fmt.Sprintf("Select Powerline End Cap    [%s]", endCapsList[m.endCapIndex].name),
+		"Back to Main Menu",
+	}
+
+	for i, item := range menuItems {
+		cursorStr := " "
+		style := lipgloss.NewStyle()
+		if m.cursor == i {
+			cursorStr = ">"
+			style = style.Bold(true).Foreground(lipgloss.Color("226"))
+		}
+		if item == "Back to Main Menu" {
+			s.WriteString("\n")
+		}
+		s.WriteString(fmt.Sprintf("%s %s\n", cursorStr, style.Render(item)))
+	}
+
+	s.WriteString("\n(Use arrows/jk to navigate, Enter to toggle/select, Esc to go back)\n")
 }
 
 func (m Model) viewLines(s *stringsBuilder) {

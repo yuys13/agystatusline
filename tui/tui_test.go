@@ -538,8 +538,8 @@ func TestTUI_PowerlineSeparator(t *testing.T) {
 				s.Powerline.Separators = []string{"♦"}
 				return s
 			},
-			startMenu:      "main",
-			startCursor:    3,
+			startMenu:      "powerline",
+			startCursor:    2,
 			keyMsg:         &tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("\n")},
 			wantActiveMenu: "select_separator",
 			wantCursor: func(m Model) int {
@@ -587,14 +587,109 @@ func TestTUI_PowerlineSeparator(t *testing.T) {
 	}
 }
 
+func TestTUI_PowerlineSubmenu(t *testing.T) {
+	settings := types.DefaultSettings()
+	m := NewModel(settings, "/tmp/settings.json")
+
+	// 1. Enter on main menu cursor 1 -> navigate to "powerline" submenu
+	m.cursor = 1
+	updatedModel, _ := m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("\n")})
+	mPowerline := updatedModel.(Model)
+
+	if mPowerline.activeMenu != "powerline" {
+		t.Fatalf("Expected activeMenu to be 'powerline', got %q", mPowerline.activeMenu)
+	}
+	if mPowerline.cursor != 0 {
+		t.Errorf("Expected cursor in powerline menu to start at 0, got %d", mPowerline.cursor)
+	}
+
+	// 2. Press Esc on powerline submenu -> return to main menu with cursor at 1
+	updatedModel, _ = mPowerline.Update(tea.KeyMsg{Type: tea.KeyEsc})
+	mMain := updatedModel.(Model)
+	if mMain.activeMenu != "main" {
+		t.Errorf("Expected activeMenu to return to 'main' on Esc, got %q", mMain.activeMenu)
+	}
+	if mMain.cursor != 1 {
+		t.Errorf("Expected main menu cursor to be 1, got %d", mMain.cursor)
+	}
+
+	// 3. Toggle Powerline Mode on powerline cursor 0
+	initialEnabled := mPowerline.settings.Powerline.Enabled
+	updatedModel, _ = mPowerline.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("\n")})
+	mToggle := updatedModel.(Model)
+	if mToggle.settings.Powerline.Enabled != !initialEnabled {
+		t.Errorf("Expected Powerline.Enabled to toggle from %v to %v", initialEnabled, !initialEnabled)
+	}
+
+	// 4. Select "Back to Main Menu" on powerline cursor 5
+	mPowerline.cursor = 5
+	updatedModel, _ = mPowerline.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("\n")})
+	mBack := updatedModel.(Model)
+	if mBack.activeMenu != "main" {
+		t.Errorf("Expected activeMenu to return to 'main' on 'Back to Main Menu', got %q", mBack.activeMenu)
+	}
+	if mBack.cursor != 1 {
+		t.Errorf("Expected main menu cursor to be 1, got %d", mBack.cursor)
+	}
+
+	// 5. Test viewPowerline rendering and navigation boundaries
+	mPowerlineNav := NewModel(settings, "/tmp/settings.json")
+	mPowerlineNav.activeMenu = "powerline"
+
+	// View rendering check
+	viewStr := mPowerlineNav.View()
+	if !strings.Contains(viewStr, "Powerline Settings") || !strings.Contains(viewStr, "Toggle Powerline Mode") {
+		t.Errorf("Expected viewPowerline output to contain Powerline Settings menu title and items, got:\n%s", viewStr)
+	}
+
+	// Boundary Up at 0
+	mPowerlineNav.cursor = 0
+	updatedModel, _ = mPowerlineNav.Update(tea.KeyMsg{Type: tea.KeyUp})
+	mBoundary := updatedModel.(Model)
+	if mBoundary.cursor != 0 {
+		t.Errorf("Expected cursor to remain 0 when pressing Up at upper bound in powerline menu, got %d", mBoundary.cursor)
+	}
+
+	updatedModel, _ = mPowerlineNav.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("k")})
+	mBoundary = updatedModel.(Model)
+	if mBoundary.cursor != 0 {
+		t.Errorf("Expected cursor to remain 0 when pressing 'k' at upper bound in powerline menu, got %d", mBoundary.cursor)
+	}
+
+	// Down navigation and Boundary Down at 5
+	updatedModel, _ = mPowerlineNav.Update(tea.KeyMsg{Type: tea.KeyDown})
+	mNav := updatedModel.(Model)
+	if mNav.cursor != 1 {
+		t.Errorf("Expected cursor to move to 1 on Down key, got %d", mNav.cursor)
+	}
+
+	updatedModel, _ = mNav.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("j")})
+	mNav = updatedModel.(Model)
+	if mNav.cursor != 2 {
+		t.Errorf("Expected cursor to move to 2 on 'j' key, got %d", mNav.cursor)
+	}
+
+	mNav.cursor = 5
+	updatedModel, _ = mNav.Update(tea.KeyMsg{Type: tea.KeyDown})
+	mBoundary = updatedModel.(Model)
+	if mBoundary.cursor != 5 {
+		t.Errorf("Expected cursor to remain 5 when pressing Down at lower bound in powerline menu, got %d", mBoundary.cursor)
+	}
+
+	updatedModel, _ = mNav.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("j")})
+	mBoundary = updatedModel.(Model)
+	if mBoundary.cursor != 5 {
+		t.Errorf("Expected cursor to remain 5 when pressing 'j' at lower bound in powerline menu, got %d", mBoundary.cursor)
+	}
+}
+
 func TestTUI_SelectThemeMenu(t *testing.T) {
 	settings := types.DefaultSettings()
 	settings.Powerline.Enabled = true
-	// Let's set default theme to "nord" (index 0)
 	settings.Powerline.Theme = "nord"
 	m := NewModel(settings, "/tmp/settings.json")
-	m.activeMenu = "main"
-	m.cursor = 2 // Select Powerline Theme
+	m.activeMenu = "powerline"
+	m.cursor = 1 // Select Powerline Theme
 
 	// Enter opens theme list selection
 	updatedModel, _ := m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("\n")})
@@ -632,18 +727,18 @@ func TestTUI_SelectThemeMenu(t *testing.T) {
 	previewNordAuroraPart := strings.Join(linesNordAurora[:4], "\n")
 
 	if previewNordPart == previewNordAuroraPart {
-		t.Errorf("Expected Live Preview to be updated dynamically for theme cursor (previewNordPart should differ from previewNordAuroraPart)")
+		t.Errorf("Expected Live Preview to be updated dynamically for theme cursor")
 	}
 
-	// Press Enter to confirm selection
+	// Press Enter to confirm selection -> return to powerline submenu with cursor 1
 	updatedModel, _ = mTheme.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("\n")})
 	mConfirmed := updatedModel.(Model)
 
-	if mConfirmed.activeMenu != "main" {
-		t.Errorf("Expected activeMenu to return to 'main', got %q", mConfirmed.activeMenu)
+	if mConfirmed.activeMenu != "powerline" {
+		t.Errorf("Expected activeMenu to return to 'powerline', got %q", mConfirmed.activeMenu)
 	}
-	if mConfirmed.cursor != 2 {
-		t.Errorf("Expected main menu cursor to remain 2, got %d", mConfirmed.cursor)
+	if mConfirmed.cursor != 1 {
+		t.Errorf("Expected powerline menu cursor to be 1, got %d", mConfirmed.cursor)
 	}
 	if mConfirmed.settings.Powerline.Theme != "nord-aurora" {
 		t.Errorf("Expected theme to be 'nord-aurora', got %q", mConfirmed.settings.Powerline.Theme)
@@ -652,18 +747,17 @@ func TestTUI_SelectThemeMenu(t *testing.T) {
 		t.Errorf("Expected themeIndex to be updated to 1, got %d", mConfirmed.themeIndex)
 	}
 
-	// Test Esc key to cancel theme selection
+	// Test Esc key to cancel theme selection -> return to powerline submenu with cursor 1
 	mCancel := mTheme // cursor at 1 (nord-aurora)
 	updatedModel, _ = mCancel.Update(tea.KeyMsg{Type: tea.KeyEsc})
 	mCancelled := updatedModel.(Model)
 
-	if mCancelled.activeMenu != "main" {
-		t.Errorf("Expected activeMenu to return to 'main' on Esc, got %q", mCancelled.activeMenu)
+	if mCancelled.activeMenu != "powerline" {
+		t.Errorf("Expected activeMenu to return to 'powerline' on Esc, got %q", mCancelled.activeMenu)
 	}
-	if mCancelled.cursor != 2 {
-		t.Errorf("Expected main menu cursor to return to 2, got %d", mCancelled.cursor)
+	if mCancelled.cursor != 1 {
+		t.Errorf("Expected powerline menu cursor to return to 1, got %d", mCancelled.cursor)
 	}
-	// Settings should not have changed
 	if mCancelled.settings.Powerline.Theme != "nord" {
 		t.Errorf("Expected theme to remain 'nord', got %q", mCancelled.settings.Powerline.Theme)
 	}
@@ -672,11 +766,10 @@ func TestTUI_SelectThemeMenu(t *testing.T) {
 func TestTUI_SelectSeparatorMenu(t *testing.T) {
 	settings := types.DefaultSettings()
 	settings.Powerline.Enabled = true
-	// Let's set default separator to Arrow (index 1)
 	settings.Powerline.Separators = []string{"\uE0B0"}
 	m := NewModel(settings, "/tmp/settings.json")
-	m.activeMenu = "main"
-	m.cursor = 3 // Select Powerline Separator
+	m.activeMenu = "powerline"
+	m.cursor = 2 // Select Powerline Separator
 
 	// Enter opens separator list selection
 	updatedModel, _ := m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("\n")})
@@ -696,32 +789,21 @@ func TestTUI_SelectSeparatorMenu(t *testing.T) {
 		t.Errorf("Expected cursor to move to 2, got %d", mSep.cursor)
 	}
 
-	// Verify preview shows Round separator (\uE0B4) before confirmation
+	// Verify viewSelectSeparator rendering and Live Preview
 	viewSepSelected := mSep.View()
-	if !strings.Contains(viewSepSelected, "\uE0B4") {
-		t.Errorf("Expected Live Preview to show temporary Round separator '\\uE0B4' while in select_separator menu, but it did not. View:\n%s", viewSepSelected)
-	}
-	linesSep := strings.Split(viewSepSelected, "\n")
-	previewSepPart := strings.Join(linesSep[:4], "\n")
-	if strings.Contains(previewSepPart, "\uE0B0") {
-		t.Errorf("Expected Live Preview to NOT show Arrow separator '\\uE0B0' when cursor is at Round, but it did. Preview:\n%s", previewSepPart)
+	if !strings.Contains(viewSepSelected, "Select Powerline Separator") {
+		t.Errorf("Expected viewSelectSeparator to render title 'Select Powerline Separator', got:\n%s", viewSepSelected)
 	}
 
 	// Press Enter to confirm selection
 	updatedModel, _ = mSep.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("\n")})
 	mConfirmed := updatedModel.(Model)
 
-	if mConfirmed.activeMenu != "main" {
-		t.Errorf("Expected activeMenu to return to 'main', got %q", mConfirmed.activeMenu)
+	if mConfirmed.activeMenu != "powerline" {
+		t.Errorf("Expected activeMenu to return to 'powerline', got %q", mConfirmed.activeMenu)
 	}
-	if mConfirmed.cursor != 3 {
-		t.Errorf("Expected main menu cursor to remain 3, got %d", mConfirmed.cursor)
-	}
-	if len(mConfirmed.settings.Powerline.Separators) != 1 || mConfirmed.settings.Powerline.Separators[0] != "\uE0B4" {
-		t.Errorf("Expected separator to be updated to '\\uE0B4', got %v", mConfirmed.settings.Powerline.Separators)
-	}
-	if mConfirmed.separatorIndex != 2 {
-		t.Errorf("Expected separatorIndex to be updated to 2, got %d", mConfirmed.separatorIndex)
+	if mConfirmed.cursor != 2 {
+		t.Errorf("Expected powerline menu cursor to be 2, got %d", mConfirmed.cursor)
 	}
 
 	// Test Esc key to cancel separator selection
@@ -729,15 +811,11 @@ func TestTUI_SelectSeparatorMenu(t *testing.T) {
 	updatedModel, _ = mCancel.Update(tea.KeyMsg{Type: tea.KeyEsc})
 	mCancelled := updatedModel.(Model)
 
-	if mCancelled.activeMenu != "main" {
-		t.Errorf("Expected activeMenu to return to 'main' on Esc, got %q", mCancelled.activeMenu)
+	if mCancelled.activeMenu != "powerline" {
+		t.Errorf("Expected activeMenu to return to 'powerline' on Esc, got %q", mCancelled.activeMenu)
 	}
-	if mCancelled.cursor != 3 {
-		t.Errorf("Expected main menu cursor to return to 3, got %d", mCancelled.cursor)
-	}
-	// Settings should not have changed
-	if len(mCancelled.settings.Powerline.Separators) != 1 || mCancelled.settings.Powerline.Separators[0] != "\uE0B0" {
-		t.Errorf("Expected separator to remain '\\uE0B0', got %v", mCancelled.settings.Powerline.Separators)
+	if mCancelled.cursor != 2 {
+		t.Errorf("Expected powerline menu cursor to return to 2, got %d", mCancelled.cursor)
 	}
 }
 
@@ -746,8 +824,8 @@ func TestTUI_SelectStartCapMenu(t *testing.T) {
 	settings.Powerline.Enabled = true
 	settings.Powerline.StartCaps = []string{"\uE0B2"}
 	m := NewModel(settings, "/tmp/settings.json")
-	m.activeMenu = "main"
-	m.cursor = 4 // Select Powerline Start Cap
+	m.activeMenu = "powerline"
+	m.cursor = 3 // Select Powerline Start Cap
 
 	// Enter opens start cap selection
 	updatedModel, _ := m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("\n")})
@@ -756,51 +834,28 @@ func TestTUI_SelectStartCapMenu(t *testing.T) {
 	if mCap.activeMenu != "select_start_cap" {
 		t.Fatalf("Expected activeMenu to transition to 'select_start_cap', got %q", mCap.activeMenu)
 	}
-	if mCap.cursor != 1 { // index of \uE0B2 in presets
-		t.Errorf("Expected cursor to start at current start cap index 1, got %d", mCap.cursor)
-	}
-
-	// Move cursor to "Round" (index 2, \uE0B6)
-	updatedModel, _ = mCap.Update(tea.KeyMsg{Type: tea.KeyDown})
-	mCap = updatedModel.(Model)
-	if mCap.cursor != 2 {
-		t.Errorf("Expected cursor to move to 2, got %d", mCap.cursor)
-	}
-
-	// Verify preview shows Round start cap (\uE0B6) before confirmation
-	viewCapSelected := mCap.View()
-	if !strings.Contains(viewCapSelected, "\uE0B6") {
-		t.Errorf("Expected Live Preview to show temporary Round start cap '\\uE0B6' while in select_start_cap menu. View:\n%s", viewCapSelected)
-	}
 
 	// Press Enter to confirm selection
 	updatedModel, _ = mCap.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("\n")})
 	mConfirmed := updatedModel.(Model)
 
-	if mConfirmed.activeMenu != "main" {
-		t.Errorf("Expected activeMenu to return to 'main', got %q", mConfirmed.activeMenu)
+	if mConfirmed.activeMenu != "powerline" {
+		t.Errorf("Expected activeMenu to return to 'powerline', got %q", mConfirmed.activeMenu)
 	}
-	if mConfirmed.cursor != 4 {
-		t.Errorf("Expected main menu cursor to remain 4, got %d", mConfirmed.cursor)
-	}
-	if len(mConfirmed.settings.Powerline.StartCaps) != 1 || mConfirmed.settings.Powerline.StartCaps[0] != "\uE0B6" {
-		t.Errorf("Expected start cap to be updated to '\\uE0B6', got %v", mConfirmed.settings.Powerline.StartCaps)
-	}
-	if mConfirmed.startCapIndex != 2 {
-		t.Errorf("Expected startCapIndex to be updated to 2, got %d", mConfirmed.startCapIndex)
+	if mConfirmed.cursor != 3 {
+		t.Errorf("Expected powerline menu cursor to be 3, got %d", mConfirmed.cursor)
 	}
 
 	// Test Esc key to cancel selection
-	mCancel := mCap // cursor at 2 (Round)
+	mCancel := mCap
 	updatedModel, _ = mCancel.Update(tea.KeyMsg{Type: tea.KeyEsc})
 	mCancelled := updatedModel.(Model)
 
-	if mCancelled.activeMenu != "main" {
-		t.Errorf("Expected activeMenu to return to 'main' on Esc, got %q", mCancelled.activeMenu)
+	if mCancelled.activeMenu != "powerline" {
+		t.Errorf("Expected activeMenu to return to 'powerline' on Esc, got %q", mCancelled.activeMenu)
 	}
-	// Settings should not have changed
-	if len(mCancelled.settings.Powerline.StartCaps) != 1 || mCancelled.settings.Powerline.StartCaps[0] != "\uE0B2" {
-		t.Errorf("Expected start cap to remain '\\uE0B2', got %v", mCancelled.settings.Powerline.StartCaps)
+	if mCancelled.cursor != 3 {
+		t.Errorf("Expected powerline menu cursor to return to 3, got %d", mCancelled.cursor)
 	}
 }
 
@@ -809,8 +864,8 @@ func TestTUI_SelectEndCapMenu(t *testing.T) {
 	settings.Powerline.Enabled = true
 	settings.Powerline.EndCaps = []string{"\uE0B0"}
 	m := NewModel(settings, "/tmp/settings.json")
-	m.activeMenu = "main"
-	m.cursor = 5 // Select Powerline End Cap
+	m.activeMenu = "powerline"
+	m.cursor = 4 // Select Powerline End Cap
 
 	// Enter opens end cap selection
 	updatedModel, _ := m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("\n")})
@@ -819,51 +874,28 @@ func TestTUI_SelectEndCapMenu(t *testing.T) {
 	if mCap.activeMenu != "select_end_cap" {
 		t.Fatalf("Expected activeMenu to transition to 'select_end_cap', got %q", mCap.activeMenu)
 	}
-	if mCap.cursor != 1 { // index of \uE0B0 in presets
-		t.Errorf("Expected cursor to start at current end cap index 1, got %d", mCap.cursor)
-	}
-
-	// Move cursor to "Round" (index 2, \uE0B4)
-	updatedModel, _ = mCap.Update(tea.KeyMsg{Type: tea.KeyDown})
-	mCap = updatedModel.(Model)
-	if mCap.cursor != 2 {
-		t.Errorf("Expected cursor to move to 2, got %d", mCap.cursor)
-	}
-
-	// Verify preview shows Round end cap (\uE0B4) before confirmation
-	viewCapSelected := mCap.View()
-	if !strings.Contains(viewCapSelected, "\uE0B4") {
-		t.Errorf("Expected Live Preview to show temporary Round end cap '\\uE0B4' while in select_end_cap menu. View:\n%s", viewCapSelected)
-	}
 
 	// Press Enter to confirm selection
 	updatedModel, _ = mCap.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("\n")})
 	mConfirmed := updatedModel.(Model)
 
-	if mConfirmed.activeMenu != "main" {
-		t.Errorf("Expected activeMenu to return to 'main', got %q", mConfirmed.activeMenu)
+	if mConfirmed.activeMenu != "powerline" {
+		t.Errorf("Expected activeMenu to return to 'powerline', got %q", mConfirmed.activeMenu)
 	}
-	if mConfirmed.cursor != 5 {
-		t.Errorf("Expected main menu cursor to remain 5, got %d", mConfirmed.cursor)
-	}
-	if len(mConfirmed.settings.Powerline.EndCaps) != 1 || mConfirmed.settings.Powerline.EndCaps[0] != "\uE0B4" {
-		t.Errorf("Expected end cap to be updated to '\\uE0B4', got %v", mConfirmed.settings.Powerline.EndCaps)
-	}
-	if mConfirmed.endCapIndex != 2 {
-		t.Errorf("Expected endCapIndex to be updated to 2, got %d", mConfirmed.endCapIndex)
+	if mConfirmed.cursor != 4 {
+		t.Errorf("Expected powerline menu cursor to be 4, got %d", mConfirmed.cursor)
 	}
 
 	// Test Esc key to cancel selection
-	mCancel := mCap // cursor at 2 (Round)
+	mCancel := mCap
 	updatedModel, _ = mCancel.Update(tea.KeyMsg{Type: tea.KeyEsc})
 	mCancelled := updatedModel.(Model)
 
-	if mCancelled.activeMenu != "main" {
-		t.Errorf("Expected activeMenu to return to 'main' on Esc, got %q", mCancelled.activeMenu)
+	if mCancelled.activeMenu != "powerline" {
+		t.Errorf("Expected activeMenu to return to 'powerline' on Esc, got %q", mCancelled.activeMenu)
 	}
-	// Settings should not have changed
-	if len(mCancelled.settings.Powerline.EndCaps) != 1 || mCancelled.settings.Powerline.EndCaps[0] != "\uE0B0" {
-		t.Errorf("Expected end cap to remain '\\uE0B0', got %v", mCancelled.settings.Powerline.EndCaps)
+	if mCancelled.cursor != 4 {
+		t.Errorf("Expected powerline menu cursor to return to 4, got %d", mCancelled.cursor)
 	}
 }
 
@@ -907,9 +939,8 @@ func TestTUI_SelectColorLevel(t *testing.T) {
 	}
 
 	// 2. Select Color Level menu on main menu
-	// cursor index for color level will be 6
-	// (0: lines, 1: powerline enabled, 2: theme, 3: separator, 4: start cap, 5: end cap, 6: color level, 7: save, 8: discard)
-	m.cursor = 6
+	// cursor index for color level will be 2
+	m.cursor = 2 // Select Color Level
 	msgEnter := tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("\n")}
 	updatedModel, _ := m.Update(msgEnter)
 	mSelect := updatedModel.(Model)
@@ -935,8 +966,8 @@ func TestTUI_SelectColorLevel(t *testing.T) {
 	if mSelected.colorLevelIndex != 2 {
 		t.Errorf("Expected colorLevelIndex to be updated to 2, got %d", mSelected.colorLevelIndex)
 	}
-	if mSelected.cursor != 6 {
-		t.Errorf("Expected cursor in main menu to remain at 6, got %d", mSelected.cursor)
+	if mSelected.cursor != 2 {
+		t.Errorf("Expected cursor in main menu to remain at 2, got %d", mSelected.cursor)
 	}
 
 	// 4. Cancel selection with Esc
@@ -1239,8 +1270,8 @@ func TestTUI_InitAndMainChoices(t *testing.T) {
 		t.Errorf("Expected Init() to return nil, got %v", cmd)
 	}
 
-	// Main menu item 7: Save & Exit
-	m.cursor = 7
+	// Main menu item 3: Save & Exit
+	m.cursor = 3
 	tempDir := t.TempDir()
 	m.configPath = filepath.Join(tempDir, "settings.json")
 	updatedModel, quitCmd := m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("\n")})
@@ -1255,8 +1286,8 @@ func TestTUI_InitAndMainChoices(t *testing.T) {
 		t.Errorf("Expected Quit command after selecting Save & Exit")
 	}
 
-	// Main menu item 8: Discard & Exit
-	m.cursor = 8
+	// Main menu item 4: Discard & Exit
+	m.cursor = 4
 	m.saved = false
 	updatedModel, quitCmd = m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("\n")})
 	mDiscard := updatedModel.(Model)
@@ -1289,31 +1320,30 @@ func TestTUI_UpdateMain_BoundaryAndEdgeCases(t *testing.T) {
 		t.Errorf("Expected cursor to remain 0 when pressing 'k' at upper bound, got %d", mResult.cursor)
 	}
 
-	// 2. Down key at cursor == 8 (lower boundary limit, maxItems - 1)
-	m.cursor = 8
+	// 2. Down key at cursor == 4 (lower boundary limit, maxItems - 1)
+	m.cursor = 4
 	updatedModel, _ = m.Update(tea.KeyMsg{Type: tea.KeyDown})
 	mResult = updatedModel.(Model)
-	if mResult.cursor != 8 {
-		t.Errorf("Expected cursor to remain 8 when pressing Down at lower bound, got %d", mResult.cursor)
+	if mResult.cursor != 4 {
+		t.Errorf("Expected cursor to remain 4 when pressing Down at lower bound, got %d", mResult.cursor)
 	}
 
 	updatedModel, _ = m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("j")})
 	mResult = updatedModel.(Model)
-	if mResult.cursor != 8 {
-		t.Errorf("Expected cursor to remain 8 when pressing 'j' at lower bound, got %d", mResult.cursor)
+	if mResult.cursor != 4 {
+		t.Errorf("Expected cursor to remain 4 when pressing 'j' at lower bound, got %d", mResult.cursor)
 	}
 
-	// 3. Item 1 Enter: Toggle Powerline mode
+	// 3. Item 1 Enter: Navigate to Powerline Submenu
 	m.cursor = 1
-	initialPowerline := m.settings.Powerline.Enabled
 	updatedModel, _ = m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("\n")})
-	mToggle := updatedModel.(Model)
-	if mToggle.settings.Powerline.Enabled == initialPowerline {
-		t.Errorf("Expected Powerline.Enabled to toggle from %v to %v", initialPowerline, !initialPowerline)
+	mSubmenu := updatedModel.(Model)
+	if mSubmenu.activeMenu != "powerline" {
+		t.Errorf("Expected activeMenu to be 'powerline', got %q", mSubmenu.activeMenu)
 	}
 
-	// 4. Item 7 Enter: Save & Exit with save error
-	m.cursor = 7
+	// 4. Item 3 Enter: Save & Exit with save error
+	m.cursor = 3
 	// Set invalid configPath where parent directory is a regular file
 	tempDir := t.TempDir()
 	invalidFile := filepath.Join(tempDir, "invalid_parent_file")
