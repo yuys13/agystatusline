@@ -631,6 +631,56 @@ func TestTUI_PowerlineSubmenu(t *testing.T) {
 	if mBack.cursor != 1 {
 		t.Errorf("Expected main menu cursor to be 1, got %d", mBack.cursor)
 	}
+
+	// 5. Test viewPowerline rendering and navigation boundaries
+	mPowerlineNav := NewModel(settings, "/tmp/settings.json")
+	mPowerlineNav.activeMenu = "powerline"
+
+	// View rendering check
+	viewStr := mPowerlineNav.View()
+	if !strings.Contains(viewStr, "Powerline Settings") || !strings.Contains(viewStr, "Toggle Powerline Mode") {
+		t.Errorf("Expected viewPowerline output to contain Powerline Settings menu title and items, got:\n%s", viewStr)
+	}
+
+	// Boundary Up at 0
+	mPowerlineNav.cursor = 0
+	updatedModel, _ = mPowerlineNav.Update(tea.KeyMsg{Type: tea.KeyUp})
+	mBoundary := updatedModel.(Model)
+	if mBoundary.cursor != 0 {
+		t.Errorf("Expected cursor to remain 0 when pressing Up at upper bound in powerline menu, got %d", mBoundary.cursor)
+	}
+
+	updatedModel, _ = mPowerlineNav.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("k")})
+	mBoundary = updatedModel.(Model)
+	if mBoundary.cursor != 0 {
+		t.Errorf("Expected cursor to remain 0 when pressing 'k' at upper bound in powerline menu, got %d", mBoundary.cursor)
+	}
+
+	// Down navigation and Boundary Down at 5
+	updatedModel, _ = mPowerlineNav.Update(tea.KeyMsg{Type: tea.KeyDown})
+	mNav := updatedModel.(Model)
+	if mNav.cursor != 1 {
+		t.Errorf("Expected cursor to move to 1 on Down key, got %d", mNav.cursor)
+	}
+
+	updatedModel, _ = mNav.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("j")})
+	mNav = updatedModel.(Model)
+	if mNav.cursor != 2 {
+		t.Errorf("Expected cursor to move to 2 on 'j' key, got %d", mNav.cursor)
+	}
+
+	mNav.cursor = 5
+	updatedModel, _ = mNav.Update(tea.KeyMsg{Type: tea.KeyDown})
+	mBoundary = updatedModel.(Model)
+	if mBoundary.cursor != 5 {
+		t.Errorf("Expected cursor to remain 5 when pressing Down at lower bound in powerline menu, got %d", mBoundary.cursor)
+	}
+
+	updatedModel, _ = mNav.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("j")})
+	mBoundary = updatedModel.(Model)
+	if mBoundary.cursor != 5 {
+		t.Errorf("Expected cursor to remain 5 when pressing 'j' at lower bound in powerline menu, got %d", mBoundary.cursor)
+	}
 }
 
 func TestTUI_SelectThemeMenu(t *testing.T) {
@@ -737,6 +787,12 @@ func TestTUI_SelectSeparatorMenu(t *testing.T) {
 	mSep = updatedModel.(Model)
 	if mSep.cursor != 2 {
 		t.Errorf("Expected cursor to move to 2, got %d", mSep.cursor)
+	}
+
+	// Verify viewSelectSeparator rendering and Live Preview
+	viewSepSelected := mSep.View()
+	if !strings.Contains(viewSepSelected, "Select Powerline Separator") {
+		t.Errorf("Expected viewSelectSeparator to render title 'Select Powerline Separator', got:\n%s", viewSepSelected)
 	}
 
 	// Press Enter to confirm selection
