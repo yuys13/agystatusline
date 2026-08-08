@@ -829,11 +829,11 @@ func (m Model) viewMain(s *stringsBuilder) {
 	s.WriteString("\n\n")
 
 	menuItems := []string{
-		"Edit Lines",
-		fmt.Sprintf("Powerline Settings          [%s / %t]", m.settings.Powerline.Theme, m.settings.Powerline.Enabled),
-		fmt.Sprintf("Select Color Level          [%s]", colorLevelsList[m.colorLevelIndex].name),
-		"Save & Exit",
-		"Discard & Exit",
+		"📄 Edit Lines",
+		fmt.Sprintf("⚡ Powerline Settings          [%s / %t]", m.settings.Powerline.Theme, m.settings.Powerline.Enabled),
+		fmt.Sprintf("🎨 Select Color Level          [%s]", colorLevelsList[m.colorLevelIndex].name),
+		"💾 Save & Exit",
+		"❌ Discard & Exit",
 	}
 
 	for i, item := range menuItems {
@@ -843,7 +843,7 @@ func (m Model) viewMain(s *stringsBuilder) {
 			cursorStr = ">"
 			style = style.Bold(true).Foreground(lipgloss.Color("226"))
 		}
-		if item == "Save & Exit" {
+		if item == "💾 Save & Exit" {
 			s.WriteString("\n")
 		}
 		s.WriteString(fmt.Sprintf("%s %s\n", cursorStr, style.Render(item)))
