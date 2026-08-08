@@ -1868,3 +1868,23 @@ func TestTUI_View_QuittingScreensAndMoveIndicators(t *testing.T) {
 		t.Errorf("Expected viewItems to display '(No widgets in this line)' for empty line, got:\n%s", viewEmptyLine)
 	}
 }
+
+func TestTUI_MainMenuItems(t *testing.T) {
+	settings := types.DefaultSettings()
+	m := NewModel(settings, "/tmp/settings.json")
+	viewStr := renderer.StripAnsi(m.View())
+
+	expectedItems := []string{
+		"📄 Edit Lines",
+		"⚡ Powerline Settings",
+		"🎨 Select Color Level",
+		"💾 Save & Exit",
+		"❌ Discard & Exit",
+	}
+
+	for _, item := range expectedItems {
+		if !strings.Contains(viewStr, item) {
+			t.Errorf("Expected main menu view to contain %q, but it did not. View output:\n%s", item, viewStr)
+		}
+	}
+}
