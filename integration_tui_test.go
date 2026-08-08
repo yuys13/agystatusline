@@ -49,18 +49,16 @@ func TestIntegration_TUIModelInitAndSettingsPersistence(t *testing.T) {
 
 	model := tui.NewModel(initialSettings, configPath)
 
-	// 1. Toggle Powerline Mode: cursor 0 -> down -> enter (cursor = 1)
-	model = sendKeys(model, downKey(), enterKey())
+	// 1. Enter Powerline Settings: cursor 0 -> down (1) -> enter (activeMenu = powerline)
+	// 2. Toggle Powerline Mode: enter at cursor 0
+	// 3. Select Powerline Theme: down (1) -> enter (activeMenu = select_theme) -> down -> enter (selects nord-aurora, returns to powerline with cursor 1)
+	// 4. Back to Main Menu: escKey (returns to main with cursor 1)
+	model = sendKeys(model, downKey(), enterKey(), enterKey(), downKey(), enterKey(), downKey(), enterKey(), escKey())
 
-	// 2. Select Powerline Theme: cursor 1 -> down -> enter (cursor = 2, activeMenu = select_theme)
-	// In select_theme menu: down -> enter (selects second theme, returns to main menu with cursor = 2)
-	model = sendKeys(model, downKey(), enterKey(), downKey(), enterKey())
+	// 5. Select Color Level: cursor 1 -> down (2) -> enter (activeMenu = select_color_level) -> down -> down -> enter (selects Truecolor 3, returns to main with cursor 2)
+	model = sendKeys(model, downKey(), enterKey(), downKey(), downKey(), enterKey())
 
-	// 3. Select Color Level: cursor 2 -> down (3) -> down (4) -> down (5) -> down (6) -> enter (activeMenu = select_color_level)
-	// In select_color_level menu: down -> down -> enter (selects Truecolor 3, returns to main with cursor = 6)
-	model = sendKeys(model, downKey(), downKey(), downKey(), downKey(), enterKey(), downKey(), downKey(), enterKey())
-
-	// 4. Save & Exit: cursor 6 -> down (7) -> enter
+	// 6. Save & Exit: cursor 2 -> down (3) -> enter
 	_ = sendKeys(model, downKey(), enterKey())
 
 	// Check if file was saved to disk
@@ -106,8 +104,8 @@ func TestIntegration_TUIPowerlinePreviewAndColorLevel(t *testing.T) {
 		t.Errorf("Expected View() to contain '--- Live Preview ---', got %q", viewStr)
 	}
 
-	// Move to Select Separator menu (cursor 0 -> down x3 -> enter)
-	model = sendKeys(model, downKey(), downKey(), downKey(), enterKey())
+	// Move to Powerline Settings -> Select Separator menu (cursor 0 -> down -> enter -> down x2 -> enter)
+	model = sendKeys(model, downKey(), enterKey(), downKey(), downKey(), enterKey())
 	viewSubmenu := model.View()
 
 	if !strings.Contains(viewSubmenu, "Select Powerline Separator") && !strings.Contains(viewSubmenu, "Separators") {
@@ -188,9 +186,9 @@ func TestIntegration_TUITier4TestDataSimulation(t *testing.T) {
 		},
 	}
 
-	// Save settings via TUI model (cursor 0 -> down x7 -> enter)
+	// Save settings via TUI model (cursor 0 -> down x3 -> enter for Save & Exit)
 	model := tui.NewModel(simSettings, configPath)
-	_ = sendKeys(model, downKey(), downKey(), downKey(), downKey(), downKey(), downKey(), downKey(), enterKey())
+	_ = sendKeys(model, downKey(), downKey(), downKey(), enterKey())
 
 	// Load settings back from file
 	bytesData, err := os.ReadFile(configPath)
@@ -245,16 +243,19 @@ func TestIntegration_TUIWidgetLayoutEditingAndPersistence(t *testing.T) {
 	// 3. Add widget (press "a") -> activeMenu = add_widget
 	// 4. Select first widget (enter) -> adds item, returns to items menu
 	// 5. Esc back to lines, Esc back to main menu
-	// 6. Navigate to Save & Exit (cursor 0 -> down x7 -> enter)
+	// 6. Navigate to Save & Exit (cursor 0 -> down x3 -> enter)
 	_ = sendKeys(
 		model,
 		enterKey(),
 		enterKey(),
-		tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'a'}},
+		tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("a")},
 		enterKey(),
 		escKey(),
 		escKey(),
-		downKey(), downKey(), downKey(), downKey(), downKey(), downKey(), downKey(), enterKey(),
+		downKey(),
+		downKey(),
+		downKey(),
+		enterKey(),
 	)
 
 	// Read saved settings
