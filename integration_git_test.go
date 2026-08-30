@@ -72,7 +72,7 @@ func TestIntegration_Git_CleanRepo(t *testing.T) {
 	if branchWidget == nil {
 		t.Fatalf("git-branch widget not found")
 	}
-	branchItem := types.WidgetItem{ID: "gb", Type: "git-branch"}
+	branchItem := types.WidgetItem{Type: "git-branch"}
 	title, body, err := branchWidget.Render(branchItem, ctx, settings)
 	if err != nil {
 		t.Fatalf("Unexpected error rendering branch widget: %v", err)
@@ -90,7 +90,7 @@ func TestIntegration_Git_CleanRepo(t *testing.T) {
 	if changesWidget == nil {
 		t.Fatalf("git-changes widget not found")
 	}
-	changesItem := types.WidgetItem{ID: "gc", Type: "git-changes"}
+	changesItem := types.WidgetItem{Type: "git-changes"}
 	titleC, bodyC, errC := changesWidget.Render(changesItem, ctx, settings)
 	if errC != nil {
 		t.Fatalf("Unexpected error rendering changes widget: %v", errC)
@@ -135,7 +135,7 @@ func TestIntegration_Git_ModifiedFiles(t *testing.T) {
 	settings := types.DefaultSettings()
 
 	branchWidget := widgets.GetWidget("git-branch")
-	title, body, _ := branchWidget.Render(types.WidgetItem{ID: "gb", Type: "git-branch"}, ctx, settings)
+	title, body, _ := branchWidget.Render(types.WidgetItem{Type: "git-branch"}, ctx, settings)
 	plainBranch := renderer.StripAnsi(title + body)
 
 	if !strings.Contains(plainBranch, "*") {
@@ -143,7 +143,7 @@ func TestIntegration_Git_ModifiedFiles(t *testing.T) {
 	}
 
 	changesWidget := widgets.GetWidget("git-changes")
-	titleC, bodyC, _ := changesWidget.Render(types.WidgetItem{ID: "gc", Type: "git-changes"}, ctx, settings)
+	titleC, bodyC, _ := changesWidget.Render(types.WidgetItem{Type: "git-changes"}, ctx, settings)
 	plainChanges := renderer.StripAnsi(titleC + bodyC)
 
 	if plainChanges != "(+5,-1)" {
@@ -151,7 +151,7 @@ func TestIntegration_Git_ModifiedFiles(t *testing.T) {
 	}
 }
 
-// TestIntegration_Git_WidgetFormattingOptions tests CustomSymbol, RawValue, and PreserveColors.
+// TestIntegration_Git_WidgetFormattingOptions tests Symbol, Raw, and custom rendering.
 func TestIntegration_Git_WidgetFormattingOptions(t *testing.T) {
 	setupTestCacheDir(t)
 	widgets.RegisterAll()
@@ -167,11 +167,10 @@ func TestIntegration_Git_WidgetFormattingOptions(t *testing.T) {
 
 	branchWidget := widgets.GetWidget("git-branch")
 
-	// CustomSymbol
+	// Custom Symbol
 	itemCustom := types.WidgetItem{
-		ID:           "gb",
-		Type:         "git-branch",
-		CustomSymbol: "🌿 ",
+		Type:   "git-branch",
+		Symbol: "🌿 ",
 	}
 	tC, bC, _ := branchWidget.Render(itemCustom, ctx, settings)
 	plainCustom := renderer.StripAnsi(tC + bC)
@@ -179,32 +178,14 @@ func TestIntegration_Git_WidgetFormattingOptions(t *testing.T) {
 		t.Errorf("Expected custom symbol prefix '🌿 feature/integration', got %q", plainCustom)
 	}
 
-	// RawValue
-	trueVal := true
+	// Raw
 	itemRaw := types.WidgetItem{
-		ID:       "gb",
-		Type:     "git-branch",
-		RawValue: &trueVal,
+		Type: "git-branch",
+		Raw:  true,
 	}
 	_, bRaw, _ := branchWidget.Render(itemRaw, ctx, settings)
 	if bRaw != "feature/integration" {
 		t.Errorf("Expected raw value 'feature/integration', got %q", bRaw)
-	}
-
-	// PreserveColors on dirty branch
-	readmePath := filepath.Join(repoDir, "README.md")
-	_ = os.WriteFile(readmePath, []byte("dirty content change\n"), 0644)
-	_ = exec.Command("git", "-C", repoDir, "add", "README.md").Run()
-	utils.ClearGitCache()
-
-	itemPreserve := types.WidgetItem{
-		ID:             "gb",
-		Type:           "git-branch",
-		PreserveColors: &trueVal,
-	}
-	_, bPreserve, _ := branchWidget.Render(itemPreserve, ctx, settings)
-	if !strings.Contains(bPreserve, "\x1b[91m") && !strings.Contains(bPreserve, "\x1b[31m") {
-		t.Errorf("Expected ANSI red color code in preserved colors render on dirty branch, got %q", bPreserve)
 	}
 }
 
@@ -225,7 +206,7 @@ func TestIntegration_Git_CacheLifecycleAndMtime(t *testing.T) {
 	branchWidget := widgets.GetWidget("git-branch")
 
 	// Initial render populates cache
-	t1, b1, _ := branchWidget.Render(types.WidgetItem{ID: "gb", Type: "git-branch"}, ctx, settings)
+	t1, b1, _ := branchWidget.Render(types.WidgetItem{Type: "git-branch"}, ctx, settings)
 
 	// Modify file and git add -> updates .git/index mtime
 	newFile := filepath.Join(repoDir, "new.txt")
@@ -233,7 +214,7 @@ func TestIntegration_Git_CacheLifecycleAndMtime(t *testing.T) {
 	_ = exec.Command("git", "-C", repoDir, "add", "new.txt").Run()
 
 	// Subsequent render should detect mtime update and show dirty state
-	t2, b2, _ := branchWidget.Render(types.WidgetItem{ID: "gb", Type: "git-branch"}, ctx, settings)
+	t2, b2, _ := branchWidget.Render(types.WidgetItem{Type: "git-branch"}, ctx, settings)
 	plain2 := renderer.StripAnsi(t2 + b2)
 
 	if !strings.Contains(plain2, "*") {
@@ -256,28 +237,17 @@ func TestIntegration_Git_NonGitDirectory(t *testing.T) {
 	settings := types.DefaultSettings()
 
 	branchWidget := widgets.GetWidget("git-branch")
-	tBranch, bBranch, _ := branchWidget.Render(types.WidgetItem{ID: "gb", Type: "git-branch"}, ctx, settings)
+	tBranch, bBranch, _ := branchWidget.Render(types.WidgetItem{Type: "git-branch"}, ctx, settings)
 	plainBranch := renderer.StripAnsi(tBranch + bBranch)
 	if !strings.Contains(plainBranch, "no git") {
 		t.Errorf("Expected branch widget to return 'no git', got %q", plainBranch)
 	}
 
-	trueVal := true
-	tHidden, bHidden, _ := branchWidget.Render(types.WidgetItem{ID: "gb", Type: "git-branch", Hide: &trueVal}, ctx, settings)
-	if tHidden+bHidden != "" {
-		t.Errorf("Expected empty string when non-git branch hidden, got %q", tHidden+bHidden)
-	}
-
 	changesWidget := widgets.GetWidget("git-changes")
-	tChanges, bChanges, _ := changesWidget.Render(types.WidgetItem{ID: "gc", Type: "git-changes"}, ctx, settings)
+	tChanges, bChanges, _ := changesWidget.Render(types.WidgetItem{Type: "git-changes"}, ctx, settings)
 	plainChanges := renderer.StripAnsi(tChanges + bChanges)
 	if !strings.Contains(plainChanges, "no git") {
 		t.Errorf("Expected changes widget to return '(no git)', got %q", plainChanges)
-	}
-
-	tCHidden, bCHidden, _ := changesWidget.Render(types.WidgetItem{ID: "gc", Type: "git-changes", Hide: &trueVal}, ctx, settings)
-	if tCHidden+bCHidden != "" {
-		t.Errorf("Expected empty string when non-git changes hidden, got %q", tCHidden+bCHidden)
 	}
 }
 
@@ -303,7 +273,7 @@ func TestIntegration_Git_VCSTelemetryOverride(t *testing.T) {
 	settings := types.DefaultSettings()
 
 	branchWidget := widgets.GetWidget("git-branch")
-	tTel, bTel, _ := branchWidget.Render(types.WidgetItem{ID: "gb", Type: "git-branch"}, ctxWithTelemetry, settings)
+	tTel, bTel, _ := branchWidget.Render(types.WidgetItem{Type: "git-branch"}, ctxWithTelemetry, settings)
 	plainTelemetry := renderer.StripAnsi(tTel + bTel)
 
 	if !strings.Contains(plainTelemetry, "telemetry-branch*") {
@@ -333,7 +303,7 @@ func TestIntegration_Git_WorktreeFile(t *testing.T) {
 	settings := types.DefaultSettings()
 
 	branchWidget := widgets.GetWidget("git-branch")
-	tWt, bWt, _ := branchWidget.Render(types.WidgetItem{ID: "gb", Type: "git-branch"}, ctx, settings)
+	tWt, bWt, _ := branchWidget.Render(types.WidgetItem{Type: "git-branch"}, ctx, settings)
 	plainWt := renderer.StripAnsi(tWt + bWt)
 
 	if !strings.Contains(plainWt, "wt-branch") {

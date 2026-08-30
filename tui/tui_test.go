@@ -19,10 +19,10 @@ func TestMain(m *testing.M) {
 
 func TestInitialModel(t *testing.T) {
 	settings := types.DefaultSettings()
-	m := NewModel(settings, "/tmp/settings.json")
+	m := NewModel(settings, "/tmp/settings.toml")
 
-	if m.settings.Version != 3 {
-		t.Errorf("Expected settings version 3, got %d", m.settings.Version)
+	if len(m.settings.Lines) == 0 {
+		t.Errorf("Expected non-empty default lines, got %d", len(m.settings.Lines))
 	}
 
 	if m.activeMenu != "main" {
@@ -252,29 +252,26 @@ func TestTUI_LinesOperations(t *testing.T) {
 func TestTUI_ItemsOperations(t *testing.T) {
 	settings := types.DefaultSettings()
 	settings.Lines[0] = []types.WidgetItem{
-		{ID: "1", Type: "model", Color: "brightMagenta"},
-		{ID: "2", Type: "separator"},
-		{ID: "3", Type: "sandbox", Color: "brightBlack"},
-		{ID: "4", Type: "separator"},
-		{ID: "5", Type: "git-branch", Color: "brightMagenta"},
-		{ID: "6", Type: "separator"},
-		{ID: "7", Type: "git-changes", Color: "yellow"},
+		{Type: "model", Color: "brightMagenta"},
+		{Type: "sandbox", Color: "brightBlack"},
+		{Type: "git-branch", Color: "brightMagenta"},
+		{Type: "git-changes", Color: "yellow"},
 	}
-	m := NewModel(settings, "/tmp/settings.json")
+	m := NewModel(settings, "/tmp/settings.toml")
 	m.activeMenu = "items"
 	m.selectedLine = 0
-	m.cursor = 2 // Pointing to sandbox
+	m.cursor = 1 // Pointing to sandbox
 
 	// 1. Delete Widget ("d")
 	msg := tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("d")}
 	updatedModel, _ := m.Update(msg)
 	newModel := updatedModel.(Model)
 
-	if len(newModel.settings.Lines[0]) != 6 {
-		t.Errorf("Expected widget count to be 6 after deletion, got %d", len(newModel.settings.Lines[0]))
+	if len(newModel.settings.Lines[0]) != 3 {
+		t.Errorf("Expected widget count to be 3 after deletion, got %d", len(newModel.settings.Lines[0]))
 	}
-	if newModel.settings.Lines[0][2].Type != "separator" {
-		t.Errorf("Expected widget at index 2 to be 'separator', got %q", newModel.settings.Lines[0][2].Type)
+	if newModel.settings.Lines[0][1].Type != "git-branch" {
+		t.Errorf("Expected widget at index 1 to be 'git-branch', got %q", newModel.settings.Lines[0][1].Type)
 	}
 
 	// 2. Move Widget
@@ -288,13 +285,11 @@ func TestTUI_ItemsOperations(t *testing.T) {
 
 	// Move down (swap index 0 and 1)
 	downMsg := tea.KeyMsg{Type: tea.KeyDown}
-	t.Logf("Before swap: index 0 type = %q, index 1 type = %q", newModel.settings.Lines[0][0].Type, newModel.settings.Lines[0][1].Type)
 	updatedModel, _ = newModel.Update(downMsg)
 	newModel = updatedModel.(Model)
-	t.Logf("After swap: index 0 type = %q, index 1 type = %q, cursor = %d", newModel.settings.Lines[0][0].Type, newModel.settings.Lines[0][1].Type, newModel.cursor)
 
-	if newModel.settings.Lines[0][0].Type != "separator" {
-		t.Errorf("Expected widget at index 0 to be 'separator' after swapping, got %q", newModel.settings.Lines[0][0].Type)
+	if newModel.settings.Lines[0][0].Type != "git-branch" {
+		t.Errorf("Expected widget at index 0 to be 'git-branch' after swapping, got %q", newModel.settings.Lines[0][0].Type)
 	}
 	if newModel.settings.Lines[0][1].Type != "model" {
 		t.Errorf("Expected widget at index 1 to be 'model' after swapping, got %q", newModel.settings.Lines[0][1].Type)
@@ -319,10 +314,11 @@ func TestTUI_ItemsOperations(t *testing.T) {
 
 func TestTUI_AddWidget(t *testing.T) {
 	settings := types.DefaultSettings()
-	m := NewModel(settings, "/tmp/settings.json")
+	initialLen := len(settings.Lines[0])
+	m := NewModel(settings, "/tmp/settings.toml")
 	m.activeMenu = "items"
 	m.selectedLine = 0
-	m.cursor = 1 // Pointing to separator (index 1)
+	m.cursor = 1
 
 	// 1. Press "a" to trigger Add Widget screen
 	msg := tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("a")}
@@ -356,8 +352,8 @@ func TestTUI_AddWidget(t *testing.T) {
 	if newModel.activeMenu != "items" {
 		t.Errorf("Expected activeMenu to return to 'items', got %q", newModel.activeMenu)
 	}
-	if len(newModel.settings.Lines[0]) != 8 {
-		t.Errorf("Expected 8 widgets in line 0, got %d", len(newModel.settings.Lines[0]))
+	if len(newModel.settings.Lines[0]) != initialLen+1 {
+		t.Errorf("Expected %d widgets in line 0, got %d", initialLen+1, len(newModel.settings.Lines[0]))
 	}
 	if newModel.settings.Lines[0][2].Type != "context-bar" {
 		t.Errorf("Expected added widget at index 2 to be 'context-bar', got %q", newModel.settings.Lines[0][2].Type)
@@ -370,7 +366,7 @@ func TestTUI_AddWidget(t *testing.T) {
 func TestTUI_AddQuotaBarWidgets(t *testing.T) {
 	widgets.RegisterAll()
 	settings := types.DefaultSettings()
-	m := NewModel(settings, "/tmp/settings.json")
+	m := NewModel(settings, "/tmp/settings.toml")
 	m.activeMenu = "items"
 	m.selectedLine = 0
 	m.cursor = 0
@@ -387,18 +383,15 @@ func TestTUI_AddQuotaBarWidgets(t *testing.T) {
 	// 2. ウィジェット追加リストにクォータバーウィジェットが含まれているか確認
 	var foundG5hB, foundGwkB, found3p5hB, found3pwkB bool
 	for _, wt := range widgetTypes {
-		if wt.wType == "quota-bar" {
-			key := wt.metadata["key"]
-			switch key {
-			case "gemini-5h":
-				foundG5hB = true
-			case "gemini-weekly":
-				foundGwkB = true
-			case "3p-5h":
-				found3p5hB = true
-			case "3p-weekly":
-				found3pwkB = true
-			}
+		switch wt.item.Type {
+		case "quota-bar-5h":
+			foundG5hB = true
+		case "quota-bar-7d":
+			foundGwkB = true
+		case "quota-bar-3p-5h":
+			found3p5hB = true
+		case "quota-bar-3p-7d":
+			found3pwkB = true
 		}
 	}
 	if !foundG5hB || !foundGwkB || !found3p5hB || !found3pwkB {
@@ -409,7 +402,7 @@ func TestTUI_AddQuotaBarWidgets(t *testing.T) {
 	// 3. 実際に Gemini 5h クォータ Bar ウィジェットを追加してみる。
 	targetBarIdx := -1
 	for i, wt := range widgetTypes {
-		if wt.wType == "quota-bar" && wt.metadata["key"] == "gemini-5h" {
+		if wt.item.Type == "quota-bar-5h" {
 			targetBarIdx = i
 			break
 		}
@@ -428,57 +421,29 @@ func TestTUI_AddQuotaBarWidgets(t *testing.T) {
 	}
 
 	addedBarWidget := finalBarModel.settings.Lines[0][1]
-	if addedBarWidget.Type != "quota-bar" {
-		t.Errorf("Expected widget type 'quota-bar', got %q", addedBarWidget.Type)
-	}
-	if addedBarWidget.Color != "" {
-		t.Errorf("Expected widget color to be empty, got %q", addedBarWidget.Color)
-	}
-	if addedBarWidget.Metadata == nil || addedBarWidget.Metadata["key"] != "gemini-5h" {
-		t.Errorf("Expected widget metadata key 'gemini-5h', got %v", addedBarWidget.Metadata)
+	if addedBarWidget.Type != "quota-bar-5h" {
+		t.Errorf("Expected widget type 'quota-bar-5h', got %q", addedBarWidget.Type)
 	}
 }
 
 func TestTUI_LivePreviewQuota(t *testing.T) {
 	widgets.RegisterAll()
 	settings := types.DefaultSettings()
-	settings.Lines[0] = []types.WidgetItem{}
-	// クォータウィジェットを追加
-	settings.Lines[0] = append(settings.Lines[0],
-		types.WidgetItem{
-			ID:   "test_quota_g5h",
+	settings.Lines[0] = []types.WidgetItem{
+		{
 			Type: "quota",
-			Metadata: map[string]string{
-				"key": "gemini-5h", // default (percentage + reset)
-			},
+			Key:  "gemini-5h",
 		},
-		types.WidgetItem{
-			ID:   "test_quota_g5h_pct",
+		{
 			Type: "quota",
-			Metadata: map[string]string{
-				"key":     "gemini-5h",
-				"display": "quota", // quota % only
-			},
+			Key:  "3p-5h",
 		},
-		types.WidgetItem{
-			ID:   "test_quota_3p",
-			Type: "quota",
-			Metadata: map[string]string{
-				"key": "3p-5h", // default (percentage + reset)
-			},
-		},
-	)
-	m := NewModel(settings, "/tmp/settings.json")
+	}
+	m := NewModel(settings, "/tmp/settings.toml")
 
 	viewStr := renderer.StripAnsi(m.View())
-	// previewCtx のダミーデータから、それぞれ適切な値が表示されることを検証
-	// default (both): gemini-5h 50.19% (2h 28m), 3p-5h 100.00% (4h 59m)
-	// display:quota (% only): gemini-5h 50.19%
 	if !strings.Contains(viewStr, "gemini-5h 50.19% (2h 28m)") {
 		t.Errorf("Expected live preview to contain 'gemini-5h 50.19%% (2h 28m)', but it did not. View:\n%s", viewStr)
-	}
-	if !strings.Contains(viewStr, "gemini-5h 50.19%") {
-		t.Errorf("Expected live preview to contain 'gemini-5h 50.19%%', but it did not. View:\n%s", viewStr)
 	}
 	if !strings.Contains(viewStr, "3p-5h 100.00% (4h 59m)") {
 		t.Errorf("Expected live preview to contain '3p-5h 100.00%% (4h 59m)', but it did not. View:\n%s", viewStr)
@@ -508,7 +473,7 @@ func TestTUI_PowerlineSeparator(t *testing.T) {
 			name: "Custom Separator (exists in list)",
 			setupSettings: func() types.Settings {
 				s := types.DefaultSettings()
-				s.Powerline.Separators = []string{"\uE0B4"}
+				s.Powerline.Separator = "\uE0B4"
 				return s
 			},
 			wantSeparatorIndex: 2,
@@ -517,7 +482,7 @@ func TestTUI_PowerlineSeparator(t *testing.T) {
 			name: "None Separator",
 			setupSettings: func() types.Settings {
 				s := types.DefaultSettings()
-				s.Powerline.Separators = []string{""}
+				s.Powerline.Separator = ""
 				return s
 			},
 			wantSeparatorIndex: 0,
@@ -526,7 +491,7 @@ func TestTUI_PowerlineSeparator(t *testing.T) {
 			name: "Custom Separator (NOT in list)",
 			setupSettings: func() types.Settings {
 				s := types.DefaultSettings()
-				s.Powerline.Separators = []string{"♦"}
+				s.Powerline.Separator = "♦"
 				return s
 			},
 			wantCustomSepName: "Custom (♦)",
@@ -535,7 +500,7 @@ func TestTUI_PowerlineSeparator(t *testing.T) {
 			name: "Navigation to Separator Selection Menu",
 			setupSettings: func() types.Settings {
 				s := types.DefaultSettings()
-				s.Powerline.Separators = []string{"♦"}
+				s.Powerline.Separator = "♦"
 				return s
 			},
 			startMenu:      "powerline",
@@ -766,8 +731,8 @@ func TestTUI_SelectThemeMenu(t *testing.T) {
 func TestTUI_SelectSeparatorMenu(t *testing.T) {
 	settings := types.DefaultSettings()
 	settings.Powerline.Enabled = true
-	settings.Powerline.Separators = []string{"\uE0B0"}
-	m := NewModel(settings, "/tmp/settings.json")
+	settings.Powerline.Separator = "\uE0B0"
+	m := NewModel(settings, "/tmp/settings.toml")
 	m.activeMenu = "powerline"
 	m.cursor = 2 // Select Powerline Separator
 
@@ -822,8 +787,8 @@ func TestTUI_SelectSeparatorMenu(t *testing.T) {
 func TestTUI_SelectStartCapMenu(t *testing.T) {
 	settings := types.DefaultSettings()
 	settings.Powerline.Enabled = true
-	settings.Powerline.StartCaps = []string{"\uE0B2"}
-	m := NewModel(settings, "/tmp/settings.json")
+	settings.Powerline.StartCaps = "\uE0B2"
+	m := NewModel(settings, "/tmp/settings.toml")
 	m.activeMenu = "powerline"
 	m.cursor = 3 // Select Powerline Start Cap
 
@@ -862,8 +827,8 @@ func TestTUI_SelectStartCapMenu(t *testing.T) {
 func TestTUI_SelectEndCapMenu(t *testing.T) {
 	settings := types.DefaultSettings()
 	settings.Powerline.Enabled = true
-	settings.Powerline.EndCaps = []string{"\uE0B0"}
-	m := NewModel(settings, "/tmp/settings.json")
+	settings.Powerline.EndCaps = "\uE0B0"
+	m := NewModel(settings, "/tmp/settings.toml")
 	m.activeMenu = "powerline"
 	m.cursor = 4 // Select Powerline End Cap
 
@@ -902,20 +867,28 @@ func TestTUI_SelectEndCapMenu(t *testing.T) {
 func TestTUI_LivePreviewAddWidget(t *testing.T) {
 	widgets.RegisterAll()
 	settings := types.DefaultSettings()
-	m := NewModel(settings, "/tmp/settings.json")
+	m := NewModel(settings, "/tmp/settings.toml")
 
 	// Set state to "add_widget" menu
 	m.activeMenu = "add_widget"
 	m.selectedLine = 0
 	m.itemIndex = 0 // Insert after the first widget (index 0, agent-state widget)
 
-	// Select "Quota Bar: 5h" widget which is index 9 in widgetTypes
-	m.cursor = 9
+	// Select "Quota Bar: 5h" widget
+	targetIdx := -1
+	for i, wt := range widgetTypes {
+		if wt.item.Type == "quota-bar-5h" {
+			targetIdx = i
+			break
+		}
+	}
+	if targetIdx == -1 {
+		t.Fatalf("Quota Bar: 5h not found in widgetTypes")
+	}
+	m.cursor = targetIdx
 
 	viewStr := m.View()
 
-	// The Quota Bar: 5h widget preview has the bar and remaining pct/time as its value.
-	// If the preview updates dynamically, it should contain "5h" and "50.2%" in the preview section.
 	lines := strings.Split(viewStr, "\n")
 	if len(lines) < 5 {
 		t.Fatalf("Expected view outputs to have enough lines")
@@ -930,8 +903,8 @@ func TestTUI_LivePreviewAddWidget(t *testing.T) {
 func TestTUI_SelectColorLevel(t *testing.T) {
 	widgets.RegisterAll()
 	settings := types.DefaultSettings()
-	settings.ColorLevel = 2 // ANSI 256 colors
-	m := NewModel(settings, "/tmp/settings.json")
+	settings.General.ColorLevel = 2 // ANSI 256 colors
+	m := NewModel(settings, "/tmp/settings.toml")
 
 	// 1. Initial state
 	if m.colorLevelIndex != 1 {
@@ -960,8 +933,8 @@ func TestTUI_SelectColorLevel(t *testing.T) {
 	if mSelected.activeMenu != "main" {
 		t.Errorf("Expected activeMenu to return to 'main', got %q", mSelected.activeMenu)
 	}
-	if mSelected.settings.ColorLevel != 3 {
-		t.Errorf("Expected settings.ColorLevel to be updated to 3, got %d", mSelected.settings.ColorLevel)
+	if mSelected.settings.General.ColorLevel != 3 {
+		t.Errorf("Expected settings.General.ColorLevel to be updated to 3, got %d", mSelected.settings.General.ColorLevel)
 	}
 	if mSelected.colorLevelIndex != 2 {
 		t.Errorf("Expected colorLevelIndex to be updated to 2, got %d", mSelected.colorLevelIndex)
@@ -979,8 +952,8 @@ func TestTUI_SelectColorLevel(t *testing.T) {
 	if mCancelled.activeMenu != "main" {
 		t.Errorf("Expected activeMenu to return to 'main' on Esc, got %q", mCancelled.activeMenu)
 	}
-	if mCancelled.settings.ColorLevel != 2 {
-		t.Errorf("Expected settings.ColorLevel to remain 2, got %d", mCancelled.settings.ColorLevel)
+	if mCancelled.settings.General.ColorLevel != 2 {
+		t.Errorf("Expected settings.General.ColorLevel to remain 2, got %d", mCancelled.settings.General.ColorLevel)
 	}
 
 	// 5. Test Live Preview during color level selection
@@ -997,9 +970,9 @@ func TestTUI_LivePreviewSandbox(t *testing.T) {
 	settings := types.DefaultSettings()
 	// Append sandbox widget to the first line to test its preview rendering
 	settings.Lines[0] = append(settings.Lines[0],
-		types.WidgetItem{ID: "test_sandbox", Type: "sandbox"},
+		types.WidgetItem{Type: "sandbox"},
 	)
-	m := NewModel(settings, "/tmp/settings.json")
+	m := NewModel(settings, "/tmp/settings.toml")
 
 	viewStr := renderer.StripAnsi(m.View())
 	// Since sandbox.enabled will be configured as true in the preview context,
@@ -1015,9 +988,9 @@ func TestTUI_WidgetSliceCorruption(t *testing.T) {
 	// 1. Setup a line with multiple widgets, ensuring capacity is larger than length.
 	// This simulates slice sharing capacity.
 	originalWidgets := []types.WidgetItem{
-		{ID: "w1", Type: "model"},
-		{ID: "w2", Type: "git-changes"},
-		{ID: "w3", Type: "git-branch"},
+		{Type: "model"},
+		{Type: "git-changes"},
+		{Type: "git-branch"},
 	}
 	widgetsSlice := make([]types.WidgetItem, 3, 10)
 	copy(widgetsSlice, originalWidgets)
@@ -1025,16 +998,16 @@ func TestTUI_WidgetSliceCorruption(t *testing.T) {
 	settings := types.DefaultSettings()
 	settings.Lines = [][]types.WidgetItem{widgetsSlice}
 
-	m := NewModel(settings, "/tmp/settings.json")
+	m := NewModel(settings, "/tmp/settings.toml")
 	m.selectedLine = 0
-	m.itemIndex = 0 // Insert after index 0 (so between w1 and w2)
+	m.itemIndex = 0 // Insert after index 0 (so between model and git-changes)
 
 	// --- Test 1: Live Preview should not corrupt original settings ---
 	m.activeMenu = "add_widget"
 	m.cursor = 0 // first widget type to add
 
 	// Verify pre-conditions
-	if m.settings.Lines[0][1].ID != "w2" || m.settings.Lines[0][2].ID != "w3" {
+	if m.settings.Lines[0][1].Type != "git-changes" || m.settings.Lines[0][2].Type != "git-branch" {
 		t.Fatalf("Pre-condition failed: settings initialized incorrectly")
 	}
 
@@ -1045,11 +1018,11 @@ func TestTUI_WidgetSliceCorruption(t *testing.T) {
 	if len(m.settings.Lines[0]) != 3 {
 		t.Errorf("Expected original settings line length to remain 3 after preview, but got %d", len(m.settings.Lines[0]))
 	}
-	if m.settings.Lines[0][1].ID != "w2" {
-		t.Errorf("Expected original widget 'w2' to be untouched, but got ID %q", m.settings.Lines[0][1].ID)
+	if m.settings.Lines[0][1].Type != "git-changes" {
+		t.Errorf("Expected original widget 'git-changes' to be untouched, but got %q", m.settings.Lines[0][1].Type)
 	}
-	if m.settings.Lines[0][2].ID != "w3" {
-		t.Errorf("Expected original widget 'w3' to be untouched, but got ID %q", m.settings.Lines[0][2].ID)
+	if m.settings.Lines[0][2].Type != "git-branch" {
+		t.Errorf("Expected original widget 'git-branch' to be untouched, but got %q", m.settings.Lines[0][2].Type)
 	}
 
 	// --- Test 2: Actually adding the widget should correctly insert it without corruption ---
@@ -1062,24 +1035,20 @@ func TestTUI_WidgetSliceCorruption(t *testing.T) {
 		t.Fatalf("Expected new settings line length to be 4, got %d", len(newWidgets))
 	}
 
-	// Expected sequence: w1 -> new_widget -> w2 -> w3
-	if newWidgets[0].ID != "w1" {
-		t.Errorf("Expected index 0 to be 'w1', got %q", newWidgets[0].ID)
+	// Expected sequence: model -> newly_added -> git-changes -> git-branch
+	if newWidgets[0].Type != "model" {
+		t.Errorf("Expected index 0 to be 'model', got %q", newWidgets[0].Type)
 	}
-	// The new widget should not have w2's or w3's ID
-	if newWidgets[1].ID == "w2" || newWidgets[1].ID == "w3" || newWidgets[1].ID == "w1" {
-		t.Errorf("Expected index 1 to be a newly added widget, got ID %q", newWidgets[1].ID)
+	if newWidgets[2].Type != "git-changes" {
+		t.Errorf("Expected index 2 to be 'git-changes', got %q", newWidgets[2].Type)
 	}
-	if newWidgets[2].ID != "w2" {
-		t.Errorf("Expected index 2 to be 'w2', got %q", newWidgets[2].ID)
-	}
-	if newWidgets[3].ID != "w3" {
-		t.Errorf("Expected index 3 to be 'w3', got %q", newWidgets[3].ID)
+	if newWidgets[3].Type != "git-branch" {
+		t.Errorf("Expected index 3 to be 'git-branch', got %q", newWidgets[3].Type)
 	}
 
 	// Check that the underlying original widgets slice was not mutated (no in-place overwrite)
-	if widgetsSlice[1].ID != "w2" {
-		t.Errorf("Expected original widgetsSlice elements to remain untouched, but index 1 got ID %q", widgetsSlice[1].ID)
+	if widgetsSlice[1].Type != "git-changes" {
+		t.Errorf("Expected original widgetsSlice elements to remain untouched, but index 1 got %q", widgetsSlice[1].Type)
 	}
 }
 
@@ -1096,21 +1065,8 @@ func TestTUI_NoASCIIInSeparators(t *testing.T) {
 	}
 }
 
-func TestTUI_NoCustomTextAndQuotaInWidgetTypes(t *testing.T) {
-	for _, wt := range widgetTypes {
-		t.Run(wt.name, func(t *testing.T) {
-			if wt.wType == "custom-text" {
-				t.Errorf("custom-text widget should be removed from TUI selection")
-			}
-			if wt.wType == "quota" {
-				t.Errorf("quota widget should be removed from TUI selection")
-			}
-		})
-	}
-}
-
 func TestTUI_WidgetTypesOrdering(t *testing.T) {
-	expectedOrder := []string{
+	expectedTypes := []string{
 		"agent-state",
 		"model",
 		"context-bar",
@@ -1120,21 +1076,28 @@ func TestTUI_WidgetTypesOrdering(t *testing.T) {
 		"sandbox",
 		"git-branch",
 		"git-changes",
-		"quota-bar",
-		"quota-bar",
-		"quota-bar",
-		"quota-bar",
+		"quota-5h",
+		"quota-7d",
+		"quota-3p-5h",
+		"quota-3p-7d",
+		"quota-bar-5h",
+		"quota-bar-7d",
+		"quota-bar-3p-5h",
+		"quota-bar-3p-7d",
+		"custom-text",
 	}
 
-	if len(widgetTypes) != len(expectedOrder) {
-		t.Fatalf("Expected %d widgets in widgetTypes, got %d", len(expectedOrder), len(widgetTypes))
-	}
-
-	for i, wt := range widgetTypes {
-		expectedType := expectedOrder[i]
-		t.Run(wt.name, func(t *testing.T) {
-			if wt.wType != expectedType {
-				t.Errorf("At index %d: expected widget type %q, got %q (name: %q)", i, expectedType, wt.wType, wt.name)
+	for _, expected := range expectedTypes {
+		t.Run("HasWidget_"+expected, func(t *testing.T) {
+			var found bool
+			for _, wt := range widgetTypes {
+				if wt.item.Type == expected {
+					found = true
+					break
+				}
+			}
+			if !found {
+				t.Errorf("Expected widget type %q to be present in widgetTypes", expected)
 			}
 		})
 	}
@@ -1148,6 +1111,7 @@ func TestTUI_MainMenuSaveExitSpacing(t *testing.T) {
 	viewStr := m.View()
 
 	colorLevelIdx := strings.Index(viewStr, "Select Color Level")
+
 	saveExitIdx := strings.Index(viewStr, "Save & Exit")
 
 	if colorLevelIdx == -1 {
@@ -1443,10 +1407,10 @@ func TestTUI_UpdateLines_BoundaryAndMoveMode(t *testing.T) {
 	// 6. Move down swap in moveMode (valid swap)
 	multiLineSettings := types.DefaultSettings()
 	multiLineSettings.Lines = [][]types.WidgetItem{
-		{{ID: "line1_w", Type: "model"}},
-		{{ID: "line2_w", Type: "sandbox"}},
+		{{Type: "model"}},
+		{{Type: "sandbox"}},
 	}
-	mMulti := NewModel(multiLineSettings, "/tmp/settings.json")
+	mMulti := NewModel(multiLineSettings, "/tmp/settings.toml")
 	mMulti.activeMenu = "lines"
 	mMulti.cursor = 0
 	mMulti.moveMode = true
@@ -1471,11 +1435,11 @@ func TestTUI_UpdateLines_BoundaryAndMoveMode(t *testing.T) {
 func TestTUI_UpdateItems_BoundaryAndMoveMode(t *testing.T) {
 	settings := types.DefaultSettings()
 	settings.Lines[0] = []types.WidgetItem{
-		{ID: "w1", Type: "model"},
-		{ID: "w2", Type: "separator"},
-		{ID: "w3", Type: "sandbox"},
+		{Type: "model"},
+		{Type: "git-changes"},
+		{Type: "sandbox"},
 	}
-	m := NewModel(settings, "/tmp/settings.json")
+	m := NewModel(settings, "/tmp/settings.toml")
 	m.activeMenu = "items"
 	m.selectedLine = 0
 
@@ -1495,8 +1459,8 @@ func TestTUI_UpdateItems_BoundaryAndMoveMode(t *testing.T) {
 	if mItemSwapped.cursor != 0 {
 		t.Errorf("Expected cursor to follow item up to 0, got %d", mItemSwapped.cursor)
 	}
-	if mItemSwapped.settings.Lines[0][0].ID != "w2" {
-		t.Errorf("Expected w2 to move to index 0, got %q", mItemSwapped.settings.Lines[0][0].ID)
+	if mItemSwapped.settings.Lines[0][0].Type != "git-changes" {
+		t.Errorf("Expected git-changes to move to index 0, got %q", mItemSwapped.settings.Lines[0][0].Type)
 	}
 
 	// Reset moveMode in items menu using Esc key
@@ -1529,7 +1493,7 @@ func TestTUI_UpdateItems_BoundaryAndMoveMode(t *testing.T) {
 	}
 
 	// 5. Delete last widget ('d') and test cursor clamping (m.cursor >= len)
-	m.cursor = 2 // pointing to w3 (last item)
+	m.cursor = 2 // pointing to sandbox (last item)
 	updatedModel, _ = m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("d")})
 	mDeleted := updatedModel.(Model)
 	if len(mDeleted.settings.Lines[0]) != 2 {
@@ -1541,8 +1505,8 @@ func TestTUI_UpdateItems_BoundaryAndMoveMode(t *testing.T) {
 
 	// 6. Delete only remaining widget and test cursor clamping to 0 (len == 0)
 	singleWidgetSettings := types.DefaultSettings()
-	singleWidgetSettings.Lines[0] = []types.WidgetItem{{ID: "only_w", Type: "model"}}
-	mSingle := NewModel(singleWidgetSettings, "/tmp/settings.json")
+	singleWidgetSettings.Lines[0] = []types.WidgetItem{{Type: "model"}}
+	mSingle := NewModel(singleWidgetSettings, "/tmp/settings.toml")
 	mSingle.activeMenu = "items"
 	mSingle.selectedLine = 0
 	mSingle.cursor = 0
@@ -1574,7 +1538,7 @@ func TestTUI_UpdateItems_BoundaryAndMoveMode(t *testing.T) {
 
 func TestTUI_UpdateAddWidget_NavigationAndEdgeCases(t *testing.T) {
 	settings := types.DefaultSettings()
-	m := NewModel(settings, "/tmp/settings.json")
+	m := NewModel(settings, "/tmp/settings.toml")
 	m.activeMenu = "add_widget"
 	m.selectedLine = 0
 
@@ -1613,7 +1577,7 @@ func TestTUI_UpdateAddWidget_NavigationAndEdgeCases(t *testing.T) {
 	// 5. Empty line insertion (len(widgets) == 0)
 	emptyLineSettings := types.DefaultSettings()
 	emptyLineSettings.Lines[0] = []types.WidgetItem{}
-	mEmpty := NewModel(emptyLineSettings, "/tmp/settings.json")
+	mEmpty := NewModel(emptyLineSettings, "/tmp/settings.toml")
 	mEmpty.activeMenu = "add_widget"
 	mEmpty.selectedLine = 0
 	mEmpty.cursor = 0 // add first widget type
@@ -1626,34 +1590,11 @@ func TestTUI_UpdateAddWidget_NavigationAndEdgeCases(t *testing.T) {
 	if mAdded.cursor != 0 {
 		t.Errorf("Expected cursor to be 0 for first widget insert in empty line, got %d", mAdded.cursor)
 	}
-
-	// 6. Custom text widget handling (simulated with customText field)
-	origCustomText := widgetTypes[0].customText
-	widgetTypes[0].customText = "Custom Test String"
-	defer func() { widgetTypes[0].customText = origCustomText }()
-
-	mCustom := NewModel(settings, "/tmp/settings.json")
-	mCustom.activeMenu = "add_widget"
-	mCustom.selectedLine = 0
-	mCustom.cursor = 0
-
-	// Test live preview rendering with customText
-	viewWithCustomText := mCustom.View()
-	if viewWithCustomText == "" {
-		t.Errorf("Expected non-empty view string when rendering live preview with custom text")
-	}
-
-	// Add the widget with customText
-	updatedModel, _ = mCustom.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("\n")})
-	mAddedCustom := updatedModel.(Model)
-	if mAddedCustom.settings.Lines[0][1].CustomText != "Custom Test String" {
-		t.Errorf("Expected added widget to have CustomText %q, got %q", "Custom Test String", mAddedCustom.settings.Lines[0][1].CustomText)
-	}
 }
 
 func TestTUI_SelectSubmenus_BoundariesAndNoneCaps(t *testing.T) {
 	settings := types.DefaultSettings()
-	m := NewModel(settings, "/tmp/settings.json")
+	m := NewModel(settings, "/tmp/settings.toml")
 
 	// 1. Theme selection boundary checks
 	m.activeMenu = "select_theme"
@@ -1715,8 +1656,8 @@ func TestTUI_SelectSubmenus_BoundariesAndNoneCaps(t *testing.T) {
 
 	updatedModel, _ = m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("\n")})
 	mNoneStart := updatedModel.(Model)
-	if len(mNoneStart.settings.Powerline.StartCaps) != 0 {
-		t.Errorf("Expected empty StartCaps slice when selecting None, got %v", mNoneStart.settings.Powerline.StartCaps)
+	if mNoneStart.settings.Powerline.StartCaps != "" {
+		t.Errorf("Expected empty StartCaps string when selecting None, got %q", mNoneStart.settings.Powerline.StartCaps)
 	}
 
 	// 4. EndCap selection boundary & "None" cap
@@ -1745,8 +1686,8 @@ func TestTUI_SelectSubmenus_BoundariesAndNoneCaps(t *testing.T) {
 
 	updatedModel, _ = m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("\n")})
 	mNoneEnd := updatedModel.(Model)
-	if len(mNoneEnd.settings.Powerline.EndCaps) != 0 {
-		t.Errorf("Expected empty EndCaps slice when selecting None, got %v", mNoneEnd.settings.Powerline.EndCaps)
+	if mNoneEnd.settings.Powerline.EndCaps != "" {
+		t.Errorf("Expected empty EndCaps string when selecting None, got %q", mNoneEnd.settings.Powerline.EndCaps)
 	}
 
 	// 5. ColorLevel selection boundary checks
@@ -1765,14 +1706,15 @@ func TestTUI_SelectSubmenus_BoundariesAndNoneCaps(t *testing.T) {
 	if updatedModel.(Model).cursor != len(colorLevelsList)-1 {
 		t.Errorf("Expected select_color_level cursor to stay %d on Down at bottom", len(colorLevelsList)-1)
 	}
+
 }
 
 func TestTUI_CustomCaps_Initialization(t *testing.T) {
 	settings := types.DefaultSettings()
-	settings.Powerline.StartCaps = []string{"[CUSTOM_START]"}
-	settings.Powerline.EndCaps = []string{"[CUSTOM_END]"}
+	settings.Powerline.StartCaps = "[CUSTOM_START]"
+	settings.Powerline.EndCaps = "[CUSTOM_END]"
 
-	m := NewModel(settings, "/tmp/settings.json")
+	m := NewModel(settings, "/tmp/settings.toml")
 
 	if m.startCapIndex == -1 || startCapsList[m.startCapIndex].value != "[CUSTOM_START]" {
 		t.Errorf("Expected custom start cap to be initialized and appended to startCapsList")

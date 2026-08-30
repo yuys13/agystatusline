@@ -1,7 +1,6 @@
 package tui
 
 import (
-	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -10,6 +9,7 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+	"github.com/pelletier/go-toml/v2"
 	"github.com/yuys13/agystatusline/renderer"
 	"github.com/yuys13/agystatusline/types"
 )
@@ -37,8 +37,8 @@ var colorLevelsList = []struct {
 	name  string
 	value int
 }{
-	{name: "ANSI 16 Colors", value: 1},
-	{name: "ANSI 256 Colors (Default)", value: 2},
+	{name: "ANSI 16 Colors (Default)", value: 1},
+	{name: "ANSI 256 Colors", value: 2},
 	{name: "Truecolor (24-bit)", value: 3},
 }
 
@@ -83,31 +83,36 @@ var endCapsList = []struct {
 }
 
 var widgetTypes = []struct {
-	name            string
-	wType           string
-	color           string
-	backgroundColor string
-	customText      string
-	metadata        map[string]string
+	name string
+	item types.WidgetItem
 }{
 	// Default Settings
-	{name: "Agent State", wType: "agent-state", color: "brightGreen"},
-	{name: "Model", wType: "model", color: "brightMagenta"},
-	{name: "Context Bar", wType: "context-bar", color: "brightWhite"},
-	{name: "Artifacts", wType: "artifacts", color: "brightWhite"},
-	{name: "Subagents", wType: "subagents", color: "brightWhite"},
-	{name: "Tasks", wType: "tasks", color: "brightWhite"},
-	{name: "Sandbox Enabled", wType: "sandbox", color: "yellow"},
+	{name: "Agent State", item: types.WidgetItem{Type: "agent-state"}},
+	{name: "Model", item: types.WidgetItem{Type: "model"}},
+	{name: "Context Bar", item: types.WidgetItem{Type: "context-bar"}},
+	{name: "Artifacts", item: types.WidgetItem{Type: "artifacts"}},
+	{name: "Subagents", item: types.WidgetItem{Type: "subagents"}},
+	{name: "Tasks", item: types.WidgetItem{Type: "tasks"}},
+	{name: "Sandbox Enabled", item: types.WidgetItem{Type: "sandbox"}},
 
 	// Git-related
-	{name: "Git Branch", wType: "git-branch", color: "brightMagenta"},
-	{name: "Git Changes", wType: "git-changes", color: "yellow"},
+	{name: "Git Branch", item: types.WidgetItem{Type: "git-branch"}},
+	{name: "Git Changes", item: types.WidgetItem{Type: "git-changes"}},
+
+	// Quota
+	{name: "Quota: 5h", item: types.WidgetItem{Type: "quota-5h"}},
+	{name: "Quota: 7d", item: types.WidgetItem{Type: "quota-7d"}},
+	{name: "Quota: 3P 5h", item: types.WidgetItem{Type: "quota-3p-5h"}},
+	{name: "Quota: 3P 7d", item: types.WidgetItem{Type: "quota-3p-7d"}},
 
 	// Quota Bar
-	{name: "Quota Bar: 5h", wType: "quota-bar", color: "", metadata: map[string]string{"key": "gemini-5h"}},
-	{name: "Quota Bar: 7d", wType: "quota-bar", color: "", metadata: map[string]string{"key": "gemini-weekly"}},
-	{name: "Quota Bar: 3P 5h", wType: "quota-bar", color: "", metadata: map[string]string{"key": "3p-5h"}},
-	{name: "Quota Bar: 3P 7d", wType: "quota-bar", color: "", metadata: map[string]string{"key": "3p-weekly"}},
+	{name: "Quota Bar: 5h", item: types.WidgetItem{Type: "quota-bar-5h"}},
+	{name: "Quota Bar: 7d", item: types.WidgetItem{Type: "quota-bar-7d"}},
+	{name: "Quota Bar: 3P 5h", item: types.WidgetItem{Type: "quota-bar-3p-5h"}},
+	{name: "Quota Bar: 3P 7d", item: types.WidgetItem{Type: "quota-bar-3p-7d"}},
+
+	// Custom Text
+	{name: "Custom Text", item: types.WidgetItem{Type: "custom-text", Text: "CUSTOM"}},
 }
 
 func NewModel(settings types.Settings, configPath string) Model {
@@ -120,9 +125,9 @@ func NewModel(settings types.Settings, configPath string) Model {
 	}
 
 	initialSeparatorIndex := -1
-	currentSep := "\uE0B0"
-	if len(settings.Powerline.Separators) > 0 {
-		currentSep = settings.Powerline.Separators[0]
+	currentSep := settings.Powerline.Separator
+	if currentSep == "" && settings.Powerline.Enabled {
+		currentSep = "\uE0B0"
 	}
 	for i, s := range separatorsList {
 		if strings.TrimRight(s.value, " ") == strings.TrimRight(currentSep, " ") {
@@ -139,10 +144,7 @@ func NewModel(settings types.Settings, configPath string) Model {
 	}
 
 	initialStartCapIndex := -1
-	currentStartCap := ""
-	if len(settings.Powerline.StartCaps) > 0 {
-		currentStartCap = settings.Powerline.StartCaps[0]
-	}
+	currentStartCap := settings.Powerline.StartCaps
 	for i, s := range startCapsList {
 		if s.value == currentStartCap {
 			initialStartCapIndex = i
@@ -158,10 +160,7 @@ func NewModel(settings types.Settings, configPath string) Model {
 	}
 
 	initialEndCapIndex := -1
-	currentEndCap := ""
-	if len(settings.Powerline.EndCaps) > 0 {
-		currentEndCap = settings.Powerline.EndCaps[0]
-	}
+	currentEndCap := settings.Powerline.EndCaps
 	for i, s := range endCapsList {
 		if s.value == currentEndCap {
 			initialEndCapIndex = i
@@ -176,9 +175,9 @@ func NewModel(settings types.Settings, configPath string) Model {
 		initialEndCapIndex = len(endCapsList) - 1
 	}
 
-	initialColorLevelIndex := 1 // default to ANSI 256
+	initialColorLevelIndex := 0 // default to ANSI 16
 	for i, cl := range colorLevelsList {
-		if cl.value == settings.ColorLevel {
+		if cl.value == settings.General.ColorLevel {
 			initialColorLevelIndex = i
 			break
 		}
@@ -487,18 +486,7 @@ func (m Model) updateAddWidget(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 
 	case "enter", "\n":
 		selectedType := widgetTypes[m.cursor]
-		id := fmt.Sprintf("w_%d", time.Now().UnixNano())
-		newWidget := types.WidgetItem{
-			ID:    id,
-			Type:  selectedType.wType,
-			Color: selectedType.color,
-		}
-		if selectedType.customText != "" {
-			newWidget.CustomText = selectedType.customText
-		}
-		if len(selectedType.metadata) > 0 {
-			newWidget.Metadata = selectedType.metadata
-		}
+		newWidget := selectedType.item
 
 		widgets := m.settings.Lines[m.selectedLine]
 		insertIndex := 0
@@ -561,7 +549,7 @@ func (m Model) updateSelectSeparator(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 
 	case "enter", "\n":
 		m.separatorIndex = m.cursor
-		m.settings.Powerline.Separators = []string{separatorsList[m.separatorIndex].value}
+		m.settings.Powerline.Separator = separatorsList[m.separatorIndex].value
 		m.activeMenu = "powerline"
 		m.cursor = 2
 
@@ -586,11 +574,7 @@ func (m Model) updateSelectStartCap(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 
 	case "enter", "\n":
 		m.startCapIndex = m.cursor
-		if startCapsList[m.startCapIndex].value == "" {
-			m.settings.Powerline.StartCaps = []string{}
-		} else {
-			m.settings.Powerline.StartCaps = []string{startCapsList[m.startCapIndex].value}
-		}
+		m.settings.Powerline.StartCaps = startCapsList[m.startCapIndex].value
 		m.activeMenu = "powerline"
 		m.cursor = 3
 
@@ -615,11 +599,7 @@ func (m Model) updateSelectEndCap(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 
 	case "enter", "\n":
 		m.endCapIndex = m.cursor
-		if endCapsList[m.endCapIndex].value == "" {
-			m.settings.Powerline.EndCaps = []string{}
-		} else {
-			m.settings.Powerline.EndCaps = []string{endCapsList[m.endCapIndex].value}
-		}
+		m.settings.Powerline.EndCaps = endCapsList[m.endCapIndex].value
 		m.activeMenu = "powerline"
 		m.cursor = 4
 
@@ -644,7 +624,7 @@ func (m Model) updateSelectColorLevel(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 
 	case "enter", "\n":
 		m.colorLevelIndex = m.cursor
-		m.settings.ColorLevel = colorLevelsList[m.colorLevelIndex].value
+		m.settings.General.ColorLevel = colorLevelsList[m.colorLevelIndex].value
 		m.activeMenu = "main"
 		m.cursor = 2
 
@@ -683,10 +663,13 @@ func (m Model) View() string {
 	p3WkFraction := 1.0
 	p3WkReset := 604756.0
 	sandboxEnabled := true
+	artCount := 3
+	taskCnt := 1
 	previewCtx := types.RenderContext{
-		TerminalWidth: &width,
-		IsPreview:     true,
-		Minimalist:    m.settings.MinimalistMode,
+		TerminalWidth:      &width,
+		IsPreview:          true,
+		Minimalist:         m.settings.General.Minimalist,
+		GitCacheTTLSeconds: m.settings.General.GitCacheTTL,
 		Data: types.StatusJSON{
 			Model: types.ModelInfo{
 				ID:          "gemini-3.5-flash-medium",
@@ -718,6 +701,10 @@ func (m Model) View() string {
 			Sandbox: &types.SandboxInfo{
 				Enabled: &sandboxEnabled,
 			},
+			AgentState:    "idle",
+			ArtifactCount: &artCount,
+			Subagents:     []string{"subagent-1", "subagent-2"},
+			TaskCount:     &taskCnt,
 		},
 	}
 
@@ -729,42 +716,24 @@ func (m Model) View() string {
 		}
 	case "select_separator":
 		if m.cursor >= 0 && m.cursor < len(separatorsList) {
-			previewSettings.Powerline.Separators = []string{separatorsList[m.cursor].value}
+			previewSettings.Powerline.Separator = separatorsList[m.cursor].value
 		}
 	case "select_start_cap":
 		if m.cursor >= 0 && m.cursor < len(startCapsList) {
-			if startCapsList[m.cursor].value == "" {
-				previewSettings.Powerline.StartCaps = []string{}
-			} else {
-				previewSettings.Powerline.StartCaps = []string{startCapsList[m.cursor].value}
-			}
+			previewSettings.Powerline.StartCaps = startCapsList[m.cursor].value
 		}
 	case "select_end_cap":
 		if m.cursor >= 0 && m.cursor < len(endCapsList) {
-			if endCapsList[m.cursor].value == "" {
-				previewSettings.Powerline.EndCaps = []string{}
-			} else {
-				previewSettings.Powerline.EndCaps = []string{endCapsList[m.cursor].value}
-			}
+			previewSettings.Powerline.EndCaps = endCapsList[m.cursor].value
 		}
 	case "select_color_level":
 		if m.cursor >= 0 && m.cursor < len(colorLevelsList) {
-			previewSettings.ColorLevel = colorLevelsList[m.cursor].value
+			previewSettings.General.ColorLevel = colorLevelsList[m.cursor].value
 		}
 	case "add_widget":
 		if m.cursor >= 0 && m.cursor < len(widgetTypes) && m.selectedLine >= 0 && m.selectedLine < len(m.settings.Lines) {
 			selectedType := widgetTypes[m.cursor]
-			tempWidget := types.WidgetItem{
-				ID:    "temp_preview_add",
-				Type:  selectedType.wType,
-				Color: selectedType.color,
-			}
-			if selectedType.customText != "" {
-				tempWidget.CustomText = selectedType.customText
-			}
-			if len(selectedType.metadata) > 0 {
-				tempWidget.Metadata = selectedType.metadata
-			}
+			tempWidget := selectedType.item
 
 			widgets := m.settings.Lines[m.selectedLine]
 			insertIndex := 0
@@ -995,10 +964,7 @@ func (m Model) viewSelectSeparator(s *stringsBuilder) {
 			style = style.Bold(true).Foreground(lipgloss.Color("226"))
 		}
 		sepStr := sep.name
-		currentSep := "\uE0B0"
-		if len(m.settings.Powerline.Separators) > 0 {
-			currentSep = m.settings.Powerline.Separators[0]
-		}
+		currentSep := m.settings.Powerline.Separator
 		if sep.value == currentSep {
 			sepStr += " (active)"
 		}
@@ -1020,10 +986,7 @@ func (m Model) viewSelectStartCap(s *stringsBuilder) {
 			style = style.Bold(true).Foreground(lipgloss.Color("226"))
 		}
 		capStr := capVal.name
-		currentCap := ""
-		if len(m.settings.Powerline.StartCaps) > 0 {
-			currentCap = m.settings.Powerline.StartCaps[0]
-		}
+		currentCap := m.settings.Powerline.StartCaps
 		if capVal.value == currentCap {
 			capStr += " (active)"
 		}
@@ -1045,10 +1008,7 @@ func (m Model) viewSelectEndCap(s *stringsBuilder) {
 			style = style.Bold(true).Foreground(lipgloss.Color("226"))
 		}
 		capStr := capVal.name
-		currentCap := ""
-		if len(m.settings.Powerline.EndCaps) > 0 {
-			currentCap = m.settings.Powerline.EndCaps[0]
-		}
+		currentCap := m.settings.Powerline.EndCaps
 		if capVal.value == currentCap {
 			capStr += " (active)"
 		}
@@ -1070,7 +1030,7 @@ func (m Model) viewSelectColorLevel(s *stringsBuilder) {
 			style = style.Bold(true).Foreground(lipgloss.Color("226"))
 		}
 		clStr := cl.name
-		if cl.value == m.settings.ColorLevel {
+		if cl.value == m.settings.General.ColorLevel {
 			clStr += " (active)"
 		}
 		s.WriteString(fmt.Sprintf("%s %s\n", cursorStr, style.Render(clStr)))
@@ -1111,7 +1071,7 @@ func saveSettings(path string, settings types.Settings) error {
 		}
 	}()
 
-	bytes, err := json.MarshalIndent(settings, "", "  ")
+	bytes, err := toml.Marshal(settings)
 	if err != nil {
 		return err
 	}

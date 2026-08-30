@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/mattn/go-isatty"
+	"github.com/pelletier/go-toml/v2"
 	"github.com/yuys13/agystatusline/renderer"
 	"github.com/yuys13/agystatusline/tui"
 	"github.com/yuys13/agystatusline/types"
@@ -23,7 +24,7 @@ var (
 
 func init() {
 	home, _ := os.UserHomeDir()
-	settingsPath = filepath.Join(home, ".config", "agystatusline", "settings.json")
+	settingsPath = filepath.Join(home, ".config", "agystatusline", "settings.toml")
 }
 
 func initConfigPath(filePath string) {
@@ -69,7 +70,7 @@ func loadSettings() (types.Settings, error) {
 				return defaults, err
 			}
 
-			bytes, err := json.MarshalIndent(defaults, "", "  ")
+			bytes, err := toml.Marshal(defaults)
 			if err != nil {
 				return defaults, err
 			}
@@ -80,30 +81,18 @@ func loadSettings() (types.Settings, error) {
 			}
 			return defaults, nil
 		}
-		lastLoadError = "settings.json could not be read"
+		lastLoadError = "settings.toml could not be read"
 		return types.DefaultSettings(), err
 	}
 
 	var settings types.Settings
-	err = json.Unmarshal(data, &settings)
+	err = toml.Unmarshal(data, &settings)
 	if err != nil {
-		lastLoadError = "settings.json is not valid JSON"
+		lastLoadError = "settings.toml is not valid TOML"
 		return types.DefaultSettings(), nil
 	}
 
-	settings.Lines = upgradeLegacyWidgetTypes(settings.Lines)
 	return settings, nil
-}
-
-func upgradeLegacyWidgetTypes(lines [][]types.WidgetItem) [][]types.WidgetItem {
-	for i, line := range lines {
-		for j, item := range line {
-			if item.Type == "git-pr" {
-				lines[i][j].Type = "git-review"
-			}
-		}
-	}
-	return lines
 }
 
 func main() {
@@ -112,7 +101,7 @@ func main() {
 
 func runMain(args []string, stdin io.Reader, stdout, stderr io.Writer, isTerminal func(fd uintptr) bool) int {
 	home, _ := os.UserHomeDir()
-	settingsPath = filepath.Join(home, ".config", "agystatusline", "settings.json")
+	settingsPath = filepath.Join(home, ".config", "agystatusline", "settings.toml")
 
 	if contains(args, "--version") {
 		_, _ = fmt.Fprintln(stdout, "agystatusline version 1.0.0")
@@ -193,8 +182,8 @@ func runMain(args []string, stdin io.Reader, stdout, stderr io.Writer, isTermina
 		Data:               status,
 		TerminalWidth:      &termWidth,
 		IsPreview:          false,
-		Minimalist:         settings.MinimalistMode,
-		GitCacheTTLSeconds: settings.GitCacheTTLSeconds,
+		Minimalist:         settings.General.Minimalist,
+		GitCacheTTLSeconds: settings.General.GitCacheTTL,
 	}
 
 	lines := renderer.RenderStatusLines(settings, ctx)

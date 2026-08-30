@@ -482,7 +482,7 @@ func TestGitCache_AdversarialRaceConditions(t *testing.T) {
 
 	// Setup multiple mock git repositories
 	repoDirs := make([]string, 3)
-	for i := 0; i < len(repoDirs); i++ {
+	for i := range repoDirs {
 		rDir := filepath.Join(baseDir, fmt.Sprintf("repo_%d", i))
 		if err := os.MkdirAll(filepath.Join(rDir, ".git"), 0755); err != nil {
 			t.Fatalf("Failed to create mock repo dir: %v", err)
@@ -508,13 +508,13 @@ func TestGitCache_AdversarialRaceConditions(t *testing.T) {
 		"",
 	}
 
-	for i := 0; i < numWorkers; i++ {
+	for i := range numWorkers {
 		wg.Add(1)
 		workerID := i
 		go func() {
 			defer wg.Done()
 
-			for j := 0; j < opsPerWorker; j++ {
+			for j := range opsPerWorker {
 				repo := repoDirs[(workerID+j)%len(repoDirs)]
 				cmd := commands[(workerID+j)%len(commands)]
 				ctx := RenderContextDummy{
@@ -609,10 +609,8 @@ func TestGitCache_RapidConcurrentCacheAccess(t *testing.T) {
 	var wg sync.WaitGroup
 	errCh := make(chan error, numGoroutines)
 
-	for i := 0; i < numGoroutines; i++ {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+	for range numGoroutines {
+		wg.Go(func() {
 			res, err := RunGit("symbolic-ref --short HEAD", ctx, 10, mockExec)
 			if err != nil {
 				errCh <- err
@@ -622,7 +620,7 @@ func TestGitCache_RapidConcurrentCacheAccess(t *testing.T) {
 				errCh <- fmt.Errorf("expected 'main', got %q", res)
 				return
 			}
-		}()
+		})
 	}
 
 	wg.Wait()
@@ -809,7 +807,7 @@ func TestGitCache_FuzzGenerator(t *testing.T) {
 		return hex.EncodeToString(b)
 	}
 
-	for i := 0; i < 100; i++ {
+	for i := range 100 {
 		cmd := fmt.Sprintf("cmd_%d", i%10)
 		val := randomBytes(16)
 		ttl := (i % 7) - 2 // includes negative, zero, positive TTLs

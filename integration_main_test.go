@@ -10,6 +10,7 @@ import (
 	"strings"
 	"testing"
 
+	toml "github.com/pelletier/go-toml/v2"
 	"github.com/yuys13/agystatusline/renderer"
 	"github.com/yuys13/agystatusline/types"
 )
@@ -120,7 +121,7 @@ func TestRunMain_HookFlag(t *testing.T) {
 // IT-04: Valid Stdin JSON pipeline
 func TestRunMain_ValidStdinJSON(t *testing.T) {
 	tempDir := t.TempDir()
-	configPath := filepath.Join(tempDir, "settings.json")
+	configPath := filepath.Join(tempDir, "settings.toml")
 
 	var stdout, stderr bytes.Buffer
 	stdin := strings.NewReader(standardTestJSON())
@@ -191,7 +192,7 @@ func TestRunMain_ReadStdinError(t *testing.T) {
 // IT-08: Absolute Config path flag
 func TestRunMain_ConfigFlagAbs(t *testing.T) {
 	tempDir := t.TempDir()
-	configPath := filepath.Join(tempDir, "custom_settings.json")
+	configPath := filepath.Join(tempDir, "custom_settings.toml")
 
 	var stdout, stderr bytes.Buffer
 	stdin := strings.NewReader(standardTestJSON())
@@ -209,7 +210,7 @@ func TestRunMain_ConfigFlagAbs(t *testing.T) {
 // IT-09: Relative Config path flag
 func TestRunMain_ConfigFlagRel(t *testing.T) {
 	tempDir := t.TempDir()
-	relConfig := filepath.Join(tempDir, "rel_settings.json")
+	relConfig := filepath.Join(tempDir, "rel_settings.toml")
 	absConfig, _ := filepath.Abs(relConfig)
 
 	var stdout, stderr bytes.Buffer
@@ -228,7 +229,7 @@ func TestRunMain_ConfigFlagRel(t *testing.T) {
 // IT-10: Terminal width constraints handling
 func TestRunMain_TerminalWidthHandling(t *testing.T) {
 	tempDir := t.TempDir()
-	configPath := filepath.Join(tempDir, "settings.json")
+	configPath := filepath.Join(tempDir, "settings.toml")
 
 	payload := types.StatusJSON{
 		Model: types.ModelInfo{
@@ -257,45 +258,14 @@ func TestRunMain_TerminalWidthHandling(t *testing.T) {
 	}
 }
 
-// IT-11: Legacy widget type upgrading
-func TestRunMain_LegacyWidgetUpgrade(t *testing.T) {
-	tempDir := t.TempDir()
-	configPath := filepath.Join(tempDir, "legacy_settings.json")
-
-	legacySettings := types.DefaultSettings()
-	legacySettings.Lines = [][]types.WidgetItem{
-		{
-			{Type: "git-pr"},
-		},
-	}
-	bytesData, _ := json.Marshal(legacySettings)
-	_ = os.WriteFile(configPath, bytesData, 0644)
-
-	var stdout, stderr bytes.Buffer
-	stdin := strings.NewReader(standardTestJSON())
-
-	code := runMain([]string{"agystatusline", "--config", configPath}, stdin, &stdout, &stderr, notTerminal)
-	if code != 0 {
-		t.Fatalf("Expected exit code 0 for legacy widget upgrade, got %d (stderr: %q)", code, stderr.String())
-	}
-
-	loaded, err := loadSettings()
-	if err != nil {
-		t.Fatalf("Failed to reload settings: %v", err)
-	}
-	if loaded.Lines[0][0].Type != "git-review" {
-		t.Errorf("Expected upgraded widget type 'git-review', got %q", loaded.Lines[0][0].Type)
-	}
-}
-
-// IT-12: Minimalist mode rendering
+// IT-11: Minimalist mode rendering
 func TestRunMain_MinimalistMode(t *testing.T) {
 	tempDir := t.TempDir()
-	configPath := filepath.Join(tempDir, "minimalist_settings.json")
+	configPath := filepath.Join(tempDir, "minimalist_settings.toml")
 
 	minSettings := types.DefaultSettings()
-	minSettings.MinimalistMode = true
-	bytesData, _ := json.Marshal(minSettings)
+	minSettings.General.Minimalist = true
+	bytesData, _ := toml.Marshal(minSettings)
 	_ = os.WriteFile(configPath, bytesData, 0644)
 
 	var stdout, stderr bytes.Buffer
@@ -312,12 +282,12 @@ func TestRunMain_MinimalistMode(t *testing.T) {
 	}
 }
 
-// IT-13: loadSettings failure in TTY mode
+// IT-12: loadSettings failure in TTY mode
 func TestRunMain_LoadSettingsFailureInTTY(t *testing.T) {
 	tempDir := t.TempDir()
 	conflictFile := filepath.Join(tempDir, "conflict")
 	_ = os.WriteFile(conflictFile, []byte("file"), 0644)
-	invalidConfigPath := filepath.Join(conflictFile, "sub", "settings.json")
+	invalidConfigPath := filepath.Join(conflictFile, "sub", "settings.toml")
 
 	var stdout, stderr bytes.Buffer
 	stdin := strings.NewReader("")
@@ -331,12 +301,12 @@ func TestRunMain_LoadSettingsFailureInTTY(t *testing.T) {
 	}
 }
 
-// IT-14: loadSettings failure in Piped Non-TTY mode
+// IT-13: loadSettings failure in Piped Non-TTY mode
 func TestRunMain_LoadSettingsFailureInPipedMode(t *testing.T) {
 	tempDir := t.TempDir()
 	conflictFile := filepath.Join(tempDir, "conflict")
 	_ = os.WriteFile(conflictFile, []byte("file"), 0644)
-	invalidConfigPath := filepath.Join(conflictFile, "sub", "settings.json")
+	invalidConfigPath := filepath.Join(conflictFile, "sub", "settings.toml")
 
 	var stdout, stderr bytes.Buffer
 	stdin := strings.NewReader(standardTestJSON())
@@ -350,7 +320,7 @@ func TestRunMain_LoadSettingsFailureInPipedMode(t *testing.T) {
 	}
 }
 
-// IT-15: Tier 4 test_data.json Pipeline E2E simulation via runMain
+// IT-14: Tier 4 test_data.json Pipeline E2E simulation via runMain
 func TestRunMain_TestDataJsonPipeline(t *testing.T) {
 	testDataBytes, err := os.ReadFile("test_data.json")
 	if err != nil {
@@ -358,16 +328,16 @@ func TestRunMain_TestDataJsonPipeline(t *testing.T) {
 	}
 
 	tempDir := t.TempDir()
-	configPath := filepath.Join(tempDir, "e2e_settings.json")
+	configPath := filepath.Join(tempDir, "e2e_settings.toml")
 
 	e2eSettings := types.DefaultSettings()
 	e2eSettings.Lines = [][]types.WidgetItem{
 		{
-			{ID: "m1", Type: "model"},
-			{ID: "gb1", Type: "git-branch"},
+			{Type: "model"},
+			{Type: "git-branch"},
 		},
 	}
-	cfgBytes, _ := json.Marshal(e2eSettings)
+	cfgBytes, _ := toml.Marshal(e2eSettings)
 	_ = os.WriteFile(configPath, cfgBytes, 0644)
 
 	var stdout, stderr bytes.Buffer
@@ -392,7 +362,7 @@ func TestRunMain_TestDataJsonPipeline(t *testing.T) {
 	}
 }
 
-// IT-16: Tier 4 Binary Execution E2E test (cat test_data.json | ./agystatusline simulation)
+// IT-15: Tier 4 Binary Execution E2E test (cat test_data.json | ./agystatusline simulation)
 func TestBinaryExec_TestDataJsonPipeline(t *testing.T) {
 	testDataBytes, err := os.ReadFile("test_data.json")
 	if err != nil {
@@ -408,15 +378,15 @@ func TestBinaryExec_TestDataJsonPipeline(t *testing.T) {
 		t.Fatalf("Failed to build agystatusline test binary: %v (out: %s)", err, string(out))
 	}
 
-	configPath := filepath.Join(binDir, "settings.json")
+	configPath := filepath.Join(binDir, "settings.toml")
 	e2eSettings := types.DefaultSettings()
 	e2eSettings.Lines = [][]types.WidgetItem{
 		{
-			{ID: "m1", Type: "model"},
-			{ID: "gb1", Type: "git-branch"},
+			{Type: "model"},
+			{Type: "git-branch"},
 		},
 	}
-	cfgBytes, _ := json.Marshal(e2eSettings)
+	cfgBytes, _ := toml.Marshal(e2eSettings)
 	_ = os.WriteFile(configPath, cfgBytes, 0644)
 
 	runCmd := exec.Command(binPath, "--config", configPath)
@@ -440,24 +410,24 @@ func TestBinaryExec_TestDataJsonPipeline(t *testing.T) {
 	}
 }
 
-// IT-17: Tier 3 Cross-Feature Combination: Powerline + Git Telemetry + Context % + Quota
+// IT-16: Tier 3 Cross-Feature Combination: Powerline + Git Telemetry + Context % + Quota
 func TestRunMain_CrossFeatureCombination_PowerlineGitContext(t *testing.T) {
 	tempDir := t.TempDir()
-	configPath := filepath.Join(tempDir, "cross_settings.json")
+	configPath := filepath.Join(tempDir, "cross_settings.toml")
 
 	pwSettings := types.DefaultSettings()
 	pwSettings.Powerline.Enabled = true
 	pwSettings.Powerline.Theme = "slant"
-	pwSettings.ColorLevel = 3
+	pwSettings.General.ColorLevel = 3
 	pwSettings.Lines = [][]types.WidgetItem{
 		{
-			{ID: "m1", Type: "model", Color: "brightMagenta"},
-			{ID: "gb1", Type: "git-branch", Color: "brightBlue"},
-			{ID: "cu1", Type: "context-bar", Color: "brightYellow"},
-			{ID: "q1", Type: "quota-bar", Color: "brightGreen", Metadata: map[string]string{"key": "gemini-5h"}},
+			{Type: "model", Color: "brightMagenta"},
+			{Type: "git-branch", Color: "brightBlue"},
+			{Type: "context-bar", Color: "brightYellow"},
+			{Type: "quota-bar", Key: "gemini-5h", Color: "brightGreen"},
 		},
 	}
-	bytesData, _ := json.Marshal(pwSettings)
+	bytesData, _ := toml.Marshal(pwSettings)
 	_ = os.WriteFile(configPath, bytesData, 0644)
 
 	var stdout, stderr bytes.Buffer
