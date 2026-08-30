@@ -38,10 +38,7 @@
             projectRootFile = "flake.nix";
             programs = {
               gofmt.enable = true;
-              nixfmt = {
-                enable = true;
-                package = pkgs.nixfmt;
-              };
+              nixfmt.enable = true;
               prettier = {
                 enable = true;
                 includes = [ "*.md" ];
