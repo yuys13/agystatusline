@@ -61,7 +61,7 @@ func TestTUI_UpdateQuit(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			m := NewModel(settings, "/tmp/settings.json")
+			m := NewModel(settings, "/tmp/settings.toml")
 			m.activeMenu = tt.activeMenu
 			updatedModel, _ := m.Update(tt.keyMsg)
 			newModel := updatedModel.(Model)
@@ -75,7 +75,7 @@ func TestTUI_UpdateQuit(t *testing.T) {
 func TestTUI_LivePreviewModelName(t *testing.T) {
 	widgets.RegisterAll()
 	settings := types.DefaultSettings()
-	m := NewModel(settings, "/tmp/settings.json")
+	m := NewModel(settings, "/tmp/settings.toml")
 
 	viewStr := m.View()
 	expectedModelName := "Gemini 3.5 Flash (Medium)"
@@ -87,7 +87,7 @@ func TestTUI_LivePreviewModelName(t *testing.T) {
 func TestTUI_LayoutAndBorders(t *testing.T) {
 	widgets.RegisterAll()
 	settings := types.DefaultSettings()
-	m := NewModel(settings, "/tmp/settings.json")
+	m := NewModel(settings, "/tmp/settings.toml")
 
 	viewStr := m.View()
 
@@ -116,7 +116,7 @@ func TestTUI_LayoutAndBorders(t *testing.T) {
 
 func TestTUI_NavigateToLines(t *testing.T) {
 	settings := types.DefaultSettings()
-	m := NewModel(settings, "/tmp/settings.json")
+	m := NewModel(settings, "/tmp/settings.toml")
 
 	// Set cursor to 0 ("Edit Lines" or replacement for Toggle Minimalist Mode)
 	m.cursor = 0
@@ -134,7 +134,7 @@ func TestTUI_NavigateToLines(t *testing.T) {
 
 func TestTUI_LinesOperations(t *testing.T) {
 	settings := types.DefaultSettings()
-	m := NewModel(settings, "/tmp/settings.json")
+	m := NewModel(settings, "/tmp/settings.toml")
 	m.activeMenu = "lines"
 	m.cursor = 0
 
@@ -516,7 +516,7 @@ func TestTUI_PowerlineSeparator(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			settings := tt.setupSettings()
-			m := NewModel(settings, "/tmp/settings.json")
+			m := NewModel(settings, "/tmp/settings.toml")
 
 			if tt.wantCustomSepName != "" {
 				if m.separatorIndex == -1 {
@@ -554,7 +554,7 @@ func TestTUI_PowerlineSeparator(t *testing.T) {
 
 func TestTUI_PowerlineSubmenu(t *testing.T) {
 	settings := types.DefaultSettings()
-	m := NewModel(settings, "/tmp/settings.json")
+	m := NewModel(settings, "/tmp/settings.toml")
 
 	// 1. Enter on main menu cursor 1 -> navigate to "powerline" submenu
 	m.cursor = 1
@@ -598,7 +598,7 @@ func TestTUI_PowerlineSubmenu(t *testing.T) {
 	}
 
 	// 5. Test viewPowerline rendering and navigation boundaries
-	mPowerlineNav := NewModel(settings, "/tmp/settings.json")
+	mPowerlineNav := NewModel(settings, "/tmp/settings.toml")
 	mPowerlineNav.activeMenu = "powerline"
 
 	// View rendering check
@@ -652,7 +652,7 @@ func TestTUI_SelectThemeMenu(t *testing.T) {
 	settings := types.DefaultSettings()
 	settings.Powerline.Enabled = true
 	settings.Powerline.Theme = "nord"
-	m := NewModel(settings, "/tmp/settings.json")
+	m := NewModel(settings, "/tmp/settings.toml")
 	m.activeMenu = "powerline"
 	m.cursor = 1 // Select Powerline Theme
 
@@ -675,7 +675,7 @@ func TestTUI_SelectThemeMenu(t *testing.T) {
 	}
 
 	// Verify that preview changes dynamically when cursor moves in select_theme menu
-	mTheme0 := NewModel(settings, "/tmp/settings.json")
+	mTheme0 := NewModel(settings, "/tmp/settings.toml")
 	mTheme0.activeMenu = "select_theme"
 	mTheme0.cursor = 0
 	viewNord := mTheme0.View()
@@ -1106,7 +1106,7 @@ func TestTUI_WidgetTypesOrdering(t *testing.T) {
 func TestTUI_MainMenuSaveExitSpacing(t *testing.T) {
 	widgets.RegisterAll()
 	settings := types.DefaultSettings()
-	m := NewModel(settings, "/tmp/settings.json")
+	m := NewModel(settings, "/tmp/settings.toml")
 
 	viewStr := m.View()
 
@@ -1144,7 +1144,7 @@ func TestSaveSettings(t *testing.T) {
 		{
 			name: "Successful save",
 			setupPath: func(dir string) string {
-				return filepath.Join(dir, "config.json")
+				return filepath.Join(dir, "config.toml")
 			},
 			wantErr:        false,
 			checkFileExist: true,
@@ -1213,7 +1213,7 @@ func TestTUI_ViewSubmenus(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			m := NewModel(settings, "/tmp/settings.json")
+			m := NewModel(settings, "/tmp/settings.toml")
 			m.activeMenu = tt.activeMenu
 			m.selectedLine = tt.selectedLine
 
@@ -1227,7 +1227,7 @@ func TestTUI_ViewSubmenus(t *testing.T) {
 
 func TestTUI_InitAndMainChoices(t *testing.T) {
 	settings := types.DefaultSettings()
-	m := NewModel(settings, "/tmp/settings.json")
+	m := NewModel(settings, "/tmp/settings.toml")
 
 	cmd := m.Init()
 	if cmd != nil {
@@ -1237,7 +1237,7 @@ func TestTUI_InitAndMainChoices(t *testing.T) {
 	// Main menu item 3: Save & Exit
 	m.cursor = 3
 	tempDir := t.TempDir()
-	m.configPath = filepath.Join(tempDir, "settings.json")
+	m.configPath = filepath.Join(tempDir, "settings.toml")
 	updatedModel, quitCmd := m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("\n")})
 	mSave := updatedModel.(Model)
 	if !mSave.saved {
@@ -1268,7 +1268,7 @@ func TestTUI_InitAndMainChoices(t *testing.T) {
 
 func TestTUI_UpdateMain_BoundaryAndEdgeCases(t *testing.T) {
 	settings := types.DefaultSettings()
-	m := NewModel(settings, "/tmp/settings.json")
+	m := NewModel(settings, "/tmp/settings.toml")
 
 	// 1. Up key at cursor == 0 (upper boundary limit)
 	m.cursor = 0
@@ -1314,7 +1314,7 @@ func TestTUI_UpdateMain_BoundaryAndEdgeCases(t *testing.T) {
 	if err := os.WriteFile(invalidFile, []byte("data"), 0644); err != nil {
 		t.Fatalf("Failed to create invalid parent file: %v", err)
 	}
-	m.configPath = filepath.Join(invalidFile, "settings.json")
+	m.configPath = filepath.Join(invalidFile, "settings.toml")
 
 	updatedModel, quitCmd := m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("\n")})
 	mSaveErr := updatedModel.(Model)
@@ -1349,7 +1349,7 @@ func TestTUI_UpdateMain_BoundaryAndEdgeCases(t *testing.T) {
 
 func TestTUI_UpdateLines_BoundaryAndMoveMode(t *testing.T) {
 	settings := types.DefaultSettings()
-	m := NewModel(settings, "/tmp/settings.json")
+	m := NewModel(settings, "/tmp/settings.toml")
 	m.activeMenu = "lines"
 
 	// 1. Move up boundary in moveMode (cursor == 0)
@@ -1364,7 +1364,7 @@ func TestTUI_UpdateLines_BoundaryAndMoveMode(t *testing.T) {
 	// 2. Move up/down in moveMode with single line only
 	singleLineSettings := types.DefaultSettings()
 	singleLineSettings.Lines = [][]types.WidgetItem{{}}
-	mSingle := NewModel(singleLineSettings, "/tmp/settings.json")
+	mSingle := NewModel(singleLineSettings, "/tmp/settings.toml")
 	mSingle.activeMenu = "lines"
 	mSingle.cursor = 0
 	mSingle.moveMode = true
@@ -1733,7 +1733,7 @@ func TestSaveSettings_ErrorPaths(t *testing.T) {
 		if err := os.WriteFile(parentFile, []byte("data"), 0644); err != nil {
 			t.Fatalf("Failed to create file blocking mkdir: %v", err)
 		}
-		targetPath := filepath.Join(parentFile, "config.json")
+		targetPath := filepath.Join(parentFile, "config.toml")
 
 		err := saveSettings(targetPath, settings)
 		if err == nil {
@@ -1751,7 +1751,7 @@ func TestSaveSettings_ErrorPaths(t *testing.T) {
 			_ = os.Chmod(readOnlyDir, 0755)
 		})
 
-		targetPath := filepath.Join(readOnlyDir, "config.json")
+		targetPath := filepath.Join(readOnlyDir, "config.toml")
 		err := saveSettings(targetPath, settings)
 		if err == nil {
 			t.Errorf("Expected saveSettings to fail when target directory is read-only")
@@ -1761,7 +1761,7 @@ func TestSaveSettings_ErrorPaths(t *testing.T) {
 
 func TestTUI_View_QuittingScreensAndMoveIndicators(t *testing.T) {
 	settings := types.DefaultSettings()
-	m := NewModel(settings, "/tmp/settings.json")
+	m := NewModel(settings, "/tmp/settings.toml")
 
 	// 1. View when quitting and saved == true
 	m.quitting = true
@@ -1802,7 +1802,7 @@ func TestTUI_View_QuittingScreensAndMoveIndicators(t *testing.T) {
 	// Empty line message in viewItems
 	emptySettings := types.DefaultSettings()
 	emptySettings.Lines[0] = []types.WidgetItem{}
-	mEmpty := NewModel(emptySettings, "/tmp/settings.json")
+	mEmpty := NewModel(emptySettings, "/tmp/settings.toml")
 	mEmpty.activeMenu = "items"
 	mEmpty.selectedLine = 0
 	viewEmptyLine := mEmpty.View()
@@ -1813,7 +1813,7 @@ func TestTUI_View_QuittingScreensAndMoveIndicators(t *testing.T) {
 
 func TestTUI_MainMenuItems(t *testing.T) {
 	settings := types.DefaultSettings()
-	m := NewModel(settings, "/tmp/settings.json")
+	m := NewModel(settings, "/tmp/settings.toml")
 	viewStr := renderer.StripAnsi(m.View())
 
 	expectedItems := []string{
