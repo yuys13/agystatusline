@@ -4,8 +4,6 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
-
-	"github.com/yuys13/agystatusline/types"
 )
 
 func TestParseConfigArg(t *testing.T) {
@@ -17,8 +15,8 @@ func TestParseConfigArg(t *testing.T) {
 	}{
 		{
 			name:          "Config flag present with value",
-			args:          []string{"./agystatusline", "--config", "/tmp/custom.json"},
-			wantPath:      "/tmp/custom.json",
+			args:          []string{"./agystatusline", "--config", "/tmp/custom.toml"},
+			wantPath:      "/tmp/custom.toml",
 			wantRemaining: []string{"./agystatusline"},
 		},
 		{
@@ -37,7 +35,7 @@ func TestParseConfigArg(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			settingsPath = "default_settings.json"
+			settingsPath = "default_settings.toml"
 			path, remaining := parseConfigArg(tt.args)
 			if path != tt.wantPath {
 				t.Errorf("parseConfigArg() path = %q, want %q", path, tt.wantPath)
@@ -58,7 +56,6 @@ func TestLoadSettings(t *testing.T) {
 	tests := []struct {
 		name           string
 		setup          func(path string)
-		wantVersion    int
 		wantLinesCount int
 		expectCreated  bool
 		expectErr      bool
@@ -68,18 +65,16 @@ func TestLoadSettings(t *testing.T) {
 			setup: func(path string) {
 				// Ensure file does not exist initially
 			},
-			wantVersion:    3,
-			wantLinesCount: 3,
+			wantLinesCount: 1,
 			expectCreated:  true,
 			expectErr:      false,
 		},
 		{
-			name: "Fallback to default settings on invalid JSON",
+			name: "Fallback to default settings on invalid TOML",
 			setup: func(path string) {
-				_ = os.WriteFile(path, []byte("{invalid json"), 0644)
+				_ = os.WriteFile(path, []byte("invalid = toml [ broken"), 0644)
 			},
-			wantVersion:    3,
-			wantLinesCount: 3,
+			wantLinesCount: 1,
 			expectCreated:  true,
 			expectErr:      true,
 		},
@@ -88,7 +83,7 @@ func TestLoadSettings(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			tempDir := t.TempDir()
-			customPath := filepath.Join(tempDir, "settings.json")
+			customPath := filepath.Join(tempDir, "settings.toml")
 			initConfigPath(customPath)
 			lastLoadError = "" // reset error state
 
@@ -97,9 +92,6 @@ func TestLoadSettings(t *testing.T) {
 			settings, err := loadSettings()
 			if err != nil {
 				t.Fatalf("loadSettings() unexpected error: %v", err)
-			}
-			if settings.Version != tt.wantVersion {
-				t.Errorf("loadSettings() version = %d, want %d", settings.Version, tt.wantVersion)
 			}
 			if len(settings.Lines) != tt.wantLinesCount {
 				t.Errorf("loadSettings() lines count = %d, want %d", len(settings.Lines), tt.wantLinesCount)
@@ -114,52 +106,6 @@ func TestLoadSettings(t *testing.T) {
 			}
 			if !tt.expectErr && lastLoadError != "" {
 				t.Errorf("Expected empty lastLoadError, got %q", lastLoadError)
-			}
-		})
-	}
-}
-
-func TestUpgradeLegacyWidgetTypes(t *testing.T) {
-	tests := []struct {
-		name  string
-		input [][]types.WidgetItem
-		want  [][]types.WidgetItem
-	}{
-		{
-			name: "Upgrade git-pr to git-review",
-			input: [][]types.WidgetItem{
-				{{Type: "git-pr"}},
-			},
-			want: [][]types.WidgetItem{
-				{{Type: "git-review"}},
-			},
-		},
-		{
-			name: "Leave modern widget types unchanged",
-			input: [][]types.WidgetItem{
-				{{Type: "model"}, {Type: "git-branch"}},
-			},
-			want: [][]types.WidgetItem{
-				{{Type: "model"}, {Type: "git-branch"}},
-			},
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got := upgradeLegacyWidgetTypes(tt.input)
-			if len(got) != len(tt.want) {
-				t.Fatalf("upgradeLegacyWidgetTypes() lines len = %d, want %d", len(got), len(tt.want))
-			}
-			for i := range got {
-				if len(got[i]) != len(tt.want[i]) {
-					t.Fatalf("upgradeLegacyWidgetTypes()[%d] items len = %d, want %d", i, len(got[i]), len(tt.want[i]))
-				}
-				for j := range got[i] {
-					if got[i][j].Type != tt.want[i][j].Type {
-						t.Errorf("upgradeLegacyWidgetTypes()[%d][%d].Type = %q, want %q", i, j, got[i][j].Type, tt.want[i][j].Type)
-					}
-				}
 			}
 		})
 	}

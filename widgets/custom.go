@@ -14,5 +14,5 @@ func (c *CustomTextWidget) GetBodyColor(item types.WidgetItem, ctx types.RenderC
 }
 
 func (c *CustomTextWidget) Render(item types.WidgetItem, ctx types.RenderContext, settings types.Settings) (string, string, error) {
-	return "", item.CustomText, nil
+	return "", item.Text, nil
 }

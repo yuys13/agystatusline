@@ -306,10 +306,7 @@ func TestTruncateStyledText_InvariantProperty(t *testing.T) {
 				truncated := TruncateStyledText(tc.input, w)
 				visWidth := GetVisibleWidth(truncated)
 
-				expectedMax := w
-				if expectedMax < 0 {
-					expectedMax = 0
-				}
+				expectedMax := max(w, 0)
 
 				if visWidth > expectedMax {
 					t.Errorf("Invariant violation for max %d: got visible width %d (output: %q)", w, visWidth, truncated)
@@ -368,10 +365,10 @@ func TestProperty_TruncateStyledText_RandomGenerator(t *testing.T) {
 
 	r := math_rand.New(math_rand.NewSource(12345))
 
-	for i := 0; i < 5000; i++ {
+	for i := range 5000 {
 		var sb strings.Builder
 		numParts := r.Intn(8) + 1
-		for j := 0; j < numParts; j++ {
+		for range numParts {
 			switch r.Intn(5) {
 			case 0:
 				sb.WriteString(textSnippets[r.Intn(len(textSnippets))])
@@ -393,10 +390,7 @@ func TestProperty_TruncateStyledText_RandomGenerator(t *testing.T) {
 		truncated := TruncateStyledText(inputText, maxWidth)
 		actualWidth := GetVisibleWidth(truncated)
 
-		expectedMax := maxWidth
-		if expectedMax < 0 {
-			expectedMax = 0
-		}
+		expectedMax := max(maxWidth, 0)
 
 		if actualWidth > expectedMax {
 			t.Fatalf("[Iteration %d] Invariant Violation! Input: %q, maxWidth: %d -> got width %d > max %d (result: %q)",

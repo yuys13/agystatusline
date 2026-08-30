@@ -16,10 +16,13 @@ func TestGitBranchWidget(t *testing.T) {
 	if w.GetDefaultColor() != "brightMagenta" {
 		t.Errorf("Expected default color %q, got %q", "brightMagenta", w.GetDefaultColor())
 	}
+	if w.GetDisplayName() != "Git Branch" {
+		t.Errorf("Expected display name %q, got %q", "Git Branch", w.GetDisplayName())
+	}
 
 	settings := types.DefaultSettings()
-	hideTrue := true
-	hideFalse := false
+	dirtyTrue := true
+	dirtyFalse := false
 
 	tests := []struct {
 		name          string
@@ -31,7 +34,7 @@ func TestGitBranchWidget(t *testing.T) {
 		expectedColor string
 	}{
 		{
-			name: "Normal git repository branch",
+			name: "Normal git repository branch from command",
 			gitRunner: func(cmd string, ctx CwdResolver, ttl int) (string, error) {
 				if cmd == "rev-parse --is-inside-work-tree" {
 					return "true", nil
@@ -45,6 +48,60 @@ func TestGitBranchWidget(t *testing.T) {
 			ctx:           types.RenderContext{Data: types.StatusJSON{CWD: "/dummy/repo"}},
 			expectedTitle: "",
 			expectedBody:  "⎇ feature/tdd",
+			expectedColor: "brightBlue",
+		},
+		{
+			name: "Custom symbol",
+			gitRunner: func(cmd string, ctx CwdResolver, ttl int) (string, error) {
+				if cmd == "rev-parse --is-inside-work-tree" {
+					return "true", nil
+				}
+				if cmd == "symbolic-ref --short HEAD" {
+					return "main", nil
+				}
+				return "", nil
+			},
+			item:          types.WidgetItem{Type: "git-branch", Symbol: "🌿 "},
+			ctx:           types.RenderContext{Data: types.StatusJSON{CWD: "/dummy/repo"}},
+			expectedTitle: "",
+			expectedBody:  "🌿 main",
+			expectedColor: "brightBlue",
+		},
+		{
+			name: "Branch from VCS telemetry with dirty",
+			item: types.WidgetItem{Type: "git-branch"},
+			ctx: types.RenderContext{
+				Data: types.StatusJSON{
+					VCS: &types.VCSInfo{Branch: "main", Dirty: &dirtyTrue},
+				},
+			},
+			expectedTitle: "",
+			expectedBody:  "⎇ main*",
+			expectedColor: "brightRed",
+		},
+		{
+			name: "Branch from VCS telemetry clean with Raw=true",
+			item: types.WidgetItem{Type: "git-branch", Raw: true},
+			ctx: types.RenderContext{
+				Data: types.StatusJSON{
+					VCS: &types.VCSInfo{Branch: "main", Dirty: &dirtyFalse},
+				},
+			},
+			expectedTitle: "",
+			expectedBody:  "main",
+			expectedColor: "brightBlue",
+		},
+		{
+			name: "Branch from VCS telemetry dirty with Raw=true",
+			item: types.WidgetItem{Type: "git-branch", Raw: true},
+			ctx: types.RenderContext{
+				Data: types.StatusJSON{
+					VCS: &types.VCSInfo{Branch: "main", Dirty: &dirtyTrue},
+				},
+			},
+			expectedTitle: "",
+			expectedBody:  "main*",
+			expectedColor: "brightRed",
 		},
 		{
 			name: "Non-git directory",
@@ -55,45 +112,15 @@ func TestGitBranchWidget(t *testing.T) {
 			ctx:           types.RenderContext{Data: types.StatusJSON{CWD: "/tmp/non-git-dir"}},
 			expectedTitle: "",
 			expectedBody:  "⎇ no git",
+			expectedColor: "brightBlue",
 		},
 		{
-			name: "Non-git directory with Hide=true",
-			gitRunner: func(cmd string, ctx CwdResolver, ttl int) (string, error) {
-				return "false", nil
-			},
-			item:          types.WidgetItem{Type: "git-branch", Hide: &hideTrue},
-			ctx:           types.RenderContext{Data: types.StatusJSON{CWD: "/tmp/non-git-dir"}},
+			name:          "Preview mode fallback to main",
+			item:          types.WidgetItem{Type: "git-branch"},
+			ctx:           types.RenderContext{IsPreview: true},
 			expectedTitle: "",
-			expectedBody:  "",
-		},
-		{
-			name: "Git command error with Hide=true",
-			gitRunner: func(cmd string, ctx CwdResolver, ttl int) (string, error) {
-				return "", fmt.Errorf("git not installed")
-			},
-			item:          types.WidgetItem{Type: "git-branch", Hide: &hideTrue},
-			ctx:           types.RenderContext{Data: types.StatusJSON{CWD: "/no-git-dir"}},
-			expectedTitle: "",
-			expectedBody:  "",
-		},
-		{
-			name: "Git command error with Hide=false",
-			gitRunner: func(cmd string, ctx CwdResolver, ttl int) (string, error) {
-				return "", fmt.Errorf("git not installed")
-			},
-			item:          types.WidgetItem{Type: "git-branch", Hide: &hideFalse},
-			ctx:           types.RenderContext{Data: types.StatusJSON{CWD: "/no-git-dir"}},
-			expectedTitle: "",
-			expectedBody:  "⎇ no git",
-		},
-		{
-			name: "Dirty git branch color check",
-			gitRunner: func(cmd string, ctx CwdResolver, ttl int) (string, error) {
-				return "true", nil
-			},
-			item:          types.WidgetItem{Type: "git-branch", Hide: &hideFalse},
-			ctx:           types.RenderContext{Data: types.StatusJSON{VCS: &types.VCSInfo{Dirty: &hideTrue}}},
-			expectedColor: "brightRed",
+			expectedBody:  "⎇ main",
+			expectedColor: "brightBlue",
 		},
 	}
 
@@ -102,12 +129,8 @@ func TestGitBranchWidget(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			runGitCommand = tt.gitRunner
-			if tt.expectedColor != "" {
-				if color := w.GetBodyColor(tt.item, tt.ctx); color != tt.expectedColor {
-					t.Errorf("Expected body color %q, got %q", tt.expectedColor, color)
-				}
-				return
+			if tt.gitRunner != nil {
+				runGitCommand = tt.gitRunner
 			}
 			title, body, err := w.Render(tt.item, tt.ctx, settings)
 			if err != nil {
@@ -115,6 +138,11 @@ func TestGitBranchWidget(t *testing.T) {
 			}
 			if title != tt.expectedTitle || body != tt.expectedBody {
 				t.Errorf("Expected title %q and body %q, got title %q and body %q", tt.expectedTitle, tt.expectedBody, title, body)
+			}
+			if tt.expectedColor != "" {
+				if color := w.GetBodyColor(tt.item, tt.ctx); color != tt.expectedColor {
+					t.Errorf("Expected body color %q, got %q", tt.expectedColor, color)
+				}
 			}
 		})
 	}
@@ -127,8 +155,14 @@ func TestGitChangesWidget(t *testing.T) {
 		t.Fatalf("Git changes widget not found")
 	}
 
+	if w.GetDefaultColor() != "yellow" {
+		t.Errorf("Expected default color %q, got %q", "yellow", w.GetDefaultColor())
+	}
+	if w.GetDisplayName() != "Git Changes" {
+		t.Errorf("Expected display name %q, got %q", "Git Changes", w.GetDisplayName())
+	}
+
 	settings := types.DefaultSettings()
-	hideTrue := true
 
 	tests := []struct {
 		name          string
@@ -158,6 +192,13 @@ func TestGitChangesWidget(t *testing.T) {
 			expectedBody:  "(+13,-5)",
 		},
 		{
+			name:          "Preview mode changes",
+			item:          types.WidgetItem{Type: "git-changes"},
+			ctx:           types.RenderContext{IsPreview: true},
+			expectedTitle: "",
+			expectedBody:  "(+42,-10)",
+		},
+		{
 			name: "Non-git directory",
 			gitRunner: func(cmd string, ctx CwdResolver, ttl int) (string, error) {
 				return "false", fmt.Errorf("not a git repository")
@@ -167,16 +208,6 @@ func TestGitChangesWidget(t *testing.T) {
 			expectedTitle: "",
 			expectedBody:  "(no git)",
 		},
-		{
-			name: "Git missing with Hide=true",
-			gitRunner: func(cmd string, ctx CwdResolver, ttl int) (string, error) {
-				return "", fmt.Errorf("git not installed")
-			},
-			item:          types.WidgetItem{Type: "git-changes", Hide: &hideTrue},
-			ctx:           types.RenderContext{Data: types.StatusJSON{CWD: "/no-git-dir"}},
-			expectedTitle: "",
-			expectedBody:  "",
-		},
 	}
 
 	oldRunner := runGitCommand
@@ -184,13 +215,18 @@ func TestGitChangesWidget(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			runGitCommand = tt.gitRunner
+			if tt.gitRunner != nil {
+				runGitCommand = tt.gitRunner
+			}
 			title, body, err := w.Render(tt.item, tt.ctx, settings)
 			if err != nil {
 				t.Fatalf("Render error: %v", err)
 			}
 			if title != tt.expectedTitle || body != tt.expectedBody {
 				t.Errorf("Expected title %q and body %q, got title %q and body %q", tt.expectedTitle, tt.expectedBody, title, body)
+			}
+			if color := w.GetBodyColor(tt.item, tt.ctx); color != "yellow" {
+				t.Errorf("Expected body color 'yellow', got %q", color)
 			}
 		})
 	}

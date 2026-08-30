@@ -64,13 +64,25 @@ func RegisterAll() {
 	RegisterWidget("model", &ModelWidget{})
 	RegisterWidget("git-branch", &GitBranchWidget{})
 	RegisterWidget("git-changes", &GitChangesWidget{})
-	RegisterWidget("quota", &QuotaWidget{})
 	RegisterWidget("custom-text", &CustomTextWidget{})
 	RegisterWidget("sandbox", &SandboxWidget{})
 	RegisterWidget("agent-state", &AgentStateWidget{})
 	RegisterWidget("context-bar", &ContextBarWidget{})
-	RegisterWidget("quota-bar", &QuotaBarWidget{})
 	RegisterWidget("artifacts", &ArtifactsWidget{})
 	RegisterWidget("subagents", &SubagentsWidget{})
 	RegisterWidget("tasks", &TasksWidget{})
+
+	// Quota widgets
+	RegisterWidget("quota", &QuotaWidget{DisplayName: "Quota"})
+	RegisterWidget("quota-5h", &QuotaWidget{DefaultKey: "gemini-5h", DefaultTitle: "5h", DisplayName: "Quota: 5h"})
+	RegisterWidget("quota-7d", &QuotaWidget{DefaultKey: "gemini-weekly", DefaultTitle: "7d", DisplayName: "Quota: 7d"})
+	RegisterWidget("quota-3p-5h", &QuotaWidget{DefaultKey: "3p-5h", DefaultTitle: "3p-5h", DisplayName: "Quota: 3P 5h"})
+	RegisterWidget("quota-3p-7d", &QuotaWidget{DefaultKey: "3p-weekly", DefaultTitle: "3p-7d", DisplayName: "Quota: 3P 7d"})
+
+	// Quota Bar widgets
+	RegisterWidget("quota-bar", &QuotaBarWidget{DisplayName: "Quota Bar"})
+	RegisterWidget("quota-bar-5h", &QuotaBarWidget{DefaultKey: "gemini-5h", DefaultTitle: "5h", DisplayName: "Quota Bar: 5h"})
+	RegisterWidget("quota-bar-7d", &QuotaBarWidget{DefaultKey: "gemini-weekly", DefaultTitle: "7d", DisplayName: "Quota Bar: 7d"})
+	RegisterWidget("quota-bar-3p-5h", &QuotaBarWidget{DefaultKey: "3p-5h", DefaultTitle: "3p-5h", DisplayName: "Quota Bar: 3P 5h"})
+	RegisterWidget("quota-bar-3p-7d", &QuotaBarWidget{DefaultKey: "3p-weekly", DefaultTitle: "3p-7d", DisplayName: "Quota Bar: 3P 7d"})
 }

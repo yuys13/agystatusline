@@ -23,8 +23,8 @@ func (g *GitBranchWidget) GetBodyColor(item types.WidgetItem, ctx types.RenderCo
 
 func (g *GitBranchWidget) Render(item types.WidgetItem, ctx types.RenderContext, settings types.Settings) (string, string, error) {
 	symbol := "⎇ "
-	if item.CustomSymbol != "" {
-		symbol = item.CustomSymbol
+	if item.Symbol != "" {
+		symbol = item.Symbol
 	}
 
 	// Try to get branch from VCS telemetry first
@@ -40,8 +40,9 @@ func (g *GitBranchWidget) Render(item types.WidgetItem, ctx types.RenderContext,
 	if branch == "" && !ctx.IsPreview {
 		// Fallback to git command
 		isGit, err := runGitCommand("rev-parse --is-inside-work-tree", ctx, ctx.GitCacheTTLSeconds)
-		if err == nil && isGit == "true" {
-			branch, _ = runGitCommand("symbolic-ref --short HEAD", ctx, ctx.GitCacheTTLSeconds)
+		if err == nil && strings.TrimSpace(isGit) == "true" {
+			b, _ := runGitCommand("symbolic-ref --short HEAD", ctx, ctx.GitCacheTTLSeconds)
+			branch = strings.TrimSpace(b)
 			status, _ := runGitCommand("status --porcelain", ctx, ctx.GitCacheTTLSeconds)
 			dirty = strings.TrimSpace(status) != ""
 		}
@@ -52,33 +53,17 @@ func (g *GitBranchWidget) Render(item types.WidgetItem, ctx types.RenderContext,
 	}
 
 	if branch == "" {
-		if item.Hide != nil && *item.Hide {
-			return "", "", nil
-		}
 		return "", symbol + "no git", nil
 	}
 
-	preserveColors := item.PreserveColors != nil && *item.PreserveColors
-	if preserveColors {
-		// statusline.sh style coloring:
-		// branch name is brightBlue (or brightRed if dirty with a brightYellow '*' appended)
-		var bodyStr string
-		if dirty {
-			bodyStr = "\x1b[91m" + branch + "\x1b[39m\x1b[93m*\x1b[39m"
-		} else {
-			bodyStr = "\x1b[94m" + branch + "\x1b[39m"
-		}
-		return "", bodyStr, nil
+	bodyStr := branch
+	if !item.Raw {
+		bodyStr = symbol + branch
 	}
-
-	bodyStr := symbol + branch
 	if dirty {
 		bodyStr += "*"
 	}
 
-	if item.RawValue != nil && *item.RawValue {
-		return "", branch, nil
-	}
 	return "", bodyStr, nil
 }
 
@@ -98,10 +83,7 @@ func (g *GitChangesWidget) Render(item types.WidgetItem, ctx types.RenderContext
 
 	// Check if inside git tree
 	isGit, err := runGitCommand("rev-parse --is-inside-work-tree", ctx, ctx.GitCacheTTLSeconds)
-	if err != nil || isGit != "true" {
-		if item.Hide != nil && *item.Hide {
-			return "", "", nil
-		}
+	if err != nil || strings.TrimSpace(isGit) != "true" {
 		return "", "(no git)", nil
 	}
 

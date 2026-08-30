@@ -1,13 +1,13 @@
 package main
 
 import (
-	"encoding/json"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 
 	tea "github.com/charmbracelet/bubbletea"
+	toml "github.com/pelletier/go-toml/v2"
 	"github.com/yuys13/agystatusline/renderer"
 	"github.com/yuys13/agystatusline/tui"
 	"github.com/yuys13/agystatusline/types"
@@ -40,12 +40,12 @@ func escKey() tea.KeyMsg {
 // TestIntegration_TUIModelInitAndSettingsPersistence tests TUI initialization, menu choices, and Save & Exit persistence.
 func TestIntegration_TUIModelInitAndSettingsPersistence(t *testing.T) {
 	tempDir := t.TempDir()
-	configPath := filepath.Join(tempDir, "settings.json")
+	configPath := filepath.Join(tempDir, "settings.toml")
 
 	initialSettings := types.DefaultSettings()
 	initialSettings.Powerline.Enabled = false
 	initialSettings.Powerline.Theme = "nord"
-	initialSettings.ColorLevel = 2
+	initialSettings.General.ColorLevel = 2
 
 	model := tui.NewModel(initialSettings, configPath)
 
@@ -68,7 +68,7 @@ func TestIntegration_TUIModelInitAndSettingsPersistence(t *testing.T) {
 	}
 
 	var savedSettings types.Settings
-	if err := json.Unmarshal(data, &savedSettings); err != nil {
+	if err := toml.Unmarshal(data, &savedSettings); err != nil {
 		t.Fatalf("Failed to unmarshal saved settings: %v", err)
 	}
 
@@ -78,8 +78,8 @@ func TestIntegration_TUIModelInitAndSettingsPersistence(t *testing.T) {
 	if savedSettings.Powerline.Theme != "nord-aurora" {
 		t.Errorf("Expected Powerline.Theme 'nord-aurora', got %q", savedSettings.Powerline.Theme)
 	}
-	if savedSettings.ColorLevel != 3 {
-		t.Errorf("Expected ColorLevel to be 3 (Truecolor), got %d", savedSettings.ColorLevel)
+	if savedSettings.General.ColorLevel != 3 {
+		t.Errorf("Expected ColorLevel to be 3 (Truecolor), got %d", savedSettings.General.ColorLevel)
 	}
 }
 
@@ -88,12 +88,12 @@ func TestIntegration_TUIPowerlinePreviewAndColorLevel(t *testing.T) {
 	widgets.RegisterAll()
 
 	tempDir := t.TempDir()
-	configPath := filepath.Join(tempDir, "preview_settings.json")
+	configPath := filepath.Join(tempDir, "preview_settings.toml")
 
 	settings := types.DefaultSettings()
 	settings.Powerline.Enabled = true
 	settings.Powerline.Theme = "dracula"
-	settings.ColorLevel = 3
+	settings.General.ColorLevel = 3
 
 	model := tui.NewModel(settings, configPath)
 
@@ -118,7 +118,7 @@ func TestIntegration_TUITier4TestDataSimulation(t *testing.T) {
 	widgets.RegisterAll()
 
 	tempDir := t.TempDir()
-	configPath := filepath.Join(tempDir, "sim_settings.json")
+	configPath := filepath.Join(tempDir, "sim_settings.toml")
 
 	// Construct full spec telemetry matching test_data.json
 	trueVal := true
@@ -179,10 +179,10 @@ func TestIntegration_TUITier4TestDataSimulation(t *testing.T) {
 	simSettings := types.DefaultSettings()
 	simSettings.Lines = [][]types.WidgetItem{
 		{
-			{ID: "m1", Type: "model", Color: "brightMagenta"},
-			{ID: "g1", Type: "git-branch", Color: "brightBlue"},
-			{ID: "qb1", Type: "quota-bar", Color: "brightGreen", Metadata: map[string]string{"key": "gemini-5h"}},
-			{ID: "sb1", Type: "sandbox", Color: "yellow"},
+			{Type: "model", Color: "brightMagenta"},
+			{Type: "git-branch", Color: "brightBlue"},
+			{Type: "quota-bar", Key: "gemini-5h", Color: "brightGreen"},
+			{Type: "sandbox", Color: "yellow"},
 		},
 	}
 
@@ -197,7 +197,7 @@ func TestIntegration_TUITier4TestDataSimulation(t *testing.T) {
 	}
 
 	var loadedSettings types.Settings
-	_ = json.Unmarshal(bytesData, &loadedSettings)
+	_ = toml.Unmarshal(bytesData, &loadedSettings)
 
 	// Render statusline using telemetry context
 	termWidth := 120
@@ -233,7 +233,7 @@ func TestIntegration_TUITier4TestDataSimulation(t *testing.T) {
 // TestIntegration_TUIWidgetLayoutEditingAndPersistence tests adding and editing widgets in TUI model.
 func TestIntegration_TUIWidgetLayoutEditingAndPersistence(t *testing.T) {
 	tempDir := t.TempDir()
-	configPath := filepath.Join(tempDir, "layout_settings.json")
+	configPath := filepath.Join(tempDir, "layout_settings.toml")
 
 	initialSettings := types.DefaultSettings()
 	model := tui.NewModel(initialSettings, configPath)
@@ -265,7 +265,7 @@ func TestIntegration_TUIWidgetLayoutEditingAndPersistence(t *testing.T) {
 	}
 
 	var savedSettings types.Settings
-	_ = json.Unmarshal(data, &savedSettings)
+	_ = toml.Unmarshal(data, &savedSettings)
 
 	if len(savedSettings.Lines) == 0 {
 		t.Fatalf("Expected non-empty Lines in saved settings")

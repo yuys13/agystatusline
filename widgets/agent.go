@@ -30,27 +30,11 @@ func (s *SandboxWidget) Render(item types.WidgetItem, ctx types.RenderContext, s
 		valStr = "on"
 	}
 
-	preserveColors := item.PreserveColors != nil && *item.PreserveColors
-	if preserveColors {
-		// statusline.sh style coloring:
-		// sandbox is gray (ansi 90), ON is green and bold (ansi 92), off is gray (ansi 90)
-		var bodyStr string
-		if enabled {
-			bodyStr = "\x1b[90msandbox\x1b[39m \x1b[92m\x1b[1mON\x1b[22m\x1b[39m"
-		} else {
-			bodyStr = "\x1b[90msandbox off\x1b[39m"
-		}
-		return "", bodyStr, nil
-	}
-
-	if item.RawValue != nil && *item.RawValue {
+	if item.Raw {
 		return "", valStr, nil
 	}
 
-	if enabled {
-		return "sandbox", "on", nil
-	}
-	return "sandbox", "off", nil
+	return "sandbox", valStr, nil
 }
 
 // AgentStateWidget displays the active agent state.
@@ -97,26 +81,6 @@ func (a *AgentStateWidget) Render(item types.WidgetItem, ctx types.RenderContext
 		symbolText = "⏳ " + strings.ToUpper(state)
 	}
 
-	preserveColors := item.PreserveColors != nil && *item.PreserveColors
-	if preserveColors {
-		boldCode := "\x1b[1m"
-		resetCode := "\x1b[22m\x1b[39m"
-		var colorCode string
-		switch state {
-		case "idle":
-			colorCode = "\x1b[92m"
-		case "thinking":
-			colorCode = "\x1b[93m"
-		case "working":
-			colorCode = "\x1b[96m"
-		case "tool_use":
-			colorCode = "\x1b[95m"
-		default:
-			colorCode = "\x1b[97m"
-		}
-		return "", boldCode + colorCode + symbolText + resetCode, nil
-	}
-
 	return "", symbolText, nil
 }
 
@@ -136,14 +100,7 @@ func (a *ArtifactsWidget) Render(item types.WidgetItem, ctx types.RenderContext,
 	}
 
 	countStr := strconv.Itoa(count)
-	preserveColors := item.PreserveColors != nil && *item.PreserveColors
-	if preserveColors {
-		titleStr := "\x1b[90martifacts\x1b[39m"
-		bodyStr := "\x1b[97m\x1b[1m" + countStr + "\x1b[22m\x1b[39m"
-		return titleStr, bodyStr, nil
-	}
-
-	if item.RawValue != nil && *item.RawValue {
+	if item.Raw {
 		return "", countStr, nil
 	}
 	return "artifacts", countStr, nil
@@ -161,22 +118,18 @@ func (s *SubagentsWidget) GetBodyColor(item types.WidgetItem, ctx types.RenderCo
 func (s *SubagentsWidget) Render(item types.WidgetItem, ctx types.RenderContext, settings types.Settings) (string, string, error) {
 	count := 0
 	if ctx.Data.Subagents != nil {
-		if list, ok := ctx.Data.Subagents.([]any); ok {
-			count = len(list)
-		} else if num, ok := ctx.Data.Subagents.(float64); ok {
-			count = int(num)
+		switch v := ctx.Data.Subagents.(type) {
+		case []any:
+			count = len(v)
+		case float64:
+			count = int(v)
+		case int:
+			count = v
 		}
 	}
 
 	countStr := strconv.Itoa(count)
-	preserveColors := item.PreserveColors != nil && *item.PreserveColors
-	if preserveColors {
-		titleStr := "\x1b[90msubagents\x1b[39m"
-		bodyStr := "\x1b[97m\x1b[1m" + countStr + "\x1b[22m\x1b[39m"
-		return titleStr, bodyStr, nil
-	}
-
-	if item.RawValue != nil && *item.RawValue {
+	if item.Raw {
 		return "", countStr, nil
 	}
 	return "subagents", countStr, nil
@@ -198,14 +151,7 @@ func (t *TasksWidget) Render(item types.WidgetItem, ctx types.RenderContext, set
 	}
 
 	countStr := strconv.Itoa(count)
-	preserveColors := item.PreserveColors != nil && *item.PreserveColors
-	if preserveColors {
-		titleStr := "\x1b[90mtasks\x1b[39m"
-		bodyStr := "\x1b[97m\x1b[1m" + countStr + "\x1b[22m\x1b[39m"
-		return titleStr, bodyStr, nil
-	}
-
-	if item.RawValue != nil && *item.RawValue {
+	if item.Raw {
 		return "", countStr, nil
 	}
 	return "tasks", countStr, nil

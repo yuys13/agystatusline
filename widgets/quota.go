@@ -19,33 +19,39 @@ func formatResetInSeconds(resetInSeconds *float64) string {
 		s := secs % 60
 		if s > 0 {
 			return fmt.Sprintf("%dm %ds", m, s)
-		} else {
-			return fmt.Sprintf("%dm", m)
 		}
+		return fmt.Sprintf("%dm", m)
 	} else if secs < 86400 {
 		h := secs / 3600
 		m := (secs % 3600) / 60
 		if m > 0 {
 			return fmt.Sprintf("%dh %dm", h, m)
-		} else {
-			return fmt.Sprintf("%dh", h)
 		}
+		return fmt.Sprintf("%dh", h)
 	} else {
 		d := secs / 86400
 		h := (secs % 86400) / 3600
 		if h > 0 {
 			return fmt.Sprintf("%dd %dh", d, h)
-		} else {
-			return fmt.Sprintf("%dd", d)
 		}
+		return fmt.Sprintf("%dd", d)
 	}
 }
 
 // QuotaWidget displays quota limits and usage.
-type QuotaWidget struct{}
+type QuotaWidget struct {
+	DefaultKey   string
+	DefaultTitle string
+	DisplayName  string
+}
 
 func (q *QuotaWidget) GetDefaultColor() string { return "brightWhite" }
-func (q *QuotaWidget) GetDisplayName() string  { return "Quota" }
+func (q *QuotaWidget) GetDisplayName() string {
+	if q.DisplayName != "" {
+		return q.DisplayName
+	}
+	return "Quota"
+}
 func (q *QuotaWidget) GetBodyColor(item types.WidgetItem, ctx types.RenderContext) string {
 	return "brightWhite"
 }
@@ -55,7 +61,10 @@ func (q *QuotaWidget) Render(item types.WidgetItem, ctx types.RenderContext, set
 		return "", "", nil
 	}
 
-	key := item.Metadata["key"]
+	key := item.Key
+	if key == "" {
+		key = q.DefaultKey
+	}
 	if key == "" {
 		return "", "", nil
 	}
@@ -65,9 +74,6 @@ func (q *QuotaWidget) Render(item types.WidgetItem, ctx types.RenderContext, set
 		return "", "", nil
 	}
 
-	displayMode := item.Metadata["display"]
-	var valueStr string
-
 	var pctStr string
 	if quota.RemainingFraction != nil {
 		pct := (*quota.RemainingFraction) * 100.0
@@ -75,58 +81,55 @@ func (q *QuotaWidget) Render(item types.WidgetItem, ctx types.RenderContext, set
 	}
 
 	resetStr := formatResetInSeconds(quota.ResetInSeconds)
+	var valueStr string
 
-	switch displayMode {
-	case "reset":
-		if resetStr == "" {
-			return "", "", nil
-		}
-		valueStr = resetStr
-	case "quota":
-		if pctStr == "" {
-			return "", "", nil
-		}
+	if pctStr != "" && resetStr != "" {
+		valueStr = fmt.Sprintf("%s (%s)", pctStr, resetStr)
+	} else if pctStr != "" {
 		valueStr = pctStr
-	default:
-		// Default: quota % + reset countdown
-		if pctStr != "" && resetStr != "" {
-			valueStr = fmt.Sprintf("%s (%s)", pctStr, resetStr)
-		} else if pctStr != "" {
-			valueStr = pctStr
-		} else if resetStr != "" {
-			valueStr = resetStr
-		} else {
-			return "", "", nil
-		}
+	} else if resetStr != "" {
+		valueStr = resetStr
+	} else {
+		return "", "", nil
 	}
 
-	if item.RawValue != nil && *item.RawValue {
+	if item.Raw {
 		return "", valueStr, nil
 	}
 
-	label := item.CustomText
+	label := item.Text
 	if label == "" {
-		label = key
+		if q.DefaultTitle != "" {
+			label = q.DefaultTitle
+		} else {
+			label = key
+		}
 	}
 
-	if displayMode == "reset" {
-		return label + " (reset)", valueStr, nil
-	}
 	return label, valueStr, nil
 }
 
 // QuotaBarWidget displays a progress bar representing remaining quota.
-type QuotaBarWidget struct{}
+type QuotaBarWidget struct {
+	DefaultKey   string
+	DefaultTitle string
+	DisplayName  string
+}
 
 func (q *QuotaBarWidget) GetDefaultColor() string { return "brightGreen" }
-func (q *QuotaBarWidget) GetDisplayName() string  { return "Quota Bar" }
+func (q *QuotaBarWidget) GetDisplayName() string {
+	if q.DisplayName != "" {
+		return q.DisplayName
+	}
+	return "Quota Bar"
+}
 
 func (q *QuotaBarWidget) GetBodyColor(item types.WidgetItem, ctx types.RenderContext) string {
-	if ctx.Data.Quota == nil {
-		return "brightGreen"
-	}
-	key := item.Metadata["key"]
+	key := item.Key
 	if key == "" {
+		key = q.DefaultKey
+	}
+	if ctx.Data.Quota == nil || key == "" {
 		return "brightGreen"
 	}
 	quota, ok := ctx.Data.Quota[key]
@@ -143,11 +146,11 @@ func (q *QuotaBarWidget) GetBodyColor(item types.WidgetItem, ctx types.RenderCon
 }
 
 func (q *QuotaBarWidget) Render(item types.WidgetItem, ctx types.RenderContext, settings types.Settings) (string, string, error) {
-	if ctx.Data.Quota == nil {
-		return "", "", nil
-	}
-	key := item.Metadata["key"]
+	key := item.Key
 	if key == "" {
+		key = q.DefaultKey
+	}
+	if ctx.Data.Quota == nil || key == "" {
 		return "", "", nil
 	}
 	quota, ok := ctx.Data.Quota[key]
@@ -158,14 +161,14 @@ func (q *QuotaBarWidget) Render(item types.WidgetItem, ctx types.RenderContext, 
 	pct := *quota.RemainingFraction * 100.0
 	pctInt := int(pct)
 	barLen := 10
-	filled := pctInt * barLen / 100
+	filled := min(barLen, max(0, pctInt*barLen/100))
 	remainder := (pctInt * barLen) % 100
 
 	var barBuilder strings.Builder
 	for i := range barLen {
 		if i < filled {
 			barBuilder.WriteString("█")
-		} else if i == filled {
+		} else if i == filled && remainder > 0 {
 			if remainder >= 75 {
 				barBuilder.WriteString("▓")
 			} else if remainder >= 50 {
@@ -183,17 +186,23 @@ func (q *QuotaBarWidget) Render(item types.WidgetItem, ctx types.RenderContext, 
 
 	pctFmt := fmt.Sprintf("%.1f%%", pct)
 
-	label := item.CustomText
+	label := item.Text
 	if label == "" {
-		switch key {
-		case "gemini-5h":
-			label = "5h"
-		case "gemini-weekly":
-			label = "7d"
-		case "3p-weekly":
-			label = "3p-7d"
-		default:
-			label = key
+		if q.DefaultTitle != "" {
+			label = q.DefaultTitle
+		} else {
+			switch key {
+			case "gemini-5h":
+				label = "5h"
+			case "gemini-weekly":
+				label = "7d"
+			case "3p-5h":
+				label = "3p-5h"
+			case "3p-weekly":
+				label = "3p-7d"
+			default:
+				label = key
+			}
 		}
 	}
 
@@ -203,7 +212,7 @@ func (q *QuotaBarWidget) Render(item types.WidgetItem, ctx types.RenderContext, 
 		bodyVal = bodyVal + " (" + resetStr + ")"
 	}
 
-	if item.RawValue != nil && *item.RawValue {
+	if item.Raw {
 		return "", bodyVal, nil
 	}
 	return label, bodyVal, nil

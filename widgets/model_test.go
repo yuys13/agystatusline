@@ -1,7 +1,6 @@
 package widgets
 
 import (
-	"strings"
 	"testing"
 
 	"github.com/yuys13/agystatusline/types"
@@ -20,16 +19,14 @@ func TestModelWidget(t *testing.T) {
 	}
 
 	settings := types.DefaultSettings()
-	rawVal := true
-	trueVal := true
 
 	tests := []struct {
-		name             string
-		item             types.WidgetItem
-		ctx              types.RenderContext
-		expectedTitle    string
-		expectedBody     string
-		bodyContainsANSI bool
+		name          string
+		item          types.WidgetItem
+		ctx           types.RenderContext
+		expectedTitle string
+		expectedBody  string
+		expectedColor string
 	}{
 		{
 			name: "Normal DisplayName render",
@@ -44,10 +41,11 @@ func TestModelWidget(t *testing.T) {
 			},
 			expectedTitle: "",
 			expectedBody:  "Claude 3.5 Sonnet",
+			expectedColor: "brightMagenta",
 		},
 		{
-			name: "RawValue render",
-			item: types.WidgetItem{Type: "model", RawValue: &rawVal},
+			name: "Raw render",
+			item: types.WidgetItem{Type: "model", Raw: true},
 			ctx: types.RenderContext{
 				Data: types.StatusJSON{
 					Model: types.ModelInfo{
@@ -58,6 +56,7 @@ func TestModelWidget(t *testing.T) {
 			},
 			expectedTitle: "",
 			expectedBody:  "Claude 3.5 Sonnet",
+			expectedColor: "brightMagenta",
 		},
 		{
 			name: "DisplayName with parenthesized suffix (New)",
@@ -72,6 +71,7 @@ func TestModelWidget(t *testing.T) {
 			},
 			expectedTitle: "",
 			expectedBody:  "Claude 3.5 Sonnet (New)",
+			expectedColor: "brightMagenta",
 		},
 		{
 			name: "DisplayName with parenthesized suffix (Medium)",
@@ -86,20 +86,23 @@ func TestModelWidget(t *testing.T) {
 			},
 			expectedTitle: "",
 			expectedBody:  "Gemini 3.5 Flash (Medium)",
+			expectedColor: "brightMagenta",
 		},
 		{
-			name:          "Empty Model info",
+			name:          "Empty Model info fallback to no-model",
 			item:          types.WidgetItem{Type: "model"},
 			ctx:           types.RenderContext{Data: types.StatusJSON{}},
 			expectedTitle: "",
-			expectedBody:  "",
+			expectedBody:  "no-model",
+			expectedColor: "brightMagenta",
 		},
 		{
-			name:          "Both DisplayName and ID empty",
+			name:          "Both DisplayName and ID empty fallback to no-model",
 			item:          types.WidgetItem{Type: "model"},
 			ctx:           types.RenderContext{Data: types.StatusJSON{Model: types.ModelInfo{}}},
 			expectedTitle: "",
-			expectedBody:  "",
+			expectedBody:  "no-model",
+			expectedColor: "brightMagenta",
 		},
 		{
 			name: "ID-only fallback when DisplayName is empty (Haiku)",
@@ -111,6 +114,7 @@ func TestModelWidget(t *testing.T) {
 			},
 			expectedTitle: "",
 			expectedBody:  "claude-3-5-haiku",
+			expectedColor: "brightMagenta",
 		},
 		{
 			name: "ID-only fallback when DisplayName is empty (Flash)",
@@ -122,16 +126,19 @@ func TestModelWidget(t *testing.T) {
 			},
 			expectedTitle: "",
 			expectedBody:  "gemini-flash",
+			expectedColor: "brightMagenta",
 		},
 		{
-			name: "PreserveColors mode",
-			item: types.WidgetItem{Type: "model", PreserveColors: &trueVal},
+			name: "Whitespace only DisplayName fallback to no-model",
+			item: types.WidgetItem{Type: "model"},
 			ctx: types.RenderContext{
 				Data: types.StatusJSON{
-					Model: types.ModelInfo{ID: "claude-3-5-haiku"},
+					Model: types.ModelInfo{DisplayName: "   "},
 				},
 			},
-			bodyContainsANSI: true,
+			expectedTitle: "",
+			expectedBody:  "no-model",
+			expectedColor: "brightMagenta",
 		},
 	}
 
@@ -141,14 +148,11 @@ func TestModelWidget(t *testing.T) {
 			if err != nil {
 				t.Fatalf("Render error: %v", err)
 			}
-			if tt.bodyContainsANSI {
-				if !strings.Contains(body, "\x1b[95m") {
-					t.Errorf("Expected ANSI colors in body, got %q", body)
-				}
-			} else {
-				if title != tt.expectedTitle || body != tt.expectedBody {
-					t.Errorf("Expected title %q and body %q, got title %q and body %q", tt.expectedTitle, tt.expectedBody, title, body)
-				}
+			if title != tt.expectedTitle || body != tt.expectedBody {
+				t.Errorf("Expected title %q and body %q, got title %q and body %q", tt.expectedTitle, tt.expectedBody, title, body)
+			}
+			if color := w.GetBodyColor(tt.item, tt.ctx); color != tt.expectedColor {
+				t.Errorf("Expected body color %q, got %q", tt.expectedColor, color)
 			}
 		})
 	}

@@ -27,23 +27,24 @@ func (c *ContextBarWidget) GetBodyColor(item types.WidgetItem, ctx types.RenderC
 }
 
 func (c *ContextBarWidget) Render(item types.WidgetItem, ctx types.RenderContext, settings types.Settings) (string, string, error) {
-	var pct float64
-	if ctx.Data.ContextWindow != nil && ctx.Data.ContextWindow.UsedPercentage != nil {
-		pct = *ctx.Data.ContextWindow.UsedPercentage
-	} else {
+	if ctx.Data.ContextWindow == nil || ctx.Data.ContextWindow.UsedPercentage == nil {
+		if item.Raw {
+			return "", "", nil
+		}
 		return "ctx", "", nil
 	}
 
+	pct := *ctx.Data.ContextWindow.UsedPercentage
 	pctInt := int(pct)
 	barLen := 15
-	filled := pctInt * barLen / 100
+	filled := min(barLen, max(0, pctInt*barLen/100))
 	remainder := (pctInt * barLen) % 100
 
 	var barBuilder strings.Builder
 	for i := range barLen {
 		if i < filled {
 			barBuilder.WriteString("█")
-		} else if i == filled {
+		} else if i == filled && remainder > 0 {
 			if remainder >= 75 {
 				barBuilder.WriteString("▓")
 			} else if remainder >= 50 {
@@ -58,26 +59,11 @@ func (c *ContextBarWidget) Render(item types.WidgetItem, ctx types.RenderContext
 		}
 	}
 	bar := barBuilder.String()
-
 	pctFmt := fmt.Sprintf("%.1f%%", pct)
+	body := bar + " " + pctFmt
 
-	preserveColors := item.PreserveColors != nil && *item.PreserveColors
-	if preserveColors {
-		var barColor string
-		if pctInt >= 90 {
-			barColor = "\x1b[91m"
-		} else if pctInt >= 60 {
-			barColor = "\x1b[93m"
-		} else {
-			barColor = "\x1b[97m"
-		}
-		titleStr := "\x1b[90mctx\x1b[39m"
-		bodyStr := barColor + bar + "\x1b[39m \x1b[97m\x1b[1m" + pctFmt + "\x1b[22m\x1b[39m"
-		return titleStr, bodyStr, nil
+	if item.Raw {
+		return "", body, nil
 	}
-
-	if item.RawValue != nil && *item.RawValue {
-		return "", bar + " " + pctFmt, nil
-	}
-	return "ctx", bar + " " + pctFmt, nil
+	return "ctx", body, nil
 }

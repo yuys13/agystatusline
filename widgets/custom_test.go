@@ -49,6 +49,13 @@ func TestCustomTextWidget_Formatting(t *testing.T) {
 		t.Fatalf("custom-text widget not found")
 	}
 
+	if w.GetDefaultColor() != "white" {
+		t.Errorf("Expected default color %q, got %q", "white", w.GetDefaultColor())
+	}
+	if w.GetDisplayName() != "Custom Text" {
+		t.Errorf("Expected display name %q, got %q", "Custom Text", w.GetDisplayName())
+	}
+
 	customCases := []struct {
 		name     string
 		text     string
@@ -62,7 +69,7 @@ func TestCustomTextWidget_Formatting(t *testing.T) {
 
 	for _, tc := range customCases {
 		t.Run(tc.name, func(t *testing.T) {
-			item := types.WidgetItem{Type: "custom-text", CustomText: tc.text}
+			item := types.WidgetItem{Type: "custom-text", Text: tc.text}
 			title, body, err := w.Render(item, types.RenderContext{}, settings)
 			if err != nil {
 				t.Fatalf("Unexpected error: %v", err)
@@ -72,6 +79,9 @@ func TestCustomTextWidget_Formatting(t *testing.T) {
 			}
 			if body != tc.expected {
 				t.Errorf("Expected body %q, got %q", tc.expected, body)
+			}
+			if color := w.GetBodyColor(item, types.RenderContext{}); color != "white" {
+				t.Errorf("Expected body color 'white', got %q", color)
 			}
 		})
 	}

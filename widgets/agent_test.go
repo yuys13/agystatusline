@@ -1,7 +1,6 @@
 package widgets
 
 import (
-	"strings"
 	"testing"
 
 	"github.com/yuys13/agystatusline/types"
@@ -27,13 +26,12 @@ func TestSandboxWidget(t *testing.T) {
 	falseVal := false
 
 	tests := []struct {
-		name             string
-		item             types.WidgetItem
-		ctx              types.RenderContext
-		expectedTitle    string
-		expectedBody     string
-		expectedColor    string
-		bodyContainsText string
+		name          string
+		item          types.WidgetItem
+		ctx           types.RenderContext
+		expectedTitle string
+		expectedBody  string
+		expectedColor string
 	}{
 		{
 			name:          "Nil sandbox info",
@@ -41,6 +39,7 @@ func TestSandboxWidget(t *testing.T) {
 			ctx:           types.RenderContext{Data: types.StatusJSON{}},
 			expectedTitle: "",
 			expectedBody:  "",
+			expectedColor: "brightBlack",
 		},
 		{
 			name:          "Sandbox.Enabled is nil",
@@ -48,6 +47,7 @@ func TestSandboxWidget(t *testing.T) {
 			ctx:           types.RenderContext{Data: types.StatusJSON{Sandbox: &types.SandboxInfo{}}},
 			expectedTitle: "",
 			expectedBody:  "",
+			expectedColor: "brightBlack",
 		},
 		{
 			name:          "Sandbox.Enabled is true (normal)",
@@ -55,13 +55,15 @@ func TestSandboxWidget(t *testing.T) {
 			ctx:           types.RenderContext{Data: types.StatusJSON{Sandbox: &types.SandboxInfo{Enabled: &trueVal}}},
 			expectedTitle: "sandbox",
 			expectedBody:  "on",
+			expectedColor: "brightGreen",
 		},
 		{
 			name:          "Sandbox.Enabled is true (raw value)",
-			item:          types.WidgetItem{Type: "sandbox", RawValue: &trueVal},
+			item:          types.WidgetItem{Type: "sandbox", Raw: true},
 			ctx:           types.RenderContext{Data: types.StatusJSON{Sandbox: &types.SandboxInfo{Enabled: &trueVal}}},
 			expectedTitle: "",
 			expectedBody:  "on",
+			expectedColor: "brightGreen",
 		},
 		{
 			name:          "Sandbox.Enabled is false (normal)",
@@ -73,16 +75,11 @@ func TestSandboxWidget(t *testing.T) {
 		},
 		{
 			name:          "Sandbox.Enabled is false (raw value)",
-			item:          types.WidgetItem{Type: "sandbox", RawValue: &trueVal},
+			item:          types.WidgetItem{Type: "sandbox", Raw: true},
 			ctx:           types.RenderContext{Data: types.StatusJSON{Sandbox: &types.SandboxInfo{Enabled: &falseVal}}},
 			expectedTitle: "",
 			expectedBody:  "off",
-		},
-		{
-			name:             "Sandbox.Enabled is false with preserve colors",
-			item:             types.WidgetItem{Type: "sandbox", PreserveColors: &trueVal},
-			ctx:              types.RenderContext{Data: types.StatusJSON{Sandbox: &types.SandboxInfo{Enabled: &falseVal}}},
-			bodyContainsText: "sandbox off",
+			expectedColor: "brightBlack",
 		},
 	}
 
@@ -92,14 +89,8 @@ func TestSandboxWidget(t *testing.T) {
 			if err != nil {
 				t.Fatalf("Render error: %v", err)
 			}
-			if tt.bodyContainsText != "" {
-				if !strings.Contains(body, tt.bodyContainsText) {
-					t.Errorf("Expected body to contain %q, got %q", tt.bodyContainsText, body)
-				}
-			} else {
-				if title != tt.expectedTitle || body != tt.expectedBody {
-					t.Errorf("Expected title %q and body %q, got title %q and body %q", tt.expectedTitle, tt.expectedBody, title, body)
-				}
+			if title != tt.expectedTitle || body != tt.expectedBody {
+				t.Errorf("Expected title %q and body %q, got title %q and body %q", tt.expectedTitle, tt.expectedBody, title, body)
 			}
 			if tt.expectedColor != "" {
 				if color := w.GetBodyColor(tt.item, tt.ctx); color != tt.expectedColor {
@@ -115,6 +106,13 @@ func TestAgentStateWidget(t *testing.T) {
 	w := GetWidget("agent-state")
 	if w == nil {
 		t.Fatalf("Agent state widget not found")
+	}
+
+	if w.GetDefaultColor() != "brightGreen" {
+		t.Errorf("Expected default color %q, got %q", "brightGreen", w.GetDefaultColor())
+	}
+	if w.GetDisplayName() != "Agent State" {
+		t.Errorf("Expected display name %q, got %q", "Agent State", w.GetDisplayName())
 	}
 
 	settings := types.DefaultSettings()
@@ -191,33 +189,49 @@ func TestArtifactsWidget(t *testing.T) {
 		t.Fatalf("Artifacts widget not found")
 	}
 
+	if w.GetDefaultColor() != "brightWhite" {
+		t.Errorf("Expected default color %q, got %q", "brightWhite", w.GetDefaultColor())
+	}
+	if w.GetDisplayName() != "Artifacts" {
+		t.Errorf("Expected display name %q, got %q", "Artifacts", w.GetDisplayName())
+	}
+
 	settings := types.DefaultSettings()
 	count5 := 5
 
 	tests := []struct {
 		name          string
+		item          types.WidgetItem
 		ctx           types.RenderContext
 		expectedTitle string
 		expectedBody  string
 	}{
 		{
 			name:          "Nil artifact count",
+			item:          types.WidgetItem{Type: "artifacts"},
 			ctx:           types.RenderContext{Data: types.StatusJSON{}},
 			expectedTitle: "artifacts",
 			expectedBody:  "0",
 		},
 		{
 			name:          "Valid artifact count",
+			item:          types.WidgetItem{Type: "artifacts"},
 			ctx:           types.RenderContext{Data: types.StatusJSON{ArtifactCount: &count5}},
 			expectedTitle: "artifacts",
+			expectedBody:  "5",
+		},
+		{
+			name:          "Raw artifact count",
+			item:          types.WidgetItem{Type: "artifacts", Raw: true},
+			ctx:           types.RenderContext{Data: types.StatusJSON{ArtifactCount: &count5}},
+			expectedTitle: "",
 			expectedBody:  "5",
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			item := types.WidgetItem{Type: "artifacts"}
-			title, body, err := w.Render(item, tt.ctx, settings)
+			title, body, err := w.Render(tt.item, tt.ctx, settings)
 			if err != nil {
 				t.Fatalf("Render error: %v", err)
 			}
@@ -235,40 +249,60 @@ func TestSubagentsWidget(t *testing.T) {
 		t.Fatalf("Subagents widget not found")
 	}
 
+	if w.GetDefaultColor() != "brightWhite" {
+		t.Errorf("Expected default color %q, got %q", "brightWhite", w.GetDefaultColor())
+	}
+	if w.GetDisplayName() != "Subagents" {
+		t.Errorf("Expected display name %q, got %q", "Subagents", w.GetDisplayName())
+	}
+
 	settings := types.DefaultSettings()
 
 	tests := []struct {
 		name          string
+		item          types.WidgetItem
 		subagentsData any
 		expectedTitle string
 		expectedBody  string
 	}{
 		{
 			name:          "Float64 number 3",
+			item:          types.WidgetItem{Type: "subagents"},
 			subagentsData: float64(3),
 			expectedTitle: "subagents",
 			expectedBody:  "3",
 		},
 		{
-			name:          "Float64 number 5",
+			name:          "Float64 number 5 raw",
+			item:          types.WidgetItem{Type: "subagents", Raw: true},
 			subagentsData: float64(5),
-			expectedTitle: "subagents",
+			expectedTitle: "",
 			expectedBody:  "5",
 		},
 		{
 			name:          "Slice of agents",
+			item:          types.WidgetItem{Type: "subagents"},
 			subagentsData: []any{"a1", "a2"},
 			expectedTitle: "subagents",
 			expectedBody:  "2",
 		},
 		{
+			name:          "Int count 4",
+			item:          types.WidgetItem{Type: "subagents"},
+			subagentsData: 4,
+			expectedTitle: "subagents",
+			expectedBody:  "4",
+		},
+		{
 			name:          "Invalid string type",
+			item:          types.WidgetItem{Type: "subagents"},
 			subagentsData: "invalid_string_data",
 			expectedTitle: "subagents",
 			expectedBody:  "0",
 		},
 		{
 			name:          "Nil data",
+			item:          types.WidgetItem{Type: "subagents"},
 			subagentsData: nil,
 			expectedTitle: "subagents",
 			expectedBody:  "0",
@@ -280,8 +314,7 @@ func TestSubagentsWidget(t *testing.T) {
 			ctx := types.RenderContext{
 				Data: types.StatusJSON{Subagents: tt.subagentsData},
 			}
-			item := types.WidgetItem{Type: "subagents"}
-			title, body, err := w.Render(item, ctx, settings)
+			title, body, err := w.Render(tt.item, ctx, settings)
 			if err != nil {
 				t.Fatalf("Render error: %v", err)
 			}
@@ -299,40 +332,50 @@ func TestTasksWidget(t *testing.T) {
 		t.Fatalf("Tasks widget not found")
 	}
 
+	if w.GetDefaultColor() != "brightWhite" {
+		t.Errorf("Expected default color %q, got %q", "brightWhite", w.GetDefaultColor())
+	}
+	if w.GetDisplayName() != "Tasks" {
+		t.Errorf("Expected display name %q, got %q", "Tasks", w.GetDisplayName())
+	}
+
 	settings := types.DefaultSettings()
 	count2 := 2
 	count3 := 3
 
 	tests := []struct {
 		name          string
+		item          types.WidgetItem
 		ctx           types.RenderContext
 		expectedTitle string
 		expectedBody  string
 	}{
 		{
 			name:          "Nil task count",
+			item:          types.WidgetItem{Type: "tasks"},
 			ctx:           types.RenderContext{Data: types.StatusJSON{}},
 			expectedTitle: "tasks",
 			expectedBody:  "0",
 		},
 		{
 			name:          "Task count 2",
+			item:          types.WidgetItem{Type: "tasks"},
 			ctx:           types.RenderContext{Data: types.StatusJSON{TaskCount: &count2}},
 			expectedTitle: "tasks",
 			expectedBody:  "2",
 		},
 		{
-			name:          "Task count 3",
+			name:          "Task count 3 raw",
+			item:          types.WidgetItem{Type: "tasks", Raw: true},
 			ctx:           types.RenderContext{Data: types.StatusJSON{TaskCount: &count3}},
-			expectedTitle: "tasks",
+			expectedTitle: "",
 			expectedBody:  "3",
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			item := types.WidgetItem{Type: "tasks"}
-			title, body, err := w.Render(item, tt.ctx, settings)
+			title, body, err := w.Render(tt.item, tt.ctx, settings)
 			if err != nil {
 				t.Fatalf("Render error: %v", err)
 			}

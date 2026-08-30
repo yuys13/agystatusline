@@ -50,12 +50,12 @@ agystatusline
 ### Configuration Files
 
 By default, your settings are saved to:
-`~/.config/agystatusline/settings.json`
+`~/.config/agystatusline/settings.toml`
 
 To use or modify a custom configuration file, pass the `--config` flag:
 
 ```bash
-agystatusline --config /path/to/custom-settings.json
+agystatusline --config /path/to/custom-settings.toml
 ```
 
 ## Acknowledgements

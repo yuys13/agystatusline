@@ -39,8 +39,8 @@ func isOsc8Sequence(body string) (bool, bool) {
 		return false, false
 	}
 	rest := body[2:]
-	if idx := strings.Index(rest, ";"); idx != -1 {
-		return true, rest[idx+1:] == ""
+	if _, after, ok := strings.Cut(rest, ";"); ok {
+		return true, after == ""
 	}
 	return true, true
 }

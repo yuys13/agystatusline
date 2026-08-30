@@ -21,20 +21,10 @@ func (m *ModelWidget) Render(item types.WidgetItem, ctx types.RenderContext, set
 		displayName = ctx.Data.Model.ID
 	}
 
-	if displayName == "" {
-		return "", "", nil
-	}
-
 	modelName := strings.TrimSpace(displayName)
-
-	preserveColors := item.PreserveColors != nil && *item.PreserveColors
-	if preserveColors {
-		// Under statusline.sh spec, model name is italic magenta
-		return "", "\x1b[3m\x1b[95m" + modelName + "\x1b[23m\x1b[39m", nil
+	if modelName == "" {
+		modelName = "no-model"
 	}
 
-	if item.RawValue != nil && *item.RawValue {
-		return "", modelName, nil
-	}
 	return "", modelName, nil
 }
