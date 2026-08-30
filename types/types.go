@@ -3,6 +3,8 @@ package types
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
+	"strings"
 )
 
 // ModelInfo wraps the model string or object representation.
@@ -155,98 +157,173 @@ type StatusJSON struct {
 }
 
 // WidgetItem configures a single widget in the statusline.
+// It supports plain string representations ("model"), shorthand strings
+// ("quota:gemini-5h", "custom-text:PROD", "git-branch: "), and inline tables.
 type WidgetItem struct {
-	ID              string            `json:"id"`
-	Type            string            `json:"type"`
-	Color           string            `json:"color,omitempty"`
-	BackgroundColor string            `json:"backgroundColor,omitempty"`
-	Bold            *bool             `json:"bold,omitempty"`
-	Dim             any               `json:"dim,omitempty"` // bool or string ("parens")
-	Character       string            `json:"character,omitempty"`
-	RawValue        *bool             `json:"rawValue,omitempty"`
-	CustomText      string            `json:"customText,omitempty"`
-	CustomSymbol    string            `json:"customSymbol,omitempty"`
-	CommandPath     string            `json:"commandPath,omitempty"`
-	MaxWidth        *int              `json:"maxWidth,omitempty"`
-	PreserveColors  *bool             `json:"preserveColors,omitempty"`
-	Timeout         *int              `json:"timeout,omitempty"`
-	Merge           any               `json:"merge,omitempty"` // bool or string ("no-padding")
-	Hide            *bool             `json:"hide,omitempty"`
-	Metadata        map[string]string `json:"metadata,omitempty"`
+	Type   string `toml:"type" json:"type"`
+	Key    string `toml:"key,omitempty" json:"key,omitempty"`
+	Text   string `toml:"text,omitempty" json:"text,omitempty"`
+	Symbol string `toml:"symbol,omitempty" json:"symbol,omitempty"`
+	Color  string `toml:"color,omitempty" json:"color,omitempty"`
+	Raw    bool   `toml:"raw,omitempty" json:"raw,omitempty"`
 }
 
+// UnmarshalTOML implements custom TOML unmarshaling for WidgetItem.
+func (w *WidgetItem) UnmarshalTOML(data any) error {
+	switch v := data.(type) {
+	case string:
+		str := v
+		if strings.Contains(str, ":") {
+			parts := strings.SplitN(str, ":", 2)
+			w.Type = strings.TrimSpace(parts[0])
+			param := parts[1]
+			switch w.Type {
+			case "quota", "quota-bar":
+				w.Key = strings.TrimSpace(param)
+			case "custom-text", "custom":
+				w.Type = "custom-text"
+				w.Text = param
+			case "git-branch":
+				w.Symbol = param
+			default:
+				w.Key = strings.TrimSpace(param)
+			}
+		} else {
+			w.Type = strings.TrimSpace(str)
+		}
+		if w.Type == "custom" {
+			w.Type = "custom-text"
+		}
+		return nil
+
+	case map[string]any:
+		if t, ok := v["type"].(string); ok {
+			w.Type = strings.TrimSpace(t)
+		}
+		if k, ok := v["key"].(string); ok {
+			w.Key = strings.TrimSpace(k)
+		}
+		if txt, ok := v["text"].(string); ok {
+			w.Text = txt
+		}
+		if sym, ok := v["symbol"].(string); ok {
+			w.Symbol = sym
+		}
+		if c, ok := v["color"].(string); ok {
+			w.Color = strings.TrimSpace(c)
+		}
+		if r, ok := v["raw"].(bool); ok {
+			w.Raw = r
+		}
+		if w.Type == "custom" {
+			w.Type = "custom-text"
+		}
+		return nil
+
+	case []byte:
+		return w.UnmarshalTOML(string(v))
+
+	default:
+		return fmt.Errorf("invalid widget format: expected string or table, got %T", data)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler for WidgetItem,
+// allowing go-toml/v2 and standard encoders to parse string representations.
+func (w *WidgetItem) UnmarshalText(text []byte) error {
+	return w.UnmarshalTOML(string(text))
+}
+
+// MarshalTOML implements custom TOML marshaling for WidgetItem.
+func (w WidgetItem) MarshalTOML() (any, error) {
+	if w.Color == "" && !w.Raw {
+		if (w.Type == "quota" || w.Type == "quota-bar") && w.Key != "" && w.Text == "" && w.Symbol == "" {
+			return w.Type + ":" + w.Key, nil
+		}
+		if w.Type == "custom-text" && w.Text != "" && w.Key == "" && w.Symbol == "" {
+			return "custom-text:" + w.Text, nil
+		}
+		if w.Type == "git-branch" && w.Symbol != "" && w.Key == "" && w.Text == "" {
+			return "git-branch:" + w.Symbol, nil
+		}
+		if w.Key == "" && w.Text == "" && w.Symbol == "" && w.Type != "" {
+			return w.Type, nil
+		}
+	}
+
+	m := map[string]any{
+		"type": w.Type,
+	}
+	if w.Key != "" {
+		m["key"] = w.Key
+	}
+	if w.Text != "" {
+		m["text"] = w.Text
+	}
+	if w.Symbol != "" {
+		m["symbol"] = w.Symbol
+	}
+	if w.Color != "" {
+		m["color"] = w.Color
+	}
+	if w.Raw {
+		m["raw"] = w.Raw
+	}
+	return m, nil
+}
+
+// PowerlineConfig defines Powerline styling and separator options.
 type PowerlineConfig struct {
-	Enabled                   bool     `json:"enabled"`
-	Separators                []string `json:"separators"`
-	SeparatorInvertBackground []bool   `json:"separatorInvertBackground"`
-	StartCaps                 []string `json:"startCaps"`
-	EndCaps                   []string `json:"endCaps"`
-	Theme                     string   `json:"theme,omitempty"`
-	AutoAlign                 bool     `json:"autoAlign"`
-	ContinueThemeAcrossLines  bool     `json:"continueThemeAcrossLines"`
+	Enabled   bool   `toml:"enabled" json:"enabled"`
+	Theme     string `toml:"theme" json:"theme"`
+	Separator string `toml:"separator" json:"separator"`
+	StartCaps string `toml:"start_caps" json:"start_caps"`
+	EndCaps   string `toml:"end_caps" json:"end_caps"`
 }
 
-type UpdateMessage struct {
-	Message   string `json:"message,omitempty"`
-	Remaining *int   `json:"remaining,omitempty"`
+// GeneralConfig defines general statusline behavior.
+type GeneralConfig struct {
+	ColorLevel  int    `toml:"color_level" json:"color_level"`
+	GitCacheTTL int    `toml:"git_cache_ttl" json:"git_cache_ttl"`
+	Separator   string `toml:"separator" json:"separator"`
+	Padding     string `toml:"padding" json:"padding"`
+	Minimalist  bool   `toml:"minimalist" json:"minimalist"`
 }
 
-type InstallationMetadata struct {
-	Method           string `json:"method"`
-	PackageManager   string `json:"packageManager,omitempty"`
-	InstalledVersion string `json:"installedVersion,omitempty"`
-}
-
-// Settings represents ccstatusline configurations in settings.json.
+// Settings represents the complete agystatusline TOML configuration.
 type Settings struct {
-	Version                 int                   `json:"version"`
-	Lines                   [][]WidgetItem        `json:"lines"`
-	FlexMode                string                `json:"flexMode"`
-	CompactThreshold        int                   `json:"compactThreshold"`
-	ColorLevel              int                   `json:"colorLevel"`
-	DefaultSeparator        string                `json:"defaultSeparator,omitempty"`
-	DefaultPadding          string                `json:"defaultPadding,omitempty"`
-	InheritSeparatorColors  bool                  `json:"inheritSeparatorColors"`
-	OverrideBackgroundColor string                `json:"overrideBackgroundColor,omitempty"`
-	OverrideForegroundColor string                `json:"overrideForegroundColor,omitempty"`
-	GlobalBold              bool                  `json:"globalBold"`
-	GitCacheTTLSeconds      int                   `json:"gitCacheTtlSeconds"`
-	MinimalistMode          bool                  `json:"minimalistMode"`
-	Powerline               PowerlineConfig       `json:"powerline"`
-	UpdateMessage           *UpdateMessage        `json:"updatemessage,omitempty"`
-	Installation            *InstallationMetadata `json:"installation,omitempty"`
+	Lines     [][]WidgetItem  `toml:"lines" json:"lines"`
+	Powerline PowerlineConfig `toml:"powerline" json:"powerline"`
+	General   GeneralConfig   `toml:"general" json:"general"`
 }
 
-// DefaultSettings returns configuration defaults mapped from Zod schema defaults.
+// DefaultSettings returns the modern default configuration.
 func DefaultSettings() Settings {
 	return Settings{
-		Version: 3,
 		Lines: [][]WidgetItem{
 			{
-				{ID: "1", Type: "agent-state", Color: "brightGreen"},
-				{ID: "2", Type: "model", Color: "brightMagenta"},
-				{ID: "3", Type: "context-bar", Color: "brightWhite"},
-				{ID: "4", Type: "artifacts", Color: "brightWhite"},
-				{ID: "5", Type: "subagents", Color: "brightWhite"},
-				{ID: "6", Type: "tasks", Color: "brightWhite"},
-				{ID: "7", Type: "sandbox", Color: "yellow"},
+				{Type: "agent-state"},
+				{Type: "model"},
+				{Type: "context-bar"},
+				{Type: "artifacts"},
+				{Type: "subagents"},
+				{Type: "tasks"},
+				{Type: "sandbox"},
 			},
-			{},
-			{},
 		},
-		FlexMode:           "full-minus-40",
-		CompactThreshold:   60,
-		ColorLevel:         2,
-		GitCacheTTLSeconds: 5,
 		Powerline: PowerlineConfig{
-			Enabled:                   false,
-			Separators:                []string{"\uE0B0"},
-			SeparatorInvertBackground: []bool{false},
-			StartCaps:                 []string{},
-			EndCaps:                   []string{},
-			Theme:                     "nord-aurora",
-			AutoAlign:                 false,
-			ContinueThemeAcrossLines:  false,
+			Enabled:   false,
+			Theme:     "nord-aurora",
+			Separator: "\uE0B0",
+			StartCaps: "",
+			EndCaps:   "",
+		},
+		General: GeneralConfig{
+			ColorLevel:  1,
+			GitCacheTTL: 5,
+			Separator:   " · ",
+			Padding:     "",
+			Minimalist:  false,
 		},
 	}
 }
