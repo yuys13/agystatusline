@@ -2,7 +2,6 @@ package renderer
 
 import (
 	"fmt"
-	"regexp"
 	"strconv"
 	"strings"
 )
@@ -172,27 +171,12 @@ func BgToFg(colorName string) string {
 	return colorName
 }
 
-// applyParensDim dims each (...) span in the text.
-func applyParensDim(text string, bold bool) string {
-	intensityReset := "\x1b[22m"
-	if bold {
-		intensityReset = "\x1b[22;1m"
-	}
-	re := regexp.MustCompile(`\([^()]*\)`)
-	return re.ReplaceAllStringFunc(text, func(span string) string {
-		return "\x1b[2m" + span + intensityReset
-	})
-}
-
 // ApplyColors applies foreground, background, bold, and dim styling to text.
 func ApplyColors(text string, fgColor, bgColor string, bold *bool, colorLevel string, dim any) string {
 	isBold := bold != nil && *bold
 	isDim := dim == true
 
 	styledText := text
-	if dim == "parens" {
-		styledText = applyParensDim(text, isBold)
-	}
 
 	if fgColor == "" && bgColor == "" && !isBold && !isDim {
 		return styledText

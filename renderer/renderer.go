@@ -17,10 +17,22 @@ type PreRenderedWidget struct {
 func RenderStatusLines(settings types.Settings, ctx types.RenderContext) []string {
 	var results []string
 
-	padding := settings.DefaultPadding
-	separator := " · "
-	if settings.DefaultSeparator != "" {
-		separator = formatSeparator(settings.DefaultSeparator)
+	padding := settings.General.Padding
+	separator := settings.General.Separator
+	if separator == "" {
+		separator = " · "
+	} else {
+		separator = formatSeparator(separator)
+	}
+
+	var colorLevelStr string
+	switch settings.General.ColorLevel {
+	case 2:
+		colorLevelStr = "ansi256"
+	case 3:
+		colorLevelStr = "truecolor"
+	default:
+		colorLevelStr = "ansi16"
 	}
 
 	for _, lineItems := range settings.Lines {
@@ -43,9 +55,8 @@ func RenderStatusLines(settings types.Settings, ctx types.RenderContext) []strin
 			}
 
 			effectiveItem := item
-			if ctx.Minimalist {
-				raw := true
-				effectiveItem.RawValue = &raw
+			if ctx.Minimalist || settings.General.Minimalist {
+				effectiveItem.Raw = true
 			}
 
 			title, body, err := w.Render(effectiveItem, ctx, settings)
@@ -54,53 +65,45 @@ func RenderStatusLines(settings types.Settings, ctx types.RenderContext) []strin
 				continue
 			}
 
+			if effectiveItem.Raw || ctx.Minimalist || settings.General.Minimalist {
+				title = ""
+			}
+
 			visibleText := body
-			if title != "" {
+			if title != "" && body != "" {
 				visibleText = title + " " + body
+			} else if title != "" {
+				visibleText = title
 			}
 
 			var colored string
 			if settings.Powerline.Enabled {
 				colored = visibleText
 			} else {
-				preserveColors := item.PreserveColors != nil && *item.PreserveColors
-				if preserveColors {
-					colored = visibleText
+				titleColored := ""
+				if title != "" {
+					titleColored = ApplyColors(title, "brightBlack", "", nil, colorLevelStr, nil)
+				}
+
+				bodyColor := item.Color
+				if bodyColor == "" {
+					bodyColor = w.GetBodyColor(effectiveItem, ctx)
+				}
+				if bodyColor == "" {
+					bodyColor = w.GetDefaultColor()
+				}
+
+				bodyColored := ""
+				if body != "" {
+					bodyColored = ApplyColors(body, bodyColor, "", nil, colorLevelStr, nil)
+				}
+
+				if titleColored != "" && bodyColored != "" {
+					colored = titleColored + " " + bodyColored
+				} else if titleColored != "" {
+					colored = titleColored
 				} else {
-					bold := false
-					if settings.GlobalBold || (item.Bold != nil && *item.Bold) {
-						bold = true
-					}
-					var colorLevelStr string
-					switch settings.ColorLevel {
-					case 2:
-						colorLevelStr = "ansi256"
-					case 3:
-						colorLevelStr = "truecolor"
-					default:
-						colorLevelStr = "ansi16"
-					}
-
-					titleColored := ""
-					if title != "" && (item.RawValue == nil || !*item.RawValue) && !settings.MinimalistMode {
-						titleColored = ApplyColors(title, "brightBlack", "", nil, colorLevelStr, nil)
-					}
-
-					bodyColor := item.Color
-					if bodyColor == "" {
-						bodyColor = w.GetBodyColor(effectiveItem, ctx)
-					}
-					if bodyColor == "" {
-						bodyColor = w.GetDefaultColor()
-					}
-
-					bodyColored := ApplyColors(body, bodyColor, item.BackgroundColor, &bold, colorLevelStr, item.Dim)
-
-					if titleColored != "" {
-						colored = titleColored + " " + bodyColored
-					} else {
-						colored = bodyColored
-					}
+					colored = bodyColored
 				}
 			}
 
@@ -127,15 +130,6 @@ func RenderStatusLines(settings types.Settings, ctx types.RenderContext) []strin
 				}
 			}
 
-			var colorLevelStr string
-			switch settings.ColorLevel {
-			case 2:
-				colorLevelStr = "ansi256"
-			case 3:
-				colorLevelStr = "truecolor"
-			default:
-				colorLevelStr = "ansi16"
-			}
 			coloredSeparator := ApplyColors(separator, "brightBlack", "", nil, colorLevelStr, nil)
 
 			for i, r := range activeRendered {
@@ -152,6 +146,9 @@ func RenderStatusLines(settings types.Settings, ctx types.RenderContext) []strin
 			termWidth := *ctx.TerminalWidth
 			if ctx.IsPreview {
 				termWidth = termWidth - 6
+			}
+			if termWidth < 0 {
+				termWidth = 0
 			}
 			visibleWidth := GetVisibleWidth(lineStr)
 			if visibleWidth > termWidth {
@@ -180,22 +177,24 @@ func formatSeparator(sep string) string {
 }
 
 type powerlineElement struct {
-	content        string
-	bgColor        string
-	fgColor        string
-	mergesWithNext bool
-	widgetType     string
+	content    string
+	bgColor    string
+	fgColor    string
+	widgetType string
 }
 
 func renderPowerline(rendered []PreRenderedWidget, settings types.Settings, ctx types.RenderContext) string {
 	var themeColors *PowerlineThemeColors
 	themeName := settings.Powerline.Theme
-	if themeName != "" && themeName != "custom" {
+	if themeName == "" {
+		themeName = "nord-aurora"
+	}
+	if themeName != "custom" {
 		theme := GetPowerlineTheme(themeName)
 		if theme != nil {
-			if settings.ColorLevel == 2 && theme.Colors256 != nil {
+			if settings.General.ColorLevel == 2 && theme.Colors256 != nil {
 				themeColors = theme.Colors256
-			} else if settings.ColorLevel == 3 && theme.Truecolor != nil {
+			} else if settings.General.ColorLevel == 3 && theme.Truecolor != nil {
 				themeColors = theme.Truecolor
 			} else if theme.Colors16 != nil {
 				themeColors = theme.Colors16
@@ -215,38 +214,31 @@ func renderPowerline(rendered []PreRenderedWidget, settings types.Settings, ctx 
 		}
 
 		fgColor := r.Item.Color
-		if fgColor == "" {
-			w := widgets.GetWidget(r.Item.Type)
-			if w != nil {
-				fgColor = w.GetDefaultColor()
-			}
-		}
-		bgColor := r.Item.BackgroundColor
+		bgColor := ""
 
 		if themeColors != nil && len(themeColors.Bg) > 0 {
-			fgColor = themeColors.Fg[themeColorIndex%len(themeColors.Fg)]
+			if fgColor == "" {
+				fgColor = themeColors.Fg[themeColorIndex%len(themeColors.Fg)]
+			}
 			bgColor = themeColors.Bg[themeColorIndex%len(themeColors.Bg)]
-		}
-
-		mergesWithNext := false
-		if r.Item.Merge == true || r.Item.Merge == "no-padding" {
-			mergesWithNext = true
-		}
-
-		// Advancing color index only if it does not merge
-		if themeColors != nil && len(themeColors.Bg) > 0 && !mergesWithNext {
 			themeColorIndex++
+		} else {
+			if fgColor == "" {
+				w := widgets.GetWidget(r.Item.Type)
+				if w != nil {
+					fgColor = w.GetDefaultColor()
+				}
+			}
 		}
 
-		padding := settings.DefaultPadding
+		padding := settings.General.Padding
 		paddedContent := padding + r.Content + padding
 
 		elements = append(elements, powerlineElement{
-			content:        paddedContent,
-			bgColor:        bgColor,
-			fgColor:        fgColor,
-			mergesWithNext: mergesWithNext,
-			widgetType:     r.Item.Type,
+			content:    paddedContent,
+			bgColor:    bgColor,
+			fgColor:    fgColor,
+			widgetType: r.Item.Type,
 		})
 	}
 
@@ -255,14 +247,13 @@ func renderPowerline(rendered []PreRenderedWidget, settings types.Settings, ctx 
 	}
 
 	var builder strings.Builder
-	separators := settings.Powerline.Separators
-	if len(separators) == 0 {
-		separators = []string{"\uE0B0"}
+	sep := settings.Powerline.Separator
+	if sep == "" {
+		sep = "\uE0B0"
 	}
-	sep := separators[0]
 
 	var colorLevel string
-	switch settings.ColorLevel {
+	switch settings.General.ColorLevel {
 	case 2:
 		colorLevel = "ansi256"
 	case 3:
@@ -272,9 +263,8 @@ func renderPowerline(rendered []PreRenderedWidget, settings types.Settings, ctx 
 	}
 
 	// Prepend StartCap if configured
-	startCaps := settings.Powerline.StartCaps
-	if len(startCaps) > 0 && startCaps[0] != "" {
-		startCap := startCaps[0]
+	if settings.Powerline.StartCaps != "" {
+		startCap := settings.Powerline.StartCaps
 		firstEl := elements[0]
 		if firstEl.bgColor != "" {
 			capFg := BgToFg(firstEl.bgColor)
@@ -286,26 +276,15 @@ func renderPowerline(rendered []PreRenderedWidget, settings types.Settings, ctx 
 	}
 
 	for i, el := range elements {
-		bold := false
-		if settings.GlobalBold {
-			bold = true
-		}
-
 		fgCode := GetColorAnsiCode(el.fgColor, colorLevel, false)
 		bgCode := GetColorAnsiCode(el.bgColor, colorLevel, true)
 
-		if bold {
-			builder.WriteString("\x1b[1m")
-		}
 		builder.WriteString(fgCode)
 		builder.WriteString(bgCode)
 		builder.WriteString(el.content)
 		builder.WriteString("\x1b[49m\x1b[39m")
-		if bold {
-			builder.WriteString("\x1b[22m")
-		}
 
-		if i < len(elements)-1 && !el.mergesWithNext {
+		if i < len(elements)-1 {
 			nextEl := elements[i+1]
 			sepFg := BgToFg(el.bgColor)
 			sepBg := nextEl.bgColor
@@ -326,9 +305,8 @@ func renderPowerline(rendered []PreRenderedWidget, settings types.Settings, ctx 
 	}
 
 	// Append EndCap if configured
-	endCaps := settings.Powerline.EndCaps
-	if len(endCaps) > 0 && endCaps[0] != "" {
-		endCap := endCaps[0]
+	if settings.Powerline.EndCaps != "" {
+		endCap := settings.Powerline.EndCaps
 		lastEl := elements[len(elements)-1]
 		if lastEl.bgColor != "" {
 			capFg := BgToFg(lastEl.bgColor)

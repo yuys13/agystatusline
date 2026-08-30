@@ -306,16 +306,6 @@ func TestApplyColors_DimTypes(t *testing.T) {
 		wantSeq string
 	}{
 		{
-			name:    "Parens dim type",
-			text:    "test (parens)",
-			color:   "red",
-			bgColor: "",
-			bold:    &bTrue,
-			level:   "truecolor",
-			dim:     "parens",
-			wantSeq: "\x1b[2m(parens)",
-		},
-		{
 			name:    "Boolean true dim type",
 			text:    "test",
 			color:   "red",
@@ -333,6 +323,16 @@ func TestApplyColors_DimTypes(t *testing.T) {
 			bold:    &bTrue,
 			level:   "truecolor",
 			dim:     false,
+			wantSeq: "\x1b[1m",
+		},
+		{
+			name:    "Nil dim type",
+			text:    "test",
+			color:   "red",
+			bgColor: "",
+			bold:    &bTrue,
+			level:   "truecolor",
+			dim:     nil,
 			wantSeq: "\x1b[1m",
 		},
 	}
