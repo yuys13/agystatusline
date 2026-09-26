@@ -1,5 +1,7 @@
 # agystatusline
 
+[![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/yuys13/agystatusline)
+
 `agystatusline` is a highly customizable terminal status line generator designed for **Google Antigravity CLI**. It parses the session telemetry JSON streamed to its standard input and renders a beautifully formatted, color-coded, and Powerline-compatible status line.
 
 ## Installation
