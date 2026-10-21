@@ -1327,3 +1327,139 @@ color_level = 1
 		t.Errorf("Roundtrip mismatch!\nExpected: %+v\nGot:      %+v\nTOML:\n%s", s, restored, string(marshaled))
 	}
 }
+
+func TestSettings_PayloadDumpConfig(t *testing.T) {
+	tests := []struct {
+		name     string
+		tomlDoc  string
+		expected PayloadDumpConfig
+	}{
+		{
+			name: "explicitly enabled with custom path",
+			tomlDoc: `
+lines = [["model"]]
+[payload_dump]
+enabled = true
+path = "/tmp/custom_payload.json"
+`,
+			expected: PayloadDumpConfig{
+				Enabled: true,
+				Path:    "/tmp/custom_payload.json",
+			},
+		},
+		{
+			name: "disabled with explicit path",
+			tomlDoc: `
+lines = [["model"]]
+[payload_dump]
+enabled = false
+path = "~/.local/share/agystatusline/payload.json"
+`,
+			expected: PayloadDumpConfig{
+				Enabled: false,
+				Path:    "~/.local/share/agystatusline/payload.json",
+			},
+		},
+		{
+			name: "omitted payload_dump section uses zero values when unmarshaled into empty struct",
+			tomlDoc: `
+lines = [["model"]]
+`,
+			expected: PayloadDumpConfig{
+				Enabled: false,
+				Path:    "",
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var s Settings
+			err := toml.Unmarshal([]byte(tt.tomlDoc), &s)
+			if err != nil {
+				t.Fatalf("Failed to unmarshal TOML: %v", err)
+			}
+			if s.PayloadDump != tt.expected {
+				t.Errorf("Expected PayloadDump %+v, got %+v", tt.expected, s.PayloadDump)
+			}
+
+			// Verify roundtrip serialization
+			marshaled, err := toml.Marshal(s)
+			if err != nil {
+				t.Fatalf("Failed to marshal Settings: %v", err)
+			}
+			var restored Settings
+			if err := toml.Unmarshal(marshaled, &restored); err != nil {
+				t.Fatalf("Failed to unmarshal remarshaled Settings: %v", err)
+			}
+			if restored.PayloadDump != s.PayloadDump {
+				t.Errorf("Roundtrip mismatch: expected %+v, got %+v", s.PayloadDump, restored.PayloadDump)
+			}
+		})
+	}
+
+	t.Run("DefaultSettings has PayloadDump configured", func(t *testing.T) {
+		defaults := DefaultSettings()
+		expectedDefault := PayloadDumpConfig{
+			Enabled: false,
+			Path:    DefaultPayloadDumpPath,
+		}
+		if defaults.PayloadDump != expectedDefault {
+			t.Errorf("Expected default PayloadDump %+v, got %+v", expectedDefault, defaults.PayloadDump)
+		}
+	})
+
+	t.Run("ApplyDefaults populates DefaultPayloadDumpPath when Path is empty", func(t *testing.T) {
+		s := Settings{
+			PayloadDump: PayloadDumpConfig{
+				Enabled: true,
+				Path:    "",
+			},
+		}
+		s.ApplyDefaults()
+		if s.PayloadDump.Path != DefaultPayloadDumpPath {
+			t.Errorf("Expected ApplyDefaults to populate %q, got %q", DefaultPayloadDumpPath, s.PayloadDump.Path)
+		}
+	})
+
+	t.Run("ApplyDefaults populates DefaultPayloadDumpPath when Path is whitespace only", func(t *testing.T) {
+		s := Settings{
+			PayloadDump: PayloadDumpConfig{
+				Enabled: true,
+				Path:    "   \t\n  ",
+			},
+		}
+		s.ApplyDefaults()
+		if s.PayloadDump.Path != DefaultPayloadDumpPath {
+			t.Errorf("Expected ApplyDefaults to populate %q for whitespace path, got %q", DefaultPayloadDumpPath, s.PayloadDump.Path)
+		}
+	})
+
+	t.Run("ApplyDefaults trims surrounding whitespace on custom Path", func(t *testing.T) {
+		s := Settings{
+			PayloadDump: PayloadDumpConfig{
+				Enabled: true,
+				Path:    "  /tmp/my_custom_payload.json  ",
+			},
+		}
+		s.ApplyDefaults()
+		expected := "/tmp/my_custom_payload.json"
+		if s.PayloadDump.Path != expected {
+			t.Errorf("Expected ApplyDefaults to trim path to %q, got %q", expected, s.PayloadDump.Path)
+		}
+	})
+
+	t.Run("ApplyDefaults preserves existing custom Path", func(t *testing.T) {
+		customPath := "/tmp/my_custom_payload.json"
+		s := Settings{
+			PayloadDump: PayloadDumpConfig{
+				Enabled: true,
+				Path:    customPath,
+			},
+		}
+		s.ApplyDefaults()
+		if s.PayloadDump.Path != customPath {
+			t.Errorf("Expected ApplyDefaults to preserve %q, got %q", customPath, s.PayloadDump.Path)
+		}
+	})
+}

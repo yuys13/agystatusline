@@ -120,6 +120,7 @@ var widgetTypes = []struct {
 }
 
 func NewModel(settings types.Settings, configPath string) Model {
+	settings.ApplyDefaults()
 	initialThemeIndex := 0
 	for i, t := range themesList {
 		if t == settings.Powerline.Theme {
@@ -1062,6 +1063,7 @@ func (sb *stringsBuilder) String() string {
 }
 
 func saveSettings(path string, settings types.Settings) error {
+	settings.ApplyDefaults()
 	dir := filepath.Dir(path)
 	err := os.MkdirAll(dir, 0755)
 	if err != nil {

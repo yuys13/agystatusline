@@ -290,16 +290,36 @@ type GeneralConfig struct {
 	Minimalist  bool   `toml:"minimalist" json:"minimalist"`
 }
 
+// DefaultPayloadDumpPath defines the default destination for persisting JSON state payloads.
+const DefaultPayloadDumpPath = "~/.local/share/agystatusline/payload.json"
+
+// PayloadDumpConfig defines JSON state payload persistence options.
+type PayloadDumpConfig struct {
+	Enabled bool   `toml:"enabled" json:"enabled"`
+	Path    string `toml:"path" json:"path"`
+}
+
 // Settings represents the complete agystatusline TOML configuration.
 type Settings struct {
-	Lines     [][]WidgetItem  `toml:"lines" json:"lines"`
-	Powerline PowerlineConfig `toml:"powerline" json:"powerline"`
-	General   GeneralConfig   `toml:"general" json:"general"`
+	Lines       [][]WidgetItem    `toml:"lines" json:"lines"`
+	Powerline   PowerlineConfig   `toml:"powerline" json:"powerline"`
+	General     GeneralConfig     `toml:"general" json:"general"`
+	PayloadDump PayloadDumpConfig `toml:"payload_dump" json:"payload_dump"`
+}
+
+// ApplyDefaults ensures missing or empty configuration fields are populated with standard defaults.
+func (s *Settings) ApplyDefaults() {
+	trimmed := strings.TrimSpace(s.PayloadDump.Path)
+	if trimmed == "" {
+		s.PayloadDump.Path = DefaultPayloadDumpPath
+	} else {
+		s.PayloadDump.Path = trimmed
+	}
 }
 
 // DefaultSettings returns the modern default configuration.
 func DefaultSettings() Settings {
-	return Settings{
+	s := Settings{
 		Lines: [][]WidgetItem{
 			{
 				{Type: "agent-state"},
@@ -325,7 +345,13 @@ func DefaultSettings() Settings {
 			Padding:     "",
 			Minimalist:  false,
 		},
+		PayloadDump: PayloadDumpConfig{
+			Enabled: false,
+			Path:    DefaultPayloadDumpPath,
+		},
 	}
+	s.ApplyDefaults()
+	return s
 }
 
 // RenderContext holds telemetry data and system metrics needed during render pass.

@@ -60,6 +60,23 @@ To use or modify a custom configuration file, pass the `--config` flag:
 agystatusline --config /path/to/custom-settings.toml
 ```
 
+## Payload Persistence (Dump)
+
+If you want other desktop tools, status bars (e.g. Quickshell, Waybar), or monitoring scripts to read Antigravity's live quota, context metrics, and session telemetry, `agystatusline` can persist the raw JSON payload streamed on `stdin` directly to a file:
+
+```toml
+# In ~/.config/agystatusline/settings.toml
+[payload_dump]
+enabled = true
+path = "~/.local/share/agystatusline/payload.json"
+```
+
+- **Verbatim**: Writes the exact JSON document received from Antigravity CLI without alteration.
+- **Atomic Replace**: Safely writes to a temporary file in the destination directory before atomically renaming, preventing partial reads by polling processes.
+- **Secure**: Created with `0600` permissions (readable and writable by user only).
+- **Default Fallback**: If `path` is empty or omitted, falls back to `~/.local/share/agystatusline/payload.json`.
+- **Non-blocking**: Best-effort persistence that never interrupts or delays status line rendering.
+
 ## Acknowledgements
 
 This project is heavily inspired by [ccstatusline](https://github.com/sirmalloc/ccstatusline). We would like to express our gratitude to the author of `ccstatusline` for their work, which served as a major inspiration and foundation for the development of `agystatusline`.
