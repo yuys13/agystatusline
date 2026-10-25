@@ -78,6 +78,24 @@ func TestLoadSettings(t *testing.T) {
 			expectCreated:  true,
 			expectErr:      true,
 		},
+		{
+			name: "Omitted lines in TOML preserves default lines",
+			setup: func(path string) {
+				_ = os.WriteFile(path, []byte("[general]\ncolor_level = 1\n"), 0644)
+			},
+			wantLinesCount: 1,
+			expectCreated:  false,
+			expectErr:      false,
+		},
+		{
+			name: "Explicit empty lines in TOML sets zero lines",
+			setup: func(path string) {
+				_ = os.WriteFile(path, []byte("lines = []\n"), 0644)
+			},
+			wantLinesCount: 0,
+			expectCreated:  false,
+			expectErr:      false,
+		},
 	}
 
 	for _, tt := range tests {
