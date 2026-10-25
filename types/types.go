@@ -166,6 +166,9 @@ type WidgetItem struct {
 	Symbol string `toml:"symbol,omitempty" json:"symbol,omitempty"`
 	Color  string `toml:"color,omitempty" json:"color,omitempty"`
 	Raw    bool   `toml:"raw,omitempty" json:"raw,omitempty"`
+	// Hint is optional text rendered by a widget only while it has something
+	// in progress, such as the agent-state widget's interrupt key.
+	Hint string `toml:"hint,omitempty" json:"hint,omitempty"`
 }
 
 // UnmarshalTOML implements custom TOML unmarshaling for WidgetItem.
@@ -215,6 +218,9 @@ func (w *WidgetItem) UnmarshalTOML(data any) error {
 		if r, ok := v["raw"].(bool); ok {
 			w.Raw = r
 		}
+		if h, ok := v["hint"].(string); ok {
+			w.Hint = h
+		}
 		if w.Type == "custom" {
 			w.Type = "custom-text"
 		}
@@ -236,7 +242,9 @@ func (w *WidgetItem) UnmarshalText(text []byte) error {
 
 // MarshalTOML implements custom TOML marshaling for WidgetItem.
 func (w WidgetItem) MarshalTOML() (any, error) {
-	if w.Color == "" && !w.Raw {
+	// A hint cannot be expressed in the string shorthands, so it always
+	// marshals as an inline table.
+	if w.Color == "" && !w.Raw && w.Hint == "" {
 		if (w.Type == "quota" || w.Type == "quota-bar") && w.Key != "" && w.Text == "" && w.Symbol == "" {
 			return w.Type + ":" + w.Key, nil
 		}
@@ -268,6 +276,9 @@ func (w WidgetItem) MarshalTOML() (any, error) {
 	}
 	if w.Raw {
 		m["raw"] = w.Raw
+	}
+	if w.Hint != "" {
+		m["hint"] = w.Hint
 	}
 	return m, nil
 }

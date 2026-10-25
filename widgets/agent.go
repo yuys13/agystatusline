@@ -81,6 +81,12 @@ func (a *AgentStateWidget) Render(item types.WidgetItem, ctx types.RenderContext
 		symbolText = "⏳ " + strings.ToUpper(state)
 	}
 
+	// The optional hint is useful only while the agent is busy, so it is
+	// omitted in the idle state. Unknown states are treated as busy.
+	if item.Hint != "" && state != "idle" {
+		symbolText += " (" + item.Hint + ")"
+	}
+
 	return "", symbolText, nil
 }
 

@@ -49,6 +49,20 @@ agystatusline
 - **Multi-Line Editing**: Easily add, delete, and configure multiple status lines and their associated widgets.
 - **Powerline Themes & Separators**: Configure Powerline styles and separators (such as `nord-aurora`) through dedicated menus.
 
+### Busy-State Hints
+
+The `agent-state` widget accepts an optional `hint` that is appended in
+parentheses only while the agent is busy. This is useful for advertising the
+interrupt key, or for external tooling that reads the rendered status line:
+
+```toml
+lines = [
+  [{ type = "agent-state", hint = "esc to cancel" }, "model", "context-bar"]
+]
+```
+
+The hint is omitted in the idle state (`● READY`).
+
 ### Configuration Files
 
 By default, your settings are saved to:

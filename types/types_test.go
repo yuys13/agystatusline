@@ -476,6 +476,18 @@ func TestWidgetItem_UnmarshalTOML(t *testing.T) {
 			hasErr: false,
 		},
 		{
+			name: "map with agent-state hint",
+			input: map[string]any{
+				"type": "agent-state",
+				"hint": "esc to cancel",
+			},
+			expected: WidgetItem{
+				Type: "agent-state",
+				Hint: "esc to cancel",
+			},
+			hasErr: false,
+		},
+		{
 			name:     "invalid integer input",
 			input:    42,
 			expected: WidgetItem{},
@@ -630,6 +642,17 @@ func TestWidgetItem_MarshalTOML(t *testing.T) {
 				"key":    "k1",
 				"text":   "txt",
 				"symbol": "sym",
+			},
+		},
+		{
+			name: "agent-state hint marshaled as map",
+			widget: WidgetItem{
+				Type: "agent-state",
+				Hint: "esc to cancel",
+			},
+			expected: map[string]any{
+				"type": "agent-state",
+				"hint": "esc to cancel",
 			},
 		},
 	}

@@ -182,6 +182,86 @@ func TestAgentStateWidget(t *testing.T) {
 	}
 }
 
+func TestAgentStateWidgetHint(t *testing.T) {
+	RegisterAll()
+	w := GetWidget("agent-state")
+	if w == nil {
+		t.Fatalf("Agent state widget not found")
+	}
+
+	settings := types.DefaultSettings()
+
+	tests := []struct {
+		name         string
+		state        string
+		hint         string
+		expectedBody string
+	}{
+		{
+			name:         "working state shows hint",
+			state:        "working",
+			hint:         "esc to cancel",
+			expectedBody: "⚙ WORKING (esc to cancel)",
+		},
+		{
+			name:         "thinking state shows hint",
+			state:        "thinking",
+			hint:         "esc to cancel",
+			expectedBody: "◆ THINKING (esc to cancel)",
+		},
+		{
+			name:         "tool use state shows hint",
+			state:        "tool_use",
+			hint:         "esc to cancel",
+			expectedBody: "🔧 TOOL (esc to cancel)",
+		},
+		{
+			name:         "custom busy state shows hint",
+			state:        "custom_state",
+			hint:         "esc to cancel",
+			expectedBody: "⏳ CUSTOM_STATE (esc to cancel)",
+		},
+		{
+			name:         "idle state omits hint",
+			state:        "idle",
+			hint:         "esc to cancel",
+			expectedBody: "● READY",
+		},
+		{
+			name:         "empty state omits hint",
+			state:        "",
+			hint:         "esc to cancel",
+			expectedBody: "● READY",
+		},
+		{
+			name:         "no hint configured",
+			state:        "working",
+			hint:         "",
+			expectedBody: "⚙ WORKING",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ctx := types.RenderContext{
+				Data: types.StatusJSON{AgentState: tt.state},
+			}
+			item := types.WidgetItem{Type: "agent-state", Hint: tt.hint}
+
+			title, body, err := w.Render(item, ctx, settings)
+			if err != nil {
+				t.Fatalf("Render error: %v", err)
+			}
+			if title != "" {
+				t.Errorf("Expected empty title, got %q", title)
+			}
+			if body != tt.expectedBody {
+				t.Errorf("Expected body %q, got %q", tt.expectedBody, body)
+			}
+		})
+	}
+}
+
 func TestArtifactsWidget(t *testing.T) {
 	RegisterAll()
 	w := GetWidget("artifacts")
