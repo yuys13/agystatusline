@@ -95,6 +95,11 @@ git_cache_ttl = 5
 separator = " · "
 padding = ""
 minimalist = false
+
+# Telemetry / state payload persistence (optional)
+[payload_dump]
+enabled = false
+path = "~/.local/share/agystatusline/payload.json"
 ```
 
 ### Configuration Sections
@@ -118,6 +123,11 @@ minimalist = false
 - **`separator`** (`string`, default: `" · "`): Widget separator string in standard mode (Powerline disabled).
 - **`padding`** (`string`, default: `""`): Optional padding text added around widgets.
 - **`minimalist`** (`bool`, default: `false`): When `true`, suppresses widget titles/labels and displays only values.
+
+#### `[payload_dump]`
+
+- **`enabled`** (`bool`, default: `false`): When `true`, saves the verbatim JSON state payload streamed on stdin to the file path specified in `path`.
+- **`path`** (`string`, default: `"~/.local/share/agystatusline/payload.json"`): Destination file path for persisting the telemetry JSON (falls back to default path if empty or omitted). Uses atomic replace and sets `0600` file permissions.
 
 ### Widget Item Syntax
 

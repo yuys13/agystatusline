@@ -78,6 +78,24 @@ func TestLoadSettings(t *testing.T) {
 			expectCreated:  true,
 			expectErr:      true,
 		},
+		{
+			name: "Omitted lines in TOML preserves default lines",
+			setup: func(path string) {
+				_ = os.WriteFile(path, []byte("[general]\ncolor_level = 1\n"), 0644)
+			},
+			wantLinesCount: 1,
+			expectCreated:  false,
+			expectErr:      false,
+		},
+		{
+			name: "Explicit empty lines in TOML sets zero lines",
+			setup: func(path string) {
+				_ = os.WriteFile(path, []byte("lines = []\n"), 0644)
+			},
+			wantLinesCount: 0,
+			expectCreated:  false,
+			expectErr:      false,
+		},
 	}
 
 	for _, tt := range tests {
@@ -106,6 +124,81 @@ func TestLoadSettings(t *testing.T) {
 			}
 			if !tt.expectErr && lastLoadError != "" {
 				t.Errorf("Expected empty lastLoadError, got %q", lastLoadError)
+			}
+		})
+	}
+}
+
+func TestLoadSettings_PayloadDumpDefaults(t *testing.T) {
+	tests := []struct {
+		name         string
+		tomlContent  string
+		expectedPath string
+	}{
+		{
+			name: "toml without payload_dump populates default path",
+			tomlContent: `
+lines = [["model"]]
+[general]
+color_level = 1
+`,
+			expectedPath: "~/.local/share/agystatusline/payload.json",
+		},
+		{
+			name: "toml with payload_dump but no path populates default path",
+			tomlContent: `
+lines = [["model"]]
+[payload_dump]
+enabled = true
+`,
+			expectedPath: "~/.local/share/agystatusline/payload.json",
+		},
+		{
+			name: "toml with explicit empty path populates default path",
+			tomlContent: `
+lines = [["model"]]
+[payload_dump]
+enabled = true
+path = ""
+`,
+			expectedPath: "~/.local/share/agystatusline/payload.json",
+		},
+		{
+			name: "toml with whitespace only path populates default path",
+			tomlContent: `
+lines = [["model"]]
+[payload_dump]
+enabled = true
+path = "   "
+`,
+			expectedPath: "~/.local/share/agystatusline/payload.json",
+		},
+		{
+			name: "toml with explicit custom path preserves custom path",
+			tomlContent: `
+lines = [["model"]]
+[payload_dump]
+enabled = true
+path = "/custom/status.json"
+`,
+			expectedPath: "/custom/status.json",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tempDir := t.TempDir()
+			customPath := filepath.Join(tempDir, "settings.toml")
+			initConfigPath(customPath)
+			_ = os.WriteFile(customPath, []byte(tt.tomlContent), 0644)
+
+			settings, err := loadSettings()
+			if err != nil {
+				t.Fatalf("loadSettings() unexpected error: %v", err)
+			}
+
+			if settings.PayloadDump.Path != tt.expectedPath {
+				t.Errorf("Expected PayloadDump.Path %q, got %q", tt.expectedPath, settings.PayloadDump.Path)
 			}
 		})
 	}

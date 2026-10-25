@@ -451,3 +451,107 @@ func TestRunMain_CrossFeatureCombination_PowerlineGitContext(t *testing.T) {
 		t.Errorf("Expected quota percentage, got %q", plain)
 	}
 }
+
+// IT-17: Payload Dump Integration Tests
+func TestRunMain_PayloadDump(t *testing.T) {
+	tests := []struct {
+		name          string
+		enabled       bool
+		pathGenerator func(dir string) string
+		readOnlyDir   bool
+		expectDump    bool
+	}{
+		{
+			name:    "enabled with target path creates verbatim dump file",
+			enabled: true,
+			pathGenerator: func(dir string) string {
+				return filepath.Join(dir, "nested", "payload.json")
+			},
+			expectDump: true,
+		},
+		{
+			name:    "disabled does not create dump file",
+			enabled: false,
+			pathGenerator: func(dir string) string {
+				return filepath.Join(dir, "payload.json")
+			},
+			expectDump: false,
+		},
+		{
+			name:    "enabled but empty path dumps to default path",
+			enabled: true,
+			pathGenerator: func(dir string) string {
+				return ""
+			},
+			expectDump: true,
+		},
+		{
+			name:        "write failure is best-effort and does not prevent rendering",
+			enabled:     true,
+			readOnlyDir: true,
+			pathGenerator: func(dir string) string {
+				return filepath.Join(dir, "readonly", "payload.json")
+			},
+			expectDump: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tempDir := t.TempDir()
+			t.Setenv("HOME", tempDir)
+			configPath := filepath.Join(tempDir, "settings.toml")
+			dumpPath := tt.pathGenerator(tempDir)
+
+			if tt.readOnlyDir {
+				roDir := filepath.Join(tempDir, "readonly")
+				if err := os.Mkdir(roDir, 0500); err != nil {
+					t.Fatalf("Failed to create readonly dir: %v", err)
+				}
+				t.Cleanup(func() {
+					_ = os.Chmod(roDir, 0700)
+				})
+			}
+
+			s := types.DefaultSettings()
+			s.PayloadDump.Enabled = tt.enabled
+			s.PayloadDump.Path = dumpPath
+			tomlData, _ := toml.Marshal(s)
+			_ = os.WriteFile(configPath, tomlData, 0644)
+
+			inputJSON := standardTestJSON()
+			stdin := strings.NewReader(inputJSON)
+			var stdout, stderr bytes.Buffer
+
+			code := runMain([]string{"agystatusline", "--config", configPath}, stdin, &stdout, &stderr, notTerminal)
+			if code != 0 {
+				t.Fatalf("runMain failed with exit code %d, stderr: %q", code, stderr.String())
+			}
+
+			// Verify status line was still rendered
+			out := stdout.String()
+			if !strings.Contains(out, "Gemini 3.5 Flash") {
+				t.Errorf("Expected statusline output to contain model name, got %q", out)
+			}
+
+			expectedFile := dumpPath
+			if expectedFile == "" {
+				expectedFile = filepath.Join(tempDir, ".local", "share", "agystatusline", "payload.json")
+			}
+
+			if tt.expectDump {
+				data, err := os.ReadFile(expectedFile)
+				if err != nil {
+					t.Fatalf("Failed to read expected dump file %q: %v", expectedFile, err)
+				}
+				if !bytes.Equal(data, []byte(inputJSON)) {
+					t.Errorf("Dump content mismatch: expected %q, got %q", inputJSON, string(data))
+				}
+			} else if dumpPath != "" && !tt.readOnlyDir {
+				if _, err := os.Stat(dumpPath); err == nil {
+					t.Errorf("Expected dump file %q to not exist, but it exists", dumpPath)
+				}
+			}
+		})
+	}
+}

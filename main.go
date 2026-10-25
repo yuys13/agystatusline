@@ -14,6 +14,7 @@ import (
 	"github.com/yuys13/agystatusline/renderer"
 	"github.com/yuys13/agystatusline/tui"
 	"github.com/yuys13/agystatusline/types"
+	"github.com/yuys13/agystatusline/utils"
 	"github.com/yuys13/agystatusline/widgets"
 )
 
@@ -85,13 +86,14 @@ func loadSettings() (types.Settings, error) {
 		return types.DefaultSettings(), err
 	}
 
-	var settings types.Settings
+	settings := types.DefaultSettings()
 	err = toml.Unmarshal(data, &settings)
 	if err != nil {
 		lastLoadError = "settings.toml is not valid TOML"
 		return types.DefaultSettings(), nil
 	}
 
+	settings.ApplyDefaults()
 	return settings, nil
 }
 
@@ -171,6 +173,10 @@ func runMain(args []string, stdin io.Reader, stdout, stderr io.Writer, isTermina
 	if err != nil {
 		_, _ = fmt.Fprintln(stderr, "Failed to load settings:", err)
 		return 1
+	}
+
+	if settings.PayloadDump.Enabled {
+		_ = utils.DumpPayload(settings.PayloadDump.Path, bytes)
 	}
 
 	// Build render context

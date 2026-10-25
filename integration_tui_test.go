@@ -271,3 +271,42 @@ func TestIntegration_TUIWidgetLayoutEditingAndPersistence(t *testing.T) {
 		t.Fatalf("Expected non-empty Lines in saved settings")
 	}
 }
+
+// TestIntegration_TUISaveSettings_PreservesDefaultPayloadDumpPath tests that saving settings from TUI
+// when payload_dump was not explicitly configured populates the default path instead of empty string.
+func TestIntegration_TUISaveSettings_PreservesDefaultPayloadDumpPath(t *testing.T) {
+	tempDir := t.TempDir()
+	configPath := filepath.Join(tempDir, "settings.toml")
+
+	// TOML file without payload_dump section
+	initialTOML := `
+lines = [["model"]]
+[general]
+color_level = 1
+`
+	_ = os.WriteFile(configPath, []byte(initialTOML), 0644)
+
+	// Simulate main.go loading settings and passing to TUI
+	var loadedSettings types.Settings
+	_ = toml.Unmarshal([]byte(initialTOML), &loadedSettings)
+
+	model := tui.NewModel(loadedSettings, configPath)
+
+	// Navigate to Save & Exit: cursor 0 -> down x3 -> enter
+	_ = sendKeys(model, downKey(), downKey(), downKey(), enterKey())
+
+	data, err := os.ReadFile(configPath)
+	if err != nil {
+		t.Fatalf("Failed to read saved settings: %v", err)
+	}
+
+	var savedSettings types.Settings
+	if err := toml.Unmarshal(data, &savedSettings); err != nil {
+		t.Fatalf("Failed to unmarshal saved settings: %v", err)
+	}
+
+	expectedPath := "~/.local/share/agystatusline/payload.json"
+	if savedSettings.PayloadDump.Path != expectedPath {
+		t.Errorf("Expected saved PayloadDump.Path %q, got %q (content: %s)", expectedPath, savedSettings.PayloadDump.Path, string(data))
+	}
+}
