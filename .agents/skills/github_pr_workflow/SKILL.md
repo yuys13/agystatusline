@@ -39,5 +39,5 @@ After creating the PR with `gh pr create`:
 
 1. Wait a few seconds for GitHub Actions workflows to be triggered by the PR event.
 2. Confirm that the CI run has started (e.g. status is `queued` or `in_progress`) using `gh run list --branch <branch>` or `gh pr checks`.
-3. Run `gh pr checks --watch` to monitor and verify the execution of GitHub Actions CI checks.
+3. Run `gh pr checks <pr> --watch > /dev/null 2>&1; gh pr checks <pr>` to monitor and wait for CI completion without polluting the context with periodic polling updates, ensuring only the final status table is captured.
 4. If any check fails, fetch and inspect the failed logs using `gh run view <run-id> --log-failed` (or `gh run view <run-id> --job <job-id>`) to diagnose and resolve the issue.
