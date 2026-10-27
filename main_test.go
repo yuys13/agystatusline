@@ -54,47 +54,47 @@ func TestParseConfigArg(t *testing.T) {
 
 func TestLoadSettings(t *testing.T) {
 	tests := []struct {
-		name           string
-		setup          func(path string)
-		wantLinesCount int
-		expectCreated  bool
-		expectErr      bool
+		name             string
+		setup            func(path string)
+		wantLinesCount   int
+		expectFileExists bool
+		expectErr        bool
 	}{
 		{
-			name: "Create default settings when file does not exist",
+			name: "Return default settings without creating file when file does not exist",
 			setup: func(path string) {
 				// Ensure file does not exist initially
 			},
-			wantLinesCount: 1,
-			expectCreated:  true,
-			expectErr:      false,
+			wantLinesCount:   1,
+			expectFileExists: false,
+			expectErr:        false,
 		},
 		{
 			name: "Fallback to default settings on invalid TOML",
 			setup: func(path string) {
 				_ = os.WriteFile(path, []byte("invalid = toml [ broken"), 0644)
 			},
-			wantLinesCount: 1,
-			expectCreated:  true,
-			expectErr:      true,
+			wantLinesCount:   1,
+			expectFileExists: true,
+			expectErr:        true,
 		},
 		{
 			name: "Omitted lines in TOML preserves default lines",
 			setup: func(path string) {
 				_ = os.WriteFile(path, []byte("[general]\ncolor_level = 1\n"), 0644)
 			},
-			wantLinesCount: 1,
-			expectCreated:  false,
-			expectErr:      false,
+			wantLinesCount:   1,
+			expectFileExists: true,
+			expectErr:        false,
 		},
 		{
 			name: "Explicit empty lines in TOML sets zero lines",
 			setup: func(path string) {
 				_ = os.WriteFile(path, []byte("lines = []\n"), 0644)
 			},
-			wantLinesCount: 0,
-			expectCreated:  false,
-			expectErr:      false,
+			wantLinesCount:   0,
+			expectFileExists: true,
+			expectErr:        false,
 		},
 	}
 
@@ -114,10 +114,12 @@ func TestLoadSettings(t *testing.T) {
 			if len(settings.Lines) != tt.wantLinesCount {
 				t.Errorf("loadSettings() lines count = %d, want %d", len(settings.Lines), tt.wantLinesCount)
 			}
-			if tt.expectCreated {
-				if _, err := os.Stat(customPath); os.IsNotExist(err) {
-					t.Errorf("Settings file was not created on disk at %q", customPath)
-				}
+			_, statErr := os.Stat(customPath)
+			if tt.expectFileExists && os.IsNotExist(statErr) {
+				t.Errorf("Settings file was expected to exist at %q, but does not", customPath)
+			}
+			if !tt.expectFileExists && !os.IsNotExist(statErr) {
+				t.Errorf("Settings file was expected NOT to exist at %q, but exists", customPath)
 			}
 			if tt.expectErr && lastLoadError == "" {
 				t.Errorf("Expected lastLoadError to be recorded, but got empty")

@@ -63,24 +63,7 @@ func loadSettings() (types.Settings, error) {
 	data, err := os.ReadFile(settingsPath)
 	if err != nil {
 		if os.IsNotExist(err) {
-			// Write default settings
-			defaults := types.DefaultSettings()
-			dir := filepath.Dir(settingsPath)
-			err = os.MkdirAll(dir, 0755)
-			if err != nil {
-				return defaults, err
-			}
-
-			bytes, err := toml.Marshal(defaults)
-			if err != nil {
-				return defaults, err
-			}
-
-			err = os.WriteFile(settingsPath, bytes, 0644)
-			if err != nil {
-				return defaults, err
-			}
-			return defaults, nil
+			return types.DefaultSettings(), nil
 		}
 		lastLoadError = "settings.toml could not be read"
 		return types.DefaultSettings(), err
