@@ -125,7 +125,7 @@ func runMain(args []string, stdin io.Reader, stdout, stderr io.Writer, isTermina
 			return 1
 		}
 
-		err = tui.RunTUI(settings, settingsPath)
+		err = tui.RunTUI(settings, settingsPath, lastLoadError)
 		if err != nil {
 			_, _ = fmt.Fprintln(stderr, "TUI error:", err)
 			return 1

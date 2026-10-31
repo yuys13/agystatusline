@@ -310,3 +310,69 @@ color_level = 1
 		t.Errorf("Expected saved PayloadDump.Path %q, got %q (content: %s)", expectedPath, savedSettings.PayloadDump.Path, string(data))
 	}
 }
+
+// TestIntegration_TUICorruptedConfigHandling verifies that a corrupted config file prompts the user in TUI,
+// preserves the file on Exit, and allows loading and saving defaults when chosen.
+func TestIntegration_TUICorruptedConfigHandling(t *testing.T) {
+	t.Run("Exit on corrupted config preserves original file content", func(t *testing.T) {
+		tempDir := t.TempDir()
+		configPath := filepath.Join(tempDir, "settings.toml")
+		corruptedContent := "invalid = [toml content\n"
+		if err := os.WriteFile(configPath, []byte(corruptedContent), 0644); err != nil {
+			t.Fatalf("Failed to write corrupted config: %v", err)
+		}
+
+		initConfigPath(configPath)
+		settings, err := loadSettings()
+		if err != nil {
+			t.Fatalf("Unexpected loadSettings error: %v", err)
+		}
+		if lastLoadError == "" {
+			t.Fatalf("Expected lastLoadError to be set for corrupted TOML")
+		}
+
+		model := tui.NewModel(settings, configPath, lastLoadError)
+		// Select "Exit" (down -> enter)
+		_ = sendKeys(model, downKey(), enterKey())
+
+		data, err := os.ReadFile(configPath)
+		if err != nil {
+			t.Fatalf("Failed to read config file after exit: %v", err)
+		}
+		if string(data) != corruptedContent {
+			t.Errorf("Expected corrupted config file to remain untouched (%q), got %q", corruptedContent, string(data))
+		}
+	})
+
+	t.Run("Load Default Settings then Save & Exit writes valid defaults", func(t *testing.T) {
+		tempDir := t.TempDir()
+		configPath := filepath.Join(tempDir, "settings.toml")
+		corruptedContent := "invalid = [toml content\n"
+		if err := os.WriteFile(configPath, []byte(corruptedContent), 0644); err != nil {
+			t.Fatalf("Failed to write corrupted config: %v", err)
+		}
+
+		initConfigPath(configPath)
+		settings, err := loadSettings()
+		if err != nil {
+			t.Fatalf("Unexpected loadSettings error: %v", err)
+		}
+
+		model := tui.NewModel(settings, configPath, lastLoadError)
+		// 1. Select "Load Default Settings" (enter at cursor 0) -> transitions to main menu
+		// 2. Navigate to "Save & Exit" (down x3 -> enter)
+		_ = sendKeys(model, enterKey(), downKey(), downKey(), downKey(), enterKey())
+
+		data, err := os.ReadFile(configPath)
+		if err != nil {
+			t.Fatalf("Failed to read saved config file: %v", err)
+		}
+		var savedSettings types.Settings
+		if err := toml.Unmarshal(data, &savedSettings); err != nil {
+			t.Fatalf("Expected valid TOML after saving defaults, got error: %v", err)
+		}
+		if len(savedSettings.Lines) != 1 {
+			t.Errorf("Expected 1 default line in saved settings, got %d", len(savedSettings.Lines))
+		}
+	})
+}

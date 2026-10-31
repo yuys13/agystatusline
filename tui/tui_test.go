@@ -490,6 +490,16 @@ func TestTUI_PowerlineSeparator(t *testing.T) {
 			wantSeparatorIndex: 0,
 		},
 		{
+			name: "None Separator with Powerline Enabled",
+			setupSettings: func() types.Settings {
+				s := types.DefaultSettings()
+				s.Powerline.Enabled = true
+				s.Powerline.Separator = ""
+				return s
+			},
+			wantSeparatorIndex: 0,
+		},
+		{
 			name: "Custom Separator (NOT in list)",
 			setupSettings: func() types.Settings {
 				s := types.DefaultSettings()
@@ -1829,5 +1839,127 @@ func TestTUI_MainMenuItems(t *testing.T) {
 		if !strings.Contains(viewStr, item) {
 			t.Errorf("Expected main menu view to contain %q, but it did not. View output:\n%s", item, viewStr)
 		}
+	}
+}
+
+func TestTUI_CorruptedConfigPrompt(t *testing.T) {
+	settings := types.DefaultSettings()
+	configPath := "/tmp/corrupted_settings.toml"
+	loadErr := "settings.toml is not valid TOML"
+
+	t.Run("initial state and view rendering", func(t *testing.T) {
+		m := NewModel(settings, configPath, loadErr)
+		if m.activeMenu != "corrupted_config" {
+			t.Fatalf("Expected initial activeMenu 'corrupted_config', got %q", m.activeMenu)
+		}
+		if m.cursor != 0 {
+			t.Errorf("Expected initial cursor 0, got %d", m.cursor)
+		}
+
+		viewStr := renderer.StripAnsi(m.View())
+		for _, want := range []string{
+			"Configuration File Corrupted",
+			configPath,
+			loadErr,
+			"Load Default Settings",
+			"Exit",
+		} {
+			if !strings.Contains(viewStr, want) {
+				t.Errorf("Expected corrupted config view to contain %q, got:\n%s", want, viewStr)
+			}
+		}
+	})
+
+	tests := []struct {
+		name           string
+		keys           []tea.KeyMsg
+		wantActiveMenu string
+		wantCursor     int
+		wantQuitting   bool
+		wantSaved      bool
+	}{
+		{
+			name: "navigate down and up within bounds",
+			keys: []tea.KeyMsg{
+				{Type: tea.KeyDown},
+				{Type: tea.KeyDown}, // boundary at 1
+			},
+			wantActiveMenu: "corrupted_config",
+			wantCursor:     1,
+			wantQuitting:   false,
+		},
+		{
+			name: "navigate down then up with j and k",
+			keys: []tea.KeyMsg{
+				{Type: tea.KeyRunes, Runes: []rune("j")},
+				{Type: tea.KeyRunes, Runes: []rune("k")},
+				{Type: tea.KeyUp}, // boundary at 0
+			},
+			wantActiveMenu: "corrupted_config",
+			wantCursor:     0,
+			wantQuitting:   false,
+		},
+		{
+			name: "select Load Default Settings transitions to main menu",
+			keys: []tea.KeyMsg{
+				{Type: tea.KeyEnter},
+			},
+			wantActiveMenu: "main",
+			wantCursor:     0,
+			wantQuitting:   false,
+		},
+		{
+			name: "select Exit quits without saving",
+			keys: []tea.KeyMsg{
+				{Type: tea.KeyDown},
+				{Type: tea.KeyEnter},
+			},
+			wantActiveMenu: "corrupted_config",
+			wantCursor:     1,
+			wantQuitting:   true,
+			wantSaved:      false,
+		},
+		{
+			name: "press Esc quits without saving",
+			keys: []tea.KeyMsg{
+				{Type: tea.KeyEsc},
+			},
+			wantActiveMenu: "corrupted_config",
+			wantCursor:     0,
+			wantQuitting:   true,
+			wantSaved:      false,
+		},
+		{
+			name: "press q quits without saving",
+			keys: []tea.KeyMsg{
+				{Type: tea.KeyRunes, Runes: []rune("q")},
+			},
+			wantActiveMenu: "corrupted_config",
+			wantCursor:     0,
+			wantQuitting:   true,
+			wantSaved:      false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var curr tea.Model = NewModel(settings, configPath, loadErr)
+			for _, k := range tt.keys {
+				curr, _ = curr.Update(k)
+			}
+			got := curr.(Model)
+			if got.activeMenu != tt.wantActiveMenu {
+				t.Errorf("Expected activeMenu %q, got %q", tt.wantActiveMenu, got.activeMenu)
+			}
+			if got.cursor != tt.wantCursor {
+				t.Errorf("Expected cursor %d, got %d", tt.wantCursor, got.cursor)
+			}
+			if got.quitting != tt.wantQuitting {
+				t.Errorf("Expected quitting %v, got %v", tt.wantQuitting, got.quitting)
+			}
+			if got.saved != tt.wantSaved {
+				t.Errorf("Expected saved %v, got %v", tt.wantSaved, got.saved)
+			}
+		})
 	}
 }
