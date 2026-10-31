@@ -38,8 +38,9 @@ func TestE2E_Tier4_TestDataJsonPipeline(t *testing.T) {
 	}
 }
 
-// TestE2E_Tier4_DefaultConfigAutoGeneration tests automatic default configuration file creation when missing.
-func TestE2E_Tier4_DefaultConfigAutoGeneration(t *testing.T) {
+// TestE2E_Tier4_MissingConfigFileUsesDefaultsWithoutFileCreation tests that missing configuration file
+// does not auto-create a file on disk, but renders successfully using in-memory default settings.
+func TestE2E_Tier4_MissingConfigFileUsesDefaultsWithoutFileCreation(t *testing.T) {
 	tempDir := t.TempDir()
 	newConfigDir := filepath.Join(tempDir, "brand_new_config_dir")
 	newConfigFile := filepath.Join(newConfigDir, "settings.toml")
@@ -51,19 +52,15 @@ func TestE2E_Tier4_DefaultConfigAutoGeneration(t *testing.T) {
 
 	stdout, stderr, exitCode := runCLI(t, standardStatusJSON(), "--config", newConfigFile)
 	if exitCode != 0 {
-		t.Fatalf("Expected exit code 0 for auto-generation, got %d (stderr: %q)", exitCode, stderr)
+		t.Fatalf("Expected exit code 0 when config is missing, got %d (stderr: %q)", exitCode, stderr)
 	}
 
-	// Verify file was generated
-	info, err := os.Stat(newConfigFile)
-	if err != nil {
-		t.Fatalf("Failed to stat generated config file: %v", err)
-	}
-	if info.Size() == 0 {
-		t.Errorf("Generated config file is empty")
+	// Verify file was NOT generated on disk
+	if _, err := os.Stat(newConfigFile); !os.IsNotExist(err) {
+		t.Errorf("Config file should NOT be auto-generated on disk at %s", newConfigFile)
 	}
 
-	// Verify stdout was generated properly
+	// Verify stdout was generated properly with default settings
 	plain := stripANSI(stdout)
 	if !strings.Contains(plain, "Gemini 3.5 Flash") {
 		t.Errorf("Expected output to contain model name, got %q", plain)
@@ -143,23 +140,27 @@ func TestE2E_Tier4_RelativeAndAbsoluteConfigPaths(t *testing.T) {
 	_ = os.MkdirAll(relDir, 0755)
 
 	absPath := filepath.Join(relDir, "custom.toml")
+	_ = os.WriteFile(absPath, []byte("lines = [[\"model\"]]\n"), 0644)
 
 	// Test with absolute path
-	_, stderr, exitCode := runCLI(t, standardStatusJSON(), "--config", absPath)
+	stdout, stderr, exitCode := runCLI(t, standardStatusJSON(), "--config", absPath)
 	if exitCode != 0 {
 		t.Fatalf("Expected exit code 0 with absolute config path, got %d (stderr: %q)", exitCode, stderr)
 	}
+	if !strings.Contains(stripANSI(stdout), "Gemini 3.5 Flash") {
+		t.Errorf("Expected output to contain model name, got %q", stdout)
+	}
 
 	// Test with relative path from working directory
+	relFile := filepath.Join(tempDir, "sub", "custom2.toml")
+	_ = os.WriteFile(relFile, []byte("lines = [[\"agent-state\"]]\n"), 0644)
 	relPath := filepath.Join("sub", "custom2.toml")
-	_, stderr, exitCode = runCLIWithDir(t, standardStatusJSON(), tempDir, "--config", relPath)
+	stdout, stderr, exitCode = runCLIWithDir(t, standardStatusJSON(), tempDir, "--config", relPath)
 	if exitCode != 0 {
 		t.Fatalf("Expected exit code 0 with relative config path, got %d (stderr: %q)", exitCode, stderr)
 	}
-
-	expectedRelFile := filepath.Join(tempDir, "sub", "custom2.toml")
-	if _, err := os.Stat(expectedRelFile); err != nil {
-		t.Errorf("Expected config file created at %s, got error: %v", expectedRelFile, err)
+	if !strings.Contains(stripANSI(stdout), "● READY") {
+		t.Errorf("Expected output to contain agent-state, got %q", stdout)
 	}
 }
 
