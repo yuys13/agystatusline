@@ -10,7 +10,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7.0.1
-      - uses: cachix/install-nix-action@v31.11.2
+      - uses: cachix/install-nix-action@v31.11.3
       - name: Format Check
         run: nix fmt -- --ci
       - name: Flake Check
@@ -23,7 +23,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v7.0.1
-      - uses: cachix/install-nix-action@v31.11.2
+      - uses: cachix/install-nix-action@v31.11.3
       - name: Lint
         run: nix develop --command golangci-lint run ./...
       - name: Run tests
