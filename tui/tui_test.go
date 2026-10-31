@@ -444,11 +444,11 @@ func TestTUI_LivePreviewQuota(t *testing.T) {
 	m := NewModel(settings, "/tmp/settings.toml")
 
 	viewStr := renderer.StripAnsi(m.View())
-	if !strings.Contains(viewStr, "gemini-5h 50.19% (2h 28m)") {
-		t.Errorf("Expected live preview to contain 'gemini-5h 50.19%% (2h 28m)', but it did not. View:\n%s", viewStr)
+	if !strings.Contains(viewStr, "Gemini 5h 50.19% (2h 28m)") {
+		t.Errorf("Expected live preview to contain 'Gemini 5h 50.19%% (2h 28m)', but it did not. View:\n%s", viewStr)
 	}
-	if !strings.Contains(viewStr, "3p-5h 100.00% (4h 59m)") {
-		t.Errorf("Expected live preview to contain '3p-5h 100.00%% (4h 59m)', but it did not. View:\n%s", viewStr)
+	if !strings.Contains(viewStr, "Claude 5h 100.00% (4h 59m)") {
+		t.Errorf("Expected live preview to contain 'Claude 5h 100.00%% (4h 59m)', but it did not. View:\n%s", viewStr)
 	}
 }
 
@@ -907,8 +907,8 @@ func TestTUI_LivePreviewAddWidget(t *testing.T) {
 	}
 	previewPart := strings.Join(lines[:4], "\n")
 
-	if !strings.Contains(previewPart, "5h") || !strings.Contains(previewPart, "50.2%") {
-		t.Errorf("Expected Live Preview to dynamically display the currently selected widget type 'Quota Bar: 5h' in the preview part, but it did not. Preview part:\n%s", previewPart)
+	if !strings.Contains(previewPart, "Gemini 5h") || !strings.Contains(previewPart, "50.2%") {
+		t.Errorf("Expected Live Preview to dynamically display the currently selected widget type 'Quota Bar: Gemini 5h' in the preview part, but it did not. Preview part:\n%s", previewPart)
 	}
 }
 

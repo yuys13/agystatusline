@@ -41,18 +41,33 @@ func formatResetInSeconds(resetInSeconds *float64) string {
 func defaultQuotaLabel(key string) string {
 	switch key {
 	case "gemini-5h":
-		return "5h"
+		return "Gemini 5h"
 	case "gemini-weekly":
-		return "7d"
+		return "Gemini 7d"
 	case "gemini-argon-wtu-weekly":
-		return "argon-7d"
+		return "Argon 7d"
 	case "3p-5h":
-		return "3p-5h"
+		return "Claude 5h"
 	case "3p-weekly":
-		return "3p-7d"
+		return "Claude 7d"
 	default:
 		return key
 	}
+}
+
+func resolveQuotaLabel(item types.WidgetItem, key string, defaultTitle string, settings types.Settings) string {
+	if item.Text != "" {
+		return item.Text
+	}
+	if settings.Quota.Labels != nil {
+		if label, ok := settings.Quota.Labels[key]; ok && label != "" {
+			return label
+		}
+	}
+	if defaultTitle != "" {
+		return defaultTitle
+	}
+	return defaultQuotaLabel(key)
 }
 
 // QuotaWidget displays quota limits and usage.
@@ -114,14 +129,7 @@ func (q *QuotaWidget) Render(item types.WidgetItem, ctx types.RenderContext, set
 		return "", valueStr, nil
 	}
 
-	label := item.Text
-	if label == "" {
-		if q.DefaultTitle != "" {
-			label = q.DefaultTitle
-		} else {
-			label = key
-		}
-	}
+	label := resolveQuotaLabel(item, key, q.DefaultTitle, settings)
 
 	return label, valueStr, nil
 }
@@ -203,14 +211,7 @@ func (q *QuotaBarWidget) Render(item types.WidgetItem, ctx types.RenderContext, 
 
 	pctFmt := fmt.Sprintf("%.1f%%", pct)
 
-	label := item.Text
-	if label == "" {
-		if q.DefaultTitle != "" {
-			label = q.DefaultTitle
-		} else {
-			label = defaultQuotaLabel(key)
-		}
-	}
+	label := resolveQuotaLabel(item, key, q.DefaultTitle, settings)
 
 	resetStr := formatResetInSeconds(quota.ResetInSeconds)
 	bodyVal := bar + " " + pctFmt

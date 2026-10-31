@@ -359,6 +359,19 @@ func TestDefaultSettings(t *testing.T) {
 			t.Errorf("Expected General.Minimalist false, got %v", settings.General.Minimalist)
 		}
 	})
+
+	t.Run("quota label defaults", func(t *testing.T) {
+		expectedLabels := map[string]string{
+			"gemini-5h":               "Gemini 5h",
+			"gemini-weekly":           "Gemini 7d",
+			"gemini-argon-wtu-weekly": "Argon 7d",
+			"3p-5h":                   "Claude 5h",
+			"3p-weekly":               "Claude 7d",
+		}
+		if !reflect.DeepEqual(settings.Quota.Labels, expectedLabels) {
+			t.Errorf("Expected default Quota.Labels %+v, got %+v", expectedLabels, settings.Quota.Labels)
+		}
+	})
 }
 
 func TestWidgetItem_UnmarshalTOML(t *testing.T) {
@@ -1483,6 +1496,116 @@ lines = [["model"]]
 		s.ApplyDefaults()
 		if s.PayloadDump.Path != customPath {
 			t.Errorf("Expected ApplyDefaults to preserve %q, got %q", customPath, s.PayloadDump.Path)
+		}
+	})
+}
+
+func TestSettings_QuotaConfig(t *testing.T) {
+	t.Run("DefaultQuotaLabels returns fresh copy of default labels", func(t *testing.T) {
+		labels1 := DefaultQuotaLabels()
+		labels1["gemini-5h"] = "Modified"
+		labels2 := DefaultQuotaLabels()
+		if labels2["gemini-5h"] != "Gemini 5h" {
+			t.Errorf("Expected DefaultQuotaLabels to return a fresh map, got %q", labels2["gemini-5h"])
+		}
+	})
+
+	t.Run("ApplyDefaults initializes nil Labels with all default keys", func(t *testing.T) {
+		var s Settings
+		s.ApplyDefaults()
+		expected := DefaultQuotaLabels()
+		if !reflect.DeepEqual(s.Quota.Labels, expected) {
+			t.Errorf("Expected Quota.Labels %+v, got %+v", expected, s.Quota.Labels)
+		}
+	})
+
+	t.Run("ApplyDefaults merges missing default keys while preserving user overrides", func(t *testing.T) {
+		s := Settings{
+			Quota: QuotaConfig{
+				Labels: map[string]string{
+					"gemini-5h":  "G5h",
+					"custom-key": "Custom Window",
+				},
+			},
+		}
+		s.ApplyDefaults()
+		expected := map[string]string{
+			"gemini-5h":               "G5h",
+			"gemini-weekly":           "Gemini 7d",
+			"gemini-argon-wtu-weekly": "Argon 7d",
+			"3p-5h":                   "Claude 5h",
+			"3p-weekly":               "Claude 7d",
+			"custom-key":              "Custom Window",
+		}
+		if !reflect.DeepEqual(s.Quota.Labels, expected) {
+			t.Errorf("Expected merged Quota.Labels %+v, got %+v", expected, s.Quota.Labels)
+		}
+	})
+
+	t.Run("TOML unmarshaling supports [quota.labels] table and [quota] inline labels", func(t *testing.T) {
+		tests := []struct {
+			name     string
+			tomlDoc  string
+			expected map[string]string
+		}{
+			{
+				name: "subtable [quota.labels]",
+				tomlDoc: `
+lines = [["quota-5h"]]
+[quota.labels]
+gemini-5h = "Gem 5h"
+3p-5h = "Anth 5h"
+`,
+				expected: map[string]string{
+					"gemini-5h":               "Gem 5h",
+					"gemini-weekly":           "Gemini 7d",
+					"gemini-argon-wtu-weekly": "Argon 7d",
+					"3p-5h":                   "Anth 5h",
+					"3p-weekly":               "Claude 7d",
+				},
+			},
+			{
+				name: "inline table under [quota]",
+				tomlDoc: `
+lines = [["quota-5h"]]
+[quota]
+labels = { gemini-weekly = "Gem Weekly" }
+`,
+				expected: map[string]string{
+					"gemini-5h":               "Gemini 5h",
+					"gemini-weekly":           "Gem Weekly",
+					"gemini-argon-wtu-weekly": "Argon 7d",
+					"3p-5h":                   "Claude 5h",
+					"3p-weekly":               "Claude 7d",
+				},
+			},
+		}
+
+		for _, tc := range tests {
+			t.Run(tc.name, func(t *testing.T) {
+				s := DefaultSettings()
+				if err := toml.Unmarshal([]byte(tc.tomlDoc), &s); err != nil {
+					t.Fatalf("Failed to unmarshal TOML: %v", err)
+				}
+				s.ApplyDefaults()
+				if !reflect.DeepEqual(s.Quota.Labels, tc.expected) {
+					t.Errorf("Expected Quota.Labels %+v, got %+v", tc.expected, s.Quota.Labels)
+				}
+			})
+		}
+	})
+
+	t.Run("TOML marshaling of DefaultSettings includes all quota labels", func(t *testing.T) {
+		defaults := DefaultSettings()
+		data, err := toml.Marshal(defaults)
+		if err != nil {
+			t.Fatalf("Failed to marshal DefaultSettings: %v", err)
+		}
+		tomlStr := string(data)
+		for k, v := range DefaultQuotaLabels() {
+			if !strings.Contains(tomlStr, k) || !strings.Contains(tomlStr, v) {
+				t.Errorf("Expected marshaled TOML to contain %q = %q, got:\n%s", k, v, tomlStr)
+			}
 		}
 	})
 }

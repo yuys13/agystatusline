@@ -354,7 +354,7 @@ func TestE2E_Tier1_QuotaWidget(t *testing.T) {
 		{
 			name:      "Default quota display with key",
 			key:       "gemini-5h",
-			wantPlain: "gemini-5h 50.19% (2h 28m)",
+			wantPlain: "Gemini 5h 50.19% (2h 28m)",
 		},
 		{
 			name:       "Quota with custom text label",
@@ -430,8 +430,8 @@ func TestE2E_Tier1_QuotaBarWidget(t *testing.T) {
 	}
 
 	plain := stripANSI(stdout)
-	if !strings.Contains(plain, "5h") {
-		t.Errorf("Expected default label '5h' in output, got %q", plain)
+	if !strings.Contains(plain, "Gemini 5h") {
+		t.Errorf("Expected default label 'Gemini 5h' in output, got %q", plain)
 	}
 	if !strings.Contains(plain, "75.0%") {
 		t.Errorf("Expected percentage '75.0%%' in output, got %q", plain)
@@ -441,6 +441,47 @@ func TestE2E_Tier1_QuotaBarWidget(t *testing.T) {
 	}
 	if !strings.Contains(plain, "█") {
 		t.Errorf("Expected progress bar block character '█' in output, got %q", plain)
+	}
+}
+
+// TestE2E_Tier1_QuotaCustomLabelsConfig tests customizing quota labels via [quota.labels] in settings.toml.
+func TestE2E_Tier1_QuotaCustomLabelsConfig(t *testing.T) {
+	statusJSON := `{
+		"quota": {
+			"gemini-5h": {
+				"remaining_fraction": 0.5019,
+				"reset_in_seconds": 8891.0
+			},
+			"3p-5h": {
+				"remaining_fraction": 0.75,
+				"reset_in_seconds": 3600.0
+			}
+		}
+	}`
+
+	tempDir := t.TempDir()
+	rawTOML := `
+lines = [["quota-5h", "quota-bar-3p-5h"]]
+
+[quota.labels]
+gemini-5h = "G-5h"
+`
+	cfgPath := filepath.Join(tempDir, "settings.toml")
+	if err := os.WriteFile(cfgPath, []byte(rawTOML), 0644); err != nil {
+		t.Fatalf("Failed to write raw TOML: %v", err)
+	}
+
+	stdout, stderr, exitCode := runCLI(t, statusJSON, "--config", cfgPath)
+	if exitCode != 0 {
+		t.Fatalf("Expected exit code 0, got %d (stderr: %q)", exitCode, stderr)
+	}
+
+	plain := stripANSI(stdout)
+	if !strings.Contains(plain, "G-5h 50.19% (2h 28m)") {
+		t.Errorf("Expected custom label 'G-5h 50.19%% (2h 28m)' in output, got %q", plain)
+	}
+	if !strings.Contains(plain, "Claude 5h") {
+		t.Errorf("Expected omitted key to fall back to default label 'Claude 5h', got %q", plain)
 	}
 }
 
