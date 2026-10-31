@@ -17,6 +17,7 @@ import (
 type Model struct {
 	settings        types.Settings
 	configPath      string
+	loadError       string
 	activeMenu      string
 	cursor          int
 	quitting        bool
@@ -119,7 +120,7 @@ var widgetTypes = []struct {
 	{name: "Custom Text", item: types.WidgetItem{Type: "custom-text", Text: "CUSTOM"}},
 }
 
-func NewModel(settings types.Settings, configPath string) Model {
+func NewModel(settings types.Settings, configPath string, loadError ...string) Model {
 	settings.ApplyDefaults()
 	initialThemeIndex := 0
 	for i, t := range themesList {
@@ -131,9 +132,6 @@ func NewModel(settings types.Settings, configPath string) Model {
 
 	initialSeparatorIndex := -1
 	currentSep := settings.Powerline.Separator
-	if currentSep == "" && settings.Powerline.Enabled {
-		currentSep = "\uE0B0"
-	}
 	for i, s := range separatorsList {
 		if strings.TrimRight(s.value, " ") == strings.TrimRight(currentSep, " ") {
 			initialSeparatorIndex = i
@@ -188,10 +186,18 @@ func NewModel(settings types.Settings, configPath string) Model {
 		}
 	}
 
+	initialMenu := "main"
+	var errMsg string
+	if len(loadError) > 0 && loadError[0] != "" {
+		errMsg = loadError[0]
+		initialMenu = "corrupted_config"
+	}
+
 	return Model{
 		settings:        settings,
 		configPath:      configPath,
-		activeMenu:      "main",
+		loadError:       errMsg,
+		activeMenu:      initialMenu,
 		cursor:          0,
 		themeIndex:      initialThemeIndex,
 		separatorIndex:  initialSeparatorIndex,
@@ -213,13 +219,15 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.quitting = true
 			return m, tea.Quit
 		case "q":
-			if m.activeMenu == "main" {
+			if m.activeMenu == "main" || m.activeMenu == "corrupted_config" {
 				m.quitting = true
 				return m, tea.Quit
 			}
 		}
 
 		switch m.activeMenu {
+		case "corrupted_config":
+			return m.updateCorruptedConfig(msg)
 		case "main":
 			return m.updateMain(msg)
 		case "powerline":
@@ -241,6 +249,37 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "select_color_level":
 			return m.updateSelectColorLevel(msg)
 		}
+	}
+	return m, nil
+}
+
+func (m Model) updateCorruptedConfig(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	switch msg.String() {
+	case "up", "k":
+		if m.cursor > 0 {
+			m.cursor--
+		}
+
+	case "down", "j":
+		if m.cursor < 1 {
+			m.cursor++
+		}
+
+	case "enter", "\n":
+		switch m.cursor {
+		case 0: // Load Default Settings
+			m.settings = types.DefaultSettings()
+			m.activeMenu = "main"
+			m.cursor = 0
+
+		case 1: // Exit
+			m.quitting = true
+			return m, tea.Quit
+		}
+
+	case "esc":
+		m.quitting = true
+		return m, tea.Quit
 	}
 	return m, nil
 }
@@ -650,6 +689,11 @@ func (m Model) View() string {
 
 	var s stringsBuilder
 
+	if m.activeMenu == "corrupted_config" {
+		m.viewCorruptedConfig(&s)
+		return s.String()
+	}
+
 	// Render Live Preview at the top (rendered on all screens except maybe add_widget if we want, but let's keep it consistent)
 	s.WriteString(lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("244")).Render("--- Live Preview ---"))
 	s.WriteString("\n")
@@ -802,6 +846,30 @@ func (m Model) View() string {
 	}
 
 	return s.String()
+}
+
+func (m Model) viewCorruptedConfig(s *stringsBuilder) {
+	s.WriteString(lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("196")).Render("⚠️  Configuration File Corrupted"))
+	s.WriteString("\n\n")
+	s.WriteString(fmt.Sprintf("Failed to parse configuration file (%s): %s\n", m.configPath, m.loadError))
+	s.WriteString("Would you like to load default settings or exit?\n\n")
+
+	menuItems := []string{
+		"🔄 Load Default Settings",
+		"❌ Exit",
+	}
+
+	for i, item := range menuItems {
+		cursorStr := " "
+		style := lipgloss.NewStyle()
+		if m.cursor == i {
+			cursorStr = ">"
+			style = style.Bold(true).Foreground(lipgloss.Color("226"))
+		}
+		s.WriteString(fmt.Sprintf("%s %s\n", cursorStr, style.Render(item)))
+	}
+
+	s.WriteString("\n(Use arrows/jk to navigate, Enter to select, q/Esc to quit)\n")
 }
 
 func (m Model) viewMain(s *stringsBuilder) {
@@ -1104,8 +1172,8 @@ func saveSettings(path string, settings types.Settings) error {
 }
 
 // RunTUI launches the Bubble Tea program to edit settings interactively.
-func RunTUI(settings types.Settings, configPath string) error {
-	p := tea.NewProgram(NewModel(settings, configPath))
+func RunTUI(settings types.Settings, configPath string, loadError ...string) error {
+	p := tea.NewProgram(NewModel(settings, configPath, loadError...))
 	_, err := p.Run()
 	return err
 }

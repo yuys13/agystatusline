@@ -18,12 +18,7 @@ func RenderStatusLines(settings types.Settings, ctx types.RenderContext) []strin
 	var results []string
 
 	padding := settings.General.Padding
-	separator := settings.General.Separator
-	if separator == "" {
-		separator = " · "
-	} else {
-		separator = formatSeparator(separator)
-	}
+	separator := formatSeparator(settings.General.Separator)
 
 	var colorLevelStr string
 	switch settings.General.ColorLevel {
@@ -134,7 +129,7 @@ func RenderStatusLines(settings types.Settings, ctx types.RenderContext) []strin
 
 			for i, r := range activeRendered {
 				parts = append(parts, padding+r.Content+padding)
-				if i < len(activeRendered)-1 {
+				if i < len(activeRendered)-1 && separator != "" {
 					parts = append(parts, coloredSeparator)
 				}
 			}
@@ -248,9 +243,6 @@ func renderPowerline(rendered []PreRenderedWidget, settings types.Settings, ctx 
 
 	var builder strings.Builder
 	sep := settings.Powerline.Separator
-	if sep == "" {
-		sep = "\uE0B0"
-	}
 
 	var colorLevel string
 	switch settings.General.ColorLevel {
@@ -284,7 +276,7 @@ func renderPowerline(rendered []PreRenderedWidget, settings types.Settings, ctx 
 		builder.WriteString(el.content)
 		builder.WriteString("\x1b[49m\x1b[39m")
 
-		if i < len(elements)-1 {
+		if i < len(elements)-1 && sep != "" {
 			nextEl := elements[i+1]
 			sepFg := BgToFg(el.bgColor)
 			sepBg := nextEl.bgColor

@@ -297,11 +297,34 @@ func TestRenderStatusLines_StandardNonPowerline(t *testing.T) {
 			},
 		},
 		{
-			name: "default middle dot separator when unset",
+			name: "empty separator renders widgets without separator",
 			settings: types.Settings{
 				General: types.GeneralConfig{
 					Separator: "",
 				},
+				Lines: [][]types.WidgetItem{
+					{
+						{Type: "custom-text", Text: "X"},
+						{Type: "custom-text", Text: "Y"},
+					},
+				},
+			},
+			ctx: types.RenderContext{},
+			assertFunc: func(t *testing.T, lines []string) {
+				if len(lines) != 1 {
+					t.Fatalf("expected 1 line, got %d", len(lines))
+				}
+				stripped := StripAnsi(lines[0])
+				expected := "XY"
+				if stripped != expected {
+					t.Errorf("expected %q, got %q", expected, stripped)
+				}
+			},
+		},
+		{
+			name: "default settings use middle dot separator",
+			settings: types.Settings{
+				General: types.DefaultSettings().General,
 				Lines: [][]types.WidgetItem{
 					{
 						{Type: "custom-text", Text: "X"},
@@ -461,6 +484,37 @@ func TestRenderStatusLines_Powerline(t *testing.T) {
 		}
 		if lines[0] != "" {
 			t.Errorf("expected empty string when no active widgets exist, got %q", lines[0])
+		}
+	})
+
+	t.Run("empty separator in powerline omits separator glyph", func(t *testing.T) {
+		settings := types.Settings{
+			Powerline: types.PowerlineConfig{
+				Enabled:   true,
+				Theme:     "nord",
+				Separator: "",
+			},
+			General: types.GeneralConfig{
+				ColorLevel: 2,
+			},
+			Lines: [][]types.WidgetItem{
+				{
+					{Type: "custom-text", Text: "P1"},
+					{Type: "custom-text", Text: "P2"},
+				},
+			},
+		}
+
+		lines := RenderStatusLines(settings, types.RenderContext{})
+		if len(lines) != 1 {
+			t.Fatalf("expected 1 line, got %d", len(lines))
+		}
+		if strings.Contains(lines[0], "\uE0B0") {
+			t.Errorf("expected no default arrow separator when Powerline.Separator is empty, got %q", lines[0])
+		}
+		stripped := StripAnsi(lines[0])
+		if stripped != "P1P2" {
+			t.Errorf("expected stripped output 'P1P2', got %q", stripped)
 		}
 	})
 }
