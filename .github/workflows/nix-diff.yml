@@ -10,7 +10,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7.0.1
       - uses: cachix/install-nix-action@v31.11.3
-      - uses: natsukium/nix-diff-action@v1.1.1
+      - uses: natsukium/nix-diff-action@v1.2.0
         with:
           comment-strategy: update
           attributes: |

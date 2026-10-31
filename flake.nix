@@ -36,6 +36,9 @@
         {
           treefmt = {
             projectRootFile = "flake.nix";
+            settings.global.excludes = [
+              ".agents/skills/gh-actions-lock/**"
+            ];
             programs = {
               gofmt.enable = true;
               nixfmt.enable = true;
