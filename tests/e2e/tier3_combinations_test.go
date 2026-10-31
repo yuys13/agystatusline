@@ -288,10 +288,10 @@ func TestE2E_Tier3_All8IndividualQuotaWidgetsSimultaneousRendering(t *testing.T)
 
 	// Line 1 assertions: quota-5h, quota-7d, quota-3p-5h, quota-3p-7d
 	expectedLine1 := []string{
-		"5h 50.19% (2h 28m)",
-		"7d 90.00% (6d 23h)",
-		"3p-5h 25.00% (30m)",
-		"3p-7d 75.00% (1d)",
+		"Gemini 5h 50.19% (2h 28m)",
+		"Gemini 7d 90.00% (6d 23h)",
+		"Claude 5h 25.00% (30m)",
+		"Claude 7d 75.00% (1d)",
 	}
 	for _, exp := range expectedLine1 {
 		if !strings.Contains(lines[0], exp) {
@@ -301,10 +301,10 @@ func TestE2E_Tier3_All8IndividualQuotaWidgetsSimultaneousRendering(t *testing.T)
 
 	// Line 2 assertions: quota-bar-5h, quota-bar-7d, quota-bar-3p-5h, quota-bar-3p-7d
 	expectedLine2 := []string{
-		"5h █████····· 50.2% (2h 28m)",
-		"7d █████████· 90.0% (6d 23h)",
-		"3p-5h ██▒······· 25.0% (30m)",
-		"3p-7d ███████▒·· 75.0% (1d)",
+		"Gemini 5h █████····· 50.2% (2h 28m)",
+		"Gemini 7d █████████· 90.0% (6d 23h)",
+		"Claude 5h ██▒······· 25.0% (30m)",
+		"Claude 7d ███████▒·· 75.0% (1d)",
 	}
 	for _, exp := range expectedLine2 {
 		if !strings.Contains(lines[1], exp) {
