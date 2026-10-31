@@ -1,17 +1,16 @@
 ---
 description: |
-  Locks and verifies GitHub Actions workflow dependencies with gh-actions-lock. Use when onboarding a repository to .github/workflows/actions.lock, fixing or relocking the lockfile, verifying it in CI, reading its findings, or whenever a user mentions actions.lock, gh actions-lock, or pinning workflow dependencies.
+    Locks and verifies GitHub Actions workflow dependencies with gh-actions-lock. Use when onboarding a repository to .github/workflows/actions.lock, fixing or relocking the lockfile, verifying it in CI, reading its findings, or whenever a user mentions actions.lock, gh actions-lock, or pinning workflow dependencies.
 license: MIT
 metadata:
-  author: github
-  github-path: skills/gh-actions-lock
-  github-ref: refs/tags/v0.4.0
-  github-repo: https://github.com/github/gh-actions-lock
-  github-tree-sha: 263ebd6eacf43511cfa588be16628b5ab7bfe460
-  version: 0.1.0
+    author: github
+    github-path: skills/gh-actions-lock
+    github-ref: refs/tags/v0.4.0
+    github-repo: https://github.com/github/gh-actions-lock
+    github-tree-sha: 263ebd6eacf43511cfa588be16628b5ab7bfe460
+    version: 0.1.0
 name: gh-actions-lock
 ---
-
 # gh-actions-lock
 
 `gh actions-lock` is a [GitHub CLI](https://cli.github.com/) extension that pins every direct and
@@ -32,13 +31,13 @@ then the repository remote, then github.com.
 
 ## Modes
 
-| Command                          | Writes | Network | Use for                                                  |
-| -------------------------------- | ------ | ------- | -------------------------------------------------------- |
-| `gh actions-lock`                | yes    | yes     | onboarding and fixing the lockfile                       |
-| `gh actions-lock --relock`       | yes    | yes     | advancing moved refs to current upstream commits         |
-| `gh actions-lock --verify`       | no     | yes     | CI: same checks as a fix run, fails on anything blocking |
-| `gh actions-lock --verify-local` | no     | no      | pre-commit: every `uses:` has a lockfile entry           |
-| `gh actions-lock --no-fix`       | no     | yes     | read-only report                                         |
+| Command | Writes | Network | Use for |
+|---|---|---|---|
+| `gh actions-lock` | yes | yes | onboarding and fixing the lockfile |
+| `gh actions-lock --relock` | yes | yes | advancing moved refs to current upstream commits |
+| `gh actions-lock --verify` | no | yes | CI: same checks as a fix run, fails on anything blocking |
+| `gh actions-lock --verify-local` | no | no | pre-commit: every `uses:` has a lockfile entry |
+| `gh actions-lock --no-fix` | no | yes | read-only report |
 
 `--verify-local` only checks coverage, not that entries are trustworthy. Use `--verify` in CI.
 `--verify` and `--verify-local` are mutually exclusive, and `--verify-local` cannot be combined
@@ -92,11 +91,11 @@ automation, where it would silently accept a tampered pin.
 
 ## Exit codes and JSON
 
-| Code | Meaning                                                                      |
-| ---- | ---------------------------------------------------------------------------- |
-| 0    | Nothing to fix, or every finding was fixed                                   |
-| 1    | Blocking findings remain; the report is well-formed                          |
-| 2    | The tool itself failed (bad flag, IO, auth, malformed lockfile); read stderr |
+| Code | Meaning |
+|---|---|
+| 0 | Nothing to fix, or every finding was fixed |
+| 1 | Blocking findings remain; the report is well-formed |
+| 2 | The tool itself failed (bad flag, IO, auth, malformed lockfile); read stderr |
 
 ```bash
 gh actions-lock --verify --json 2>/dev/null
@@ -120,17 +119,17 @@ anything.
 Act on each finding's `remediation`, and open its `doc_url` before deciding. Don't guess from the
 category name alone.
 
-| Category                                                         | Usual next step                                   |
-| ---------------------------------------------------------------- | ------------------------------------------------- |
-| `not-pinned`, `stale`, `ref-changed`, `repo-renamed`             | `gh actions-lock`                                 |
-| `ref-moved`, `tag-commit-mismatch`, `incomplete-lockfile`        | `gh actions-lock --relock`                        |
-| `unreachable-pin`                                                | stop and ask the user; see `--accept-moved` above |
-| `misleading-sha`, `repo-replaced`                                | stop and ask the user; don't relock or accept     |
-| `ref-missing`, `invalid-workflow`, `invalid-self-repository-ref` | fix the workflow source                           |
-| `repo-unavailable`                                               | deleted, or the token can't read it; check access |
-| `ancestry-unknown`, `reachability-unknown`                       | retryable; rerun later                            |
-| `local-action`                                                   | see local actions above                           |
-| `container-image`, `version-ref`, `fresh-tag`                    | non-blocking; mention to the user                 |
+| Category | Usual next step |
+|---|---|
+| `not-pinned`, `stale`, `ref-changed`, `repo-renamed` | `gh actions-lock` |
+| `ref-moved`, `tag-commit-mismatch`, `incomplete-lockfile` | `gh actions-lock --relock` |
+| `unreachable-pin` | stop and ask the user; see `--accept-moved` above |
+| `misleading-sha`, `repo-replaced` | stop and ask the user; don't relock or accept |
+| `ref-missing`, `invalid-workflow`, `invalid-self-repository-ref` | fix the workflow source |
+| `repo-unavailable` | deleted, or the token can't read it; check access |
+| `ancestry-unknown`, `reachability-unknown` | retryable; rerun later |
+| `local-action` | see local actions above |
+| `container-image`, `version-ref`, `fresh-tag` | non-blocking; mention to the user |
 
 ## CI
 
