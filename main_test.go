@@ -205,3 +205,36 @@ path = "/custom/status.json"
 		})
 	}
 }
+
+func TestLoadSettings_QuotaLabels(t *testing.T) {
+	origPath := settingsPath
+	defer func() {
+		settingsPath = origPath
+	}()
+
+	tempDir := t.TempDir()
+	customPath := filepath.Join(tempDir, "settings.toml")
+	initConfigPath(customPath)
+
+	tomlContent := `
+lines = [["quota-5h"]]
+
+[quota.labels]
+gemini-5h = "Custom G5h"
+`
+	if err := os.WriteFile(customPath, []byte(tomlContent), 0600); err != nil {
+		t.Fatalf("Failed to write settings.toml: %v", err)
+	}
+
+	settings, err := loadSettings()
+	if err != nil {
+		t.Fatalf("loadSettings() unexpected error: %v", err)
+	}
+
+	if settings.Quota.Labels["gemini-5h"] != "Custom G5h" {
+		t.Errorf("Expected user override 'Custom G5h' for gemini-5h, got %q", settings.Quota.Labels["gemini-5h"])
+	}
+	if settings.Quota.Labels["3p-5h"] != "Claude 5h" {
+		t.Errorf("Expected default 'Claude 5h' for omitted 3p-5h key, got %q", settings.Quota.Labels["3p-5h"])
+	}
+}

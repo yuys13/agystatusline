@@ -103,18 +103,18 @@ var widgetTypes = []struct {
 	{name: "Git Changes", item: types.WidgetItem{Type: "git-changes"}},
 
 	// Quota
-	{name: "Quota: 5h", item: types.WidgetItem{Type: "quota-5h"}},
-	{name: "Quota: 7d", item: types.WidgetItem{Type: "quota-7d"}},
+	{name: "Quota: Gemini 5h", item: types.WidgetItem{Type: "quota-5h"}},
+	{name: "Quota: Gemini 7d", item: types.WidgetItem{Type: "quota-7d"}},
 	{name: "Quota: Argon 7d", item: types.WidgetItem{Type: "quota-argon-7d"}},
-	{name: "Quota: 3P 5h", item: types.WidgetItem{Type: "quota-3p-5h"}},
-	{name: "Quota: 3P 7d", item: types.WidgetItem{Type: "quota-3p-7d"}},
+	{name: "Quota: Claude 5h", item: types.WidgetItem{Type: "quota-3p-5h"}},
+	{name: "Quota: Claude 7d", item: types.WidgetItem{Type: "quota-3p-7d"}},
 
 	// Quota Bar
-	{name: "Quota Bar: 5h", item: types.WidgetItem{Type: "quota-bar-5h"}},
-	{name: "Quota Bar: 7d", item: types.WidgetItem{Type: "quota-bar-7d"}},
+	{name: "Quota Bar: Gemini 5h", item: types.WidgetItem{Type: "quota-bar-5h"}},
+	{name: "Quota Bar: Gemini 7d", item: types.WidgetItem{Type: "quota-bar-7d"}},
 	{name: "Quota Bar: Argon 7d", item: types.WidgetItem{Type: "quota-bar-argon-7d"}},
-	{name: "Quota Bar: 3P 5h", item: types.WidgetItem{Type: "quota-bar-3p-5h"}},
-	{name: "Quota Bar: 3P 7d", item: types.WidgetItem{Type: "quota-bar-3p-7d"}},
+	{name: "Quota Bar: Claude 5h", item: types.WidgetItem{Type: "quota-bar-3p-5h"}},
+	{name: "Quota Bar: Claude 7d", item: types.WidgetItem{Type: "quota-bar-3p-7d"}},
 
 	// Custom Text
 	{name: "Custom Text", item: types.WidgetItem{Type: "custom-text", Text: "CUSTOM"}},

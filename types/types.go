@@ -310,12 +310,29 @@ type PayloadDumpConfig struct {
 	Path    string `toml:"path" json:"path"`
 }
 
+// QuotaConfig defines quota display customization options.
+type QuotaConfig struct {
+	Labels map[string]string `toml:"labels" json:"labels"`
+}
+
+// DefaultQuotaLabels returns a new map of built-in default quota key-to-label mappings.
+func DefaultQuotaLabels() map[string]string {
+	return map[string]string{
+		"gemini-5h":               "Gemini 5h",
+		"gemini-weekly":           "Gemini 7d",
+		"gemini-argon-wtu-weekly": "Argon 7d",
+		"3p-5h":                   "Claude 5h",
+		"3p-weekly":               "Claude 7d",
+	}
+}
+
 // Settings represents the complete agystatusline TOML configuration.
 type Settings struct {
 	Lines       [][]WidgetItem    `toml:"lines" json:"lines"`
 	Powerline   PowerlineConfig   `toml:"powerline" json:"powerline"`
 	General     GeneralConfig     `toml:"general" json:"general"`
 	PayloadDump PayloadDumpConfig `toml:"payload_dump" json:"payload_dump"`
+	Quota       QuotaConfig       `toml:"quota" json:"quota"`
 }
 
 // ApplyDefaults ensures missing or empty configuration fields are populated with standard defaults.
@@ -325,6 +342,16 @@ func (s *Settings) ApplyDefaults() {
 		s.PayloadDump.Path = DefaultPayloadDumpPath
 	} else {
 		s.PayloadDump.Path = trimmed
+	}
+
+	if s.Quota.Labels == nil {
+		s.Quota.Labels = DefaultQuotaLabels()
+	} else {
+		for k, v := range DefaultQuotaLabels() {
+			if _, exists := s.Quota.Labels[k]; !exists {
+				s.Quota.Labels[k] = v
+			}
+		}
 	}
 }
 
@@ -359,6 +386,9 @@ func DefaultSettings() Settings {
 		PayloadDump: PayloadDumpConfig{
 			Enabled: false,
 			Path:    DefaultPayloadDumpPath,
+		},
+		Quota: QuotaConfig{
+			Labels: DefaultQuotaLabels(),
 		},
 	}
 	s.ApplyDefaults()

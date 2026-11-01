@@ -302,8 +302,8 @@ func TestE2E_Tier4_AllWidgetsSimultaneousRendering(t *testing.T) {
 	if !strings.Contains(lines[1], "sandbox on") {
 		t.Errorf("Expected Line 2 to contain 'sandbox on', got %q", lines[1])
 	}
-	if !strings.Contains(lines[1], "gemini-5h") {
-		t.Errorf("Expected Line 2 to contain 'gemini-5h', got %q", lines[1])
+	if !strings.Contains(lines[1], "Gemini 5h") {
+		t.Errorf("Expected Line 2 to contain 'Gemini 5h', got %q", lines[1])
 	}
 	if !strings.Contains(lines[1], "DEMO-ENV") {
 		t.Errorf("Expected Line 2 to contain 'DEMO-ENV', got %q", lines[1])
