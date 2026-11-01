@@ -103,6 +103,7 @@ var widgetTypes = []struct {
 	{name: "Git Changes", item: types.WidgetItem{Type: "git-changes"}},
 
 	// Quota
+	{name: "Quota: All", item: types.WidgetItem{Type: "quota-all"}},
 	{name: "Quota: Gemini 5h", item: types.WidgetItem{Type: "quota-5h"}},
 	{name: "Quota: Gemini 7d", item: types.WidgetItem{Type: "quota-7d"}},
 	{name: "Quota: Argon 7d", item: types.WidgetItem{Type: "quota-argon-7d"}},
@@ -110,6 +111,7 @@ var widgetTypes = []struct {
 	{name: "Quota: Claude 7d", item: types.WidgetItem{Type: "quota-3p-7d"}},
 
 	// Quota Bar
+	{name: "Quota Bar: All", item: types.WidgetItem{Type: "quota-bar-all"}},
 	{name: "Quota Bar: Gemini 5h", item: types.WidgetItem{Type: "quota-bar-5h"}},
 	{name: "Quota Bar: Gemini 7d", item: types.WidgetItem{Type: "quota-bar-7d"}},
 	{name: "Quota Bar: Argon 7d", item: types.WidgetItem{Type: "quota-bar-argon-7d"}},

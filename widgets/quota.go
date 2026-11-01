@@ -2,6 +2,7 @@ package widgets
 
 import (
 	"fmt"
+	"slices"
 	"strings"
 
 	"github.com/yuys13/agystatusline/types"
@@ -68,6 +69,49 @@ func resolveQuotaLabel(item types.WidgetItem, key string, defaultTitle string, s
 		return defaultTitle
 	}
 	return defaultQuotaLabel(key)
+}
+
+// OrderedQuotaKeys returns the keys present in quotaMap filtered by quotaCfg.Exclude,
+// ordered by quotaCfg.Order first (falling back to DefaultQuotaOrder when Order is nil),
+// followed by any remaining keys in alphabetical order.
+func OrderedQuotaKeys(quotaMap map[string]types.QuotaInfo, quotaCfg types.QuotaConfig) []string {
+	if len(quotaMap) == 0 {
+		return nil
+	}
+
+	excluded := make(map[string]bool, len(quotaCfg.Exclude))
+	for _, k := range quotaCfg.Exclude {
+		excluded[k] = true
+	}
+
+	order := quotaCfg.Order
+	if order == nil {
+		order = types.DefaultQuotaOrder()
+	}
+
+	seen := make(map[string]bool, len(quotaMap))
+	var result []string
+
+	for _, k := range order {
+		if excluded[k] || seen[k] {
+			continue
+		}
+		if _, ok := quotaMap[k]; ok {
+			result = append(result, k)
+			seen[k] = true
+		}
+	}
+
+	var remaining []string
+	for k := range quotaMap {
+		if !excluded[k] && !seen[k] {
+			remaining = append(remaining, k)
+		}
+	}
+	slices.Sort(remaining)
+	result = append(result, remaining...)
+
+	return result
 }
 
 // QuotaWidget displays quota limits and usage.

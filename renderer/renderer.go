@@ -36,8 +36,10 @@ func RenderStatusLines(settings types.Settings, ctx types.RenderContext) []strin
 			continue
 		}
 
+		expandedItems := expandLineItems(lineItems, ctx, settings)
+
 		var rendered []PreRenderedWidget
-		for _, item := range lineItems {
+		for _, item := range expandedItems {
 			if item.Type == "separator" || item.Type == "flex-separator" {
 				rendered = append(rendered, PreRenderedWidget{Item: item})
 				continue
@@ -155,6 +157,30 @@ func RenderStatusLines(settings types.Settings, ctx types.RenderContext) []strin
 	}
 
 	return results
+}
+
+func expandLineItems(lineItems []types.WidgetItem, ctx types.RenderContext, settings types.Settings) []types.WidgetItem {
+	var expanded []types.WidgetItem
+	for _, item := range lineItems {
+		switch item.Type {
+		case "quota-all", "quota-bar-all":
+			baseType := "quota"
+			if item.Type == "quota-bar-all" {
+				baseType = "quota-bar"
+			}
+			for _, key := range widgets.OrderedQuotaKeys(ctx.Data.Quota, settings.Quota) {
+				expanded = append(expanded, types.WidgetItem{
+					Type:  baseType,
+					Key:   key,
+					Color: item.Color,
+					Raw:   item.Raw,
+				})
+			}
+		default:
+			expanded = append(expanded, item)
+		}
+	}
+	return expanded
 }
 
 func formatSeparator(sep string) string {

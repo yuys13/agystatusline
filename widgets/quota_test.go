@@ -3,6 +3,7 @@ package widgets
 import (
 	"fmt"
 	"math"
+	"reflect"
 	"strings"
 	"testing"
 	"unicode/utf8"
@@ -825,5 +826,163 @@ func TestQuotaWidgets_CustomSettingsLabels(t *testing.T) {
 				t.Errorf("Expected title %q, got %q", tc.expectedTitle, title)
 			}
 		})
+	}
+}
+
+func TestOrderedQuotaKeys(t *testing.T) {
+	f := 0.5
+	info := types.QuotaInfo{RemainingFraction: &f}
+
+	fullMap := map[string]types.QuotaInfo{
+		"3p-weekly":               info,
+		"gemini-5h":               info,
+		"zeta-custom":             info,
+		"3p-5h":                   info,
+		"alpha-custom":            info,
+		"gemini-argon-wtu-weekly": info,
+		"gemini-weekly":           info,
+	}
+
+	tests := []struct {
+		name     string
+		quotaMap map[string]types.QuotaInfo
+		quotaCfg types.QuotaConfig
+		expected []string
+	}{
+		{
+			name:     "nil quota map returns nil",
+			quotaMap: nil,
+			quotaCfg: types.DefaultSettings().Quota,
+			expected: nil,
+		},
+		{
+			name:     "empty quota map returns nil",
+			quotaMap: map[string]types.QuotaInfo{},
+			quotaCfg: types.DefaultSettings().Quota,
+			expected: nil,
+		},
+		{
+			name:     "default order places canonical keys first then unknown keys alphabetically",
+			quotaMap: fullMap,
+			quotaCfg: types.DefaultSettings().Quota,
+			expected: []string{
+				"gemini-5h",
+				"gemini-weekly",
+				"gemini-argon-wtu-weekly",
+				"3p-5h",
+				"3p-weekly",
+				"alpha-custom",
+				"zeta-custom",
+			},
+		},
+		{
+			name:     "zero-value QuotaConfig (nil Order) falls back to DefaultQuotaOrder",
+			quotaMap: fullMap,
+			quotaCfg: types.QuotaConfig{},
+			expected: []string{
+				"gemini-5h",
+				"gemini-weekly",
+				"gemini-argon-wtu-weekly",
+				"3p-5h",
+				"3p-weekly",
+				"alpha-custom",
+				"zeta-custom",
+			},
+		},
+		{
+			name:     "custom partial order overrides default order and sorts remaining keys alphabetically",
+			quotaMap: fullMap,
+			quotaCfg: types.QuotaConfig{
+				Order: []string{"3p-5h", "gemini-5h"},
+			},
+			expected: []string{
+				"3p-5h",
+				"gemini-5h",
+				"3p-weekly",
+				"alpha-custom",
+				"gemini-argon-wtu-weekly",
+				"gemini-weekly",
+				"zeta-custom",
+			},
+		},
+		{
+			name:     "explicit empty order slice sorts all keys alphabetically",
+			quotaMap: fullMap,
+			quotaCfg: types.QuotaConfig{
+				Order: []string{},
+			},
+			expected: []string{
+				"3p-5h",
+				"3p-weekly",
+				"alpha-custom",
+				"gemini-5h",
+				"gemini-argon-wtu-weekly",
+				"gemini-weekly",
+				"zeta-custom",
+			},
+		},
+		{
+			name:     "exclude removes specified keys from both ordered and remaining keys",
+			quotaMap: fullMap,
+			quotaCfg: types.QuotaConfig{
+				Order:   types.DefaultQuotaOrder(),
+				Exclude: []string{"3p-5h", "3p-weekly", "alpha-custom"},
+			},
+			expected: []string{
+				"gemini-5h",
+				"gemini-weekly",
+				"gemini-argon-wtu-weekly",
+				"zeta-custom",
+			},
+		},
+		{
+			name: "missing keys in quotaMap and duplicate keys in Order are handled cleanly",
+			quotaMap: map[string]types.QuotaInfo{
+				"gemini-5h":     info,
+				"gemini-weekly": info,
+			},
+			quotaCfg: types.QuotaConfig{
+				Order: []string{"gemini-weekly", "non-existent", "gemini-weekly", "gemini-5h"},
+			},
+			expected: []string{
+				"gemini-weekly",
+				"gemini-5h",
+			},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			got := OrderedQuotaKeys(tc.quotaMap, tc.quotaCfg)
+			if !reflect.DeepEqual(got, tc.expected) {
+				t.Errorf("Expected OrderedQuotaKeys %+v, got %+v", tc.expected, got)
+			}
+		})
+	}
+}
+
+func TestQuotaAllWidgets_Registry(t *testing.T) {
+	RegisterAll()
+
+	qa := GetWidget("quota-all")
+	if qa == nil {
+		t.Fatalf("Expected 'quota-all' widget to be registered")
+	}
+	if qa.GetDisplayName() != "Quota: All" {
+		t.Errorf("Expected display name 'Quota: All', got %q", qa.GetDisplayName())
+	}
+	if qa.GetDefaultColor() != "brightWhite" {
+		t.Errorf("Expected default color 'brightWhite', got %q", qa.GetDefaultColor())
+	}
+
+	qba := GetWidget("quota-bar-all")
+	if qba == nil {
+		t.Fatalf("Expected 'quota-bar-all' widget to be registered")
+	}
+	if qba.GetDisplayName() != "Quota Bar: All" {
+		t.Errorf("Expected display name 'Quota Bar: All', got %q", qba.GetDisplayName())
+	}
+	if qba.GetDefaultColor() != "brightGreen" {
+		t.Errorf("Expected default color 'brightGreen', got %q", qba.GetDefaultColor())
 	}
 }

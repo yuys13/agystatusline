@@ -1269,3 +1269,132 @@ func TestRenderStatusLines_AllQuotaWidgets_ColorLevel1_Integrity(t *testing.T) {
 		}
 	})
 }
+
+func TestRenderStatusLines_QuotaAllAndQuotaBarAll(t *testing.T) {
+	widgets.RegisterAll()
+
+	f80 := 0.80
+	f30 := 0.30
+	f10 := 0.10
+	s3600 := 3600.0
+
+	statusData := types.StatusJSON{
+		Quota: map[string]types.QuotaInfo{
+			"gemini-5h": {
+				RemainingFraction: &f80,
+				ResetInSeconds:    &s3600,
+			},
+			"gemini-weekly": {
+				RemainingFraction: &f30,
+				ResetInSeconds:    &s3600,
+			},
+			"3p-5h": {
+				RemainingFraction: &f10,
+				ResetInSeconds:    &s3600,
+			},
+			"empty-bucket": {},
+		},
+	}
+
+	t.Run("quota-all expands buckets in default order and skips empty buckets", func(t *testing.T) {
+		settings := types.DefaultSettings()
+		settings.Lines = [][]types.WidgetItem{
+			{{Type: "quota-all"}},
+		}
+
+		lines := RenderStatusLines(settings, types.RenderContext{Data: statusData})
+		if len(lines) != 1 {
+			t.Fatalf("expected 1 line, got %d", len(lines))
+		}
+		plain := StripAnsi(lines[0])
+		expected := "Gemini 5h 80.00% (1h) · Gemini 7d 30.00% (1h) · Claude 5h 10.00% (1h)"
+		if plain != expected {
+			t.Errorf("Expected %q, got %q", expected, plain)
+		}
+	})
+
+	t.Run("quota-bar-all expands buckets with dynamic colors and respects order and exclude", func(t *testing.T) {
+		settings := types.DefaultSettings()
+		settings.Quota.Order = []string{"3p-5h", "gemini-5h"}
+		settings.Quota.Exclude = []string{"gemini-weekly"}
+		settings.Lines = [][]types.WidgetItem{
+			{{Type: "quota-bar-all"}},
+		}
+
+		lines := RenderStatusLines(settings, types.RenderContext{Data: statusData})
+		if len(lines) != 1 {
+			t.Fatalf("expected 1 line, got %d", len(lines))
+		}
+		out := lines[0]
+		plain := StripAnsi(out)
+		expected := "Claude 5h █········· 10.0% (1h) · Gemini 5h ████████·· 80.0% (1h)"
+		if plain != expected {
+			t.Errorf("Expected %q, got %q", expected, plain)
+		}
+		// 10% should use brightRed (\x1b[91m), 80% should use brightGreen (\x1b[92m)
+		if !strings.Contains(out, "\x1b[91m") || !strings.Contains(out, "\x1b[92m") {
+			t.Errorf("Expected dynamic bar colors brightRed and brightGreen in output: %q", out)
+		}
+	})
+
+	t.Run("quota-all propagates Raw and Color properties to expanded items", func(t *testing.T) {
+		settings := types.DefaultSettings()
+		settings.Quota.Exclude = []string{"gemini-weekly"}
+		settings.Lines = [][]types.WidgetItem{
+			{{Type: "quota-all", Raw: true, Color: "brightCyan"}},
+		}
+
+		lines := RenderStatusLines(settings, types.RenderContext{Data: statusData})
+		if len(lines) != 1 {
+			t.Fatalf("expected 1 line, got %d", len(lines))
+		}
+		out := lines[0]
+		plain := StripAnsi(out)
+		expected := "80.00% (1h) · 10.00% (1h)"
+		if plain != expected {
+			t.Errorf("Expected raw output %q, got %q", expected, plain)
+		}
+		if !strings.Contains(out, "\x1b[96m") {
+			t.Errorf("Expected custom color brightCyan (\\x1b[96m) in output: %q", out)
+		}
+	})
+
+	t.Run("quota-all in Powerline mode creates separate segments per bucket", func(t *testing.T) {
+		settings := types.DefaultSettings()
+		settings.Powerline.Enabled = true
+		settings.Powerline.Separator = "\uE0B0"
+		settings.Quota.Exclude = []string{"gemini-weekly"}
+		settings.Lines = [][]types.WidgetItem{
+			{{Type: "quota-all"}},
+		}
+
+		lines := RenderStatusLines(settings, types.RenderContext{Data: statusData})
+		if len(lines) != 1 {
+			t.Fatalf("expected 1 line, got %d", len(lines))
+		}
+		plain := StripAnsi(lines[0])
+		if !strings.Contains(plain, "Gemini 5h 80.00% (1h)\uE0B0Claude 5h 10.00% (1h)") {
+			t.Errorf("Expected Powerline separator between expanded quota segments, got %q", plain)
+		}
+	})
+
+	t.Run("quota-all with nil Quota map renders nothing without stray separators", func(t *testing.T) {
+		settings := types.DefaultSettings()
+		settings.Lines = [][]types.WidgetItem{
+			{
+				{Type: "model"},
+				{Type: "quota-all"},
+			},
+		}
+		ctx := types.RenderContext{
+			Data: types.StatusJSON{
+				Model: types.ModelInfo{DisplayName: "Gemini 2.5 Pro"},
+			},
+		}
+		lines := RenderStatusLines(settings, ctx)
+		plain := StripAnsi(lines[0])
+		if plain != "Gemini 2.5 Pro" {
+			t.Errorf("Expected 'Gemini 2.5 Pro' without trailing separator, got %q", plain)
+		}
+	})
+}
