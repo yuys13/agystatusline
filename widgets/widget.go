@@ -76,6 +76,7 @@ func RegisterAll() {
 
 	// Quota widgets
 	RegisterWidget("quota", &QuotaWidget{DisplayName: "Quota"})
+	RegisterWidget("quota-all", &QuotaWidget{DisplayName: "Quota: All"})
 	RegisterWidget("quota-5h", &QuotaWidget{DefaultKey: "gemini-5h", DefaultTitle: "Gemini 5h", DisplayName: "Quota: Gemini 5h"})
 	RegisterWidget("quota-7d", &QuotaWidget{DefaultKey: "gemini-weekly", DefaultTitle: "Gemini 7d", DisplayName: "Quota: Gemini 7d"})
 	RegisterWidget("quota-argon-7d", &QuotaWidget{DefaultKey: "gemini-argon-wtu-weekly", DefaultTitle: "Argon 7d", DisplayName: "Quota: Argon 7d"})
@@ -84,6 +85,7 @@ func RegisterAll() {
 
 	// Quota Bar widgets
 	RegisterWidget("quota-bar", &QuotaBarWidget{DisplayName: "Quota Bar"})
+	RegisterWidget("quota-bar-all", &QuotaBarWidget{DisplayName: "Quota Bar: All"})
 	RegisterWidget("quota-bar-5h", &QuotaBarWidget{DefaultKey: "gemini-5h", DefaultTitle: "Gemini 5h", DisplayName: "Quota Bar: Gemini 5h"})
 	RegisterWidget("quota-bar-7d", &QuotaBarWidget{DefaultKey: "gemini-weekly", DefaultTitle: "Gemini 7d", DisplayName: "Quota Bar: Gemini 7d"})
 	RegisterWidget("quota-bar-argon-7d", &QuotaBarWidget{DefaultKey: "gemini-argon-wtu-weekly", DefaultTitle: "Argon 7d", DisplayName: "Quota Bar: Argon 7d"})

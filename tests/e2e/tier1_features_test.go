@@ -485,6 +485,80 @@ gemini-5h = "G-5h"
 	}
 }
 
+// TestE2E_Tier1_QuotaAllAndQuotaBarAll tests quota-all and quota-bar-all widgets with order and exclude settings.
+func TestE2E_Tier1_QuotaAllAndQuotaBarAll(t *testing.T) {
+	statusJSON := `{
+		"quota": {
+			"3p-5h": {"remaining_fraction": 1.0, "reset_in_seconds": 3600.0},
+			"gemini-5h": {"remaining_fraction": 0.5019, "reset_in_seconds": 8891.0}
+		}
+	}`
+
+	t.Run("Default canonical order", func(t *testing.T) {
+		tempDir := t.TempDir()
+		rawTOML := `
+lines = [["quota-all"], ["quota-bar-all"]]
+`
+		cfgPath := filepath.Join(tempDir, "settings.toml")
+		if err := os.WriteFile(cfgPath, []byte(rawTOML), 0600); err != nil {
+			t.Fatalf("Failed to write TOML config: %v", err)
+		}
+
+		stdout, stderr, exitCode := runCLI(t, statusJSON, "--config", cfgPath)
+		if exitCode != 0 {
+			t.Fatalf("Expected exit code 0, got %d (stderr: %q)", exitCode, stderr)
+		}
+
+		plainLines := strings.Split(strings.TrimSpace(stripANSI(stdout)), "\n")
+		if len(plainLines) != 2 {
+			t.Fatalf("Expected 2 output lines, got %d: %q", len(plainLines), plainLines)
+		}
+
+		wantLine1 := "Gemini 5h 50.19% (2h 28m) · Claude 5h 100.00% (1h)"
+		if plainLines[0] != wantLine1 {
+			t.Errorf("Line 1 got %q, want %q", plainLines[0], wantLine1)
+		}
+		wantLine2 := "Gemini 5h █████····· 50.2% (2h 28m) · Claude 5h ██████████ 100.0% (1h)"
+		if plainLines[1] != wantLine2 {
+			t.Errorf("Line 2 got %q, want %q", plainLines[1], wantLine2)
+		}
+	})
+
+	t.Run("Custom order and exclude", func(t *testing.T) {
+		tempDir := t.TempDir()
+		rawTOML := `
+lines = [["quota-all"]]
+
+[quota]
+order = ["3p-5h"]
+exclude = ["3p-weekly"]
+`
+		cfgPath := filepath.Join(tempDir, "settings.toml")
+		if err := os.WriteFile(cfgPath, []byte(rawTOML), 0600); err != nil {
+			t.Fatalf("Failed to write TOML config: %v", err)
+		}
+
+		fullJSON := `{
+			"quota": {
+				"3p-weekly": {"remaining_fraction": 0.855, "reset_in_seconds": 3600.0},
+				"gemini-5h": {"remaining_fraction": 0.5019, "reset_in_seconds": 8891.0},
+				"3p-5h": {"remaining_fraction": 1.0, "reset_in_seconds": 3600.0}
+			}
+		}`
+
+		stdout, stderr, exitCode := runCLI(t, fullJSON, "--config", cfgPath)
+		if exitCode != 0 {
+			t.Fatalf("Expected exit code 0, got %d (stderr: %q)", exitCode, stderr)
+		}
+
+		plain := strings.TrimSpace(stripANSI(stdout))
+		want := "Claude 5h 100.00% (1h) · Gemini 5h 50.19% (2h 28m)"
+		if plain != want {
+			t.Errorf("Got %q, want %q", plain, want)
+		}
+	})
+}
+
 // TestE2E_Tier1_GitBranchWidget tests git branch display via telemetry and custom symbol.
 func TestE2E_Tier1_GitBranchWidget(t *testing.T) {
 	tests := []struct {

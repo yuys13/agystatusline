@@ -450,6 +450,25 @@ func TestTUI_LivePreviewQuota(t *testing.T) {
 	if !strings.Contains(viewStr, "Claude 5h 100.00% (4h 59m)") {
 		t.Errorf("Expected live preview to contain 'Claude 5h 100.00%% (4h 59m)', but it did not. View:\n%s", viewStr)
 	}
+
+	t.Run("quota-all and quota-bar-all in live preview", func(t *testing.T) {
+		s := types.DefaultSettings()
+		s.Lines = [][]types.WidgetItem{
+			{{Type: "quota-all"}},
+			{{Type: "quota-bar-all"}},
+		}
+		mAll := NewModel(s, "/tmp/settings.toml")
+		vAll := renderer.StripAnsi(mAll.View())
+
+		for _, want := range []string{
+			"Gemini 5h 50.19% (2h 28m) · Gemini 7d 90.91% (6d 13h) · Argon 7d 100.00% (6d 23h) · Claude 5h 100.00% (4h 59m) · Claude 7d 100.00% (6d 23h)",
+			"Gemini 5h █████····· 50.2% (2h 28m) · Gemini 7d █████████· 90.9% (6d 13h) · Argon 7d ██████████ 100.0% (6d 23h)",
+		} {
+			if !strings.Contains(vAll, want) {
+				t.Errorf("Expected live preview to contain %q, but it did not. View:\n%s", want, vAll)
+			}
+		}
+	})
 }
 
 func TestTUI_PowerlineSeparator(t *testing.T) {
@@ -1090,11 +1109,13 @@ func TestTUI_WidgetTypesOrdering(t *testing.T) {
 		"git-branch",
 		"git-ahead-behind",
 		"git-changes",
+		"quota-all",
 		"quota-5h",
 		"quota-7d",
 		"quota-argon-7d",
 		"quota-3p-5h",
 		"quota-3p-7d",
+		"quota-bar-all",
 		"quota-bar-5h",
 		"quota-bar-7d",
 		"quota-bar-argon-7d",

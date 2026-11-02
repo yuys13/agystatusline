@@ -371,6 +371,19 @@ func TestDefaultSettings(t *testing.T) {
 		if !reflect.DeepEqual(settings.Quota.Labels, expectedLabels) {
 			t.Errorf("Expected default Quota.Labels %+v, got %+v", expectedLabels, settings.Quota.Labels)
 		}
+		expectedOrder := []string{
+			"gemini-5h",
+			"gemini-weekly",
+			"gemini-argon-wtu-weekly",
+			"3p-5h",
+			"3p-weekly",
+		}
+		if !reflect.DeepEqual(settings.Quota.Order, expectedOrder) {
+			t.Errorf("Expected default Quota.Order %+v, got %+v", expectedOrder, settings.Quota.Order)
+		}
+		if settings.Quota.Exclude == nil || len(settings.Quota.Exclude) != 0 {
+			t.Errorf("Expected default Quota.Exclude to be non-nil empty slice, got %#v", settings.Quota.Exclude)
+		}
 	})
 }
 
@@ -845,6 +858,11 @@ func TestSettings_TOML_RoundTrip_ComplexCombinations(t *testing.T) {
 					Padding:     "  ",
 					Minimalist:  true,
 				},
+				Quota: QuotaConfig{
+					Order:   DefaultQuotaOrder(),
+					Exclude: []string{"3p-weekly"},
+					Labels:  DefaultQuotaLabels(),
+				},
 			},
 		},
 		{
@@ -877,6 +895,10 @@ func TestSettings_TOML_RoundTrip_ComplexCombinations(t *testing.T) {
 					Separator:   "",
 					Padding:     "",
 					Minimalist:  false,
+				},
+				Quota: QuotaConfig{
+					Order:   []string{},
+					Exclude: []string{},
 				},
 			},
 		},
@@ -1246,6 +1268,7 @@ func TestWidgetItem_QuotaShorthand_AllVariants(t *testing.T) {
 		roundtrips bool
 	}{
 		// Individual Quota widgets
+		{"quota-all plain", `"quota-all"`, WidgetItem{Type: "quota-all"}, true},
 		{"quota-5h plain", `"quota-5h"`, WidgetItem{Type: "quota-5h"}, true},
 		{"quota-7d plain", `"quota-7d"`, WidgetItem{Type: "quota-7d"}, true},
 		{"quota-argon-7d plain", `"quota-argon-7d"`, WidgetItem{Type: "quota-argon-7d"}, true},
@@ -1253,6 +1276,7 @@ func TestWidgetItem_QuotaShorthand_AllVariants(t *testing.T) {
 		{"quota-3p-7d plain", `"quota-3p-7d"`, WidgetItem{Type: "quota-3p-7d"}, true},
 
 		// Individual Quota-Bar widgets
+		{"quota-bar-all plain", `"quota-bar-all"`, WidgetItem{Type: "quota-bar-all"}, true},
 		{"quota-bar-5h plain", `"quota-bar-5h"`, WidgetItem{Type: "quota-bar-5h"}, true},
 		{"quota-bar-7d plain", `"quota-bar-7d"`, WidgetItem{Type: "quota-bar-7d"}, true},
 		{"quota-bar-argon-7d plain", `"quota-bar-argon-7d"`, WidgetItem{Type: "quota-bar-argon-7d"}, true},
@@ -1340,6 +1364,7 @@ color_level = 1
 	if err != nil {
 		t.Fatalf("Failed to unmarshal settings with all quota variants: %v", err)
 	}
+	s.ApplyDefaults()
 
 	if len(s.Lines) != 3 {
 		t.Fatalf("Expected 3 lines, got %d", len(s.Lines))
@@ -1595,7 +1620,7 @@ labels = { gemini-weekly = "Gem Weekly" }
 		}
 	})
 
-	t.Run("TOML marshaling of DefaultSettings includes all quota labels", func(t *testing.T) {
+	t.Run("TOML marshaling of DefaultSettings includes all quota labels, order, and exclude", func(t *testing.T) {
 		defaults := DefaultSettings()
 		data, err := toml.Marshal(defaults)
 		if err != nil {
@@ -1606,6 +1631,70 @@ labels = { gemini-weekly = "Gem Weekly" }
 			if !strings.Contains(tomlStr, k) || !strings.Contains(tomlStr, v) {
 				t.Errorf("Expected marshaled TOML to contain %q = %q, got:\n%s", k, v, tomlStr)
 			}
+		}
+		if !strings.Contains(tomlStr, "order =") {
+			t.Errorf("Expected marshaled TOML to contain 'order =', got:\n%s", tomlStr)
+		}
+		if !strings.Contains(tomlStr, "exclude = []") {
+			t.Errorf("Expected marshaled TOML to contain 'exclude = []', got:\n%s", tomlStr)
+		}
+	})
+
+	t.Run("DefaultQuotaOrder returns fresh copy of default order", func(t *testing.T) {
+		order1 := DefaultQuotaOrder()
+		order1[0] = "modified"
+		order2 := DefaultQuotaOrder()
+		if order2[0] != "gemini-5h" {
+			t.Errorf("Expected DefaultQuotaOrder to return a fresh slice, got %q", order2[0])
+		}
+	})
+
+	t.Run("ApplyDefaults populates nil Order and nil Exclude while preserving custom slices", func(t *testing.T) {
+		var s Settings
+		s.ApplyDefaults()
+		if !reflect.DeepEqual(s.Quota.Order, DefaultQuotaOrder()) {
+			t.Errorf("Expected Quota.Order %+v, got %+v", DefaultQuotaOrder(), s.Quota.Order)
+		}
+		if s.Quota.Exclude == nil || len(s.Quota.Exclude) != 0 {
+			t.Errorf("Expected Quota.Exclude empty non-nil slice, got %#v", s.Quota.Exclude)
+		}
+
+		// Preserve explicit empty order = [] and custom exclude
+		s2 := Settings{
+			Quota: QuotaConfig{
+				Order:   []string{},
+				Exclude: []string{"3p-5h", "3p-weekly"},
+			},
+		}
+		s2.ApplyDefaults()
+		if s2.Quota.Order == nil || len(s2.Quota.Order) != 0 {
+			t.Errorf("Expected explicit empty Quota.Order to be preserved, got %#v", s2.Quota.Order)
+		}
+		if !reflect.DeepEqual(s2.Quota.Exclude, []string{"3p-5h", "3p-weekly"}) {
+			t.Errorf("Expected custom Quota.Exclude to be preserved, got %+v", s2.Quota.Exclude)
+		}
+	})
+
+	t.Run("TOML unmarshaling overrides default Order and Exclude when specified", func(t *testing.T) {
+		tomlDoc := `
+lines = [["quota-all"]]
+
+[quota]
+order = ["3p-5h", "gemini-5h"]
+exclude = ["3p-weekly"]
+`
+		s := DefaultSettings()
+		if err := toml.Unmarshal([]byte(tomlDoc), &s); err != nil {
+			t.Fatalf("Failed to unmarshal TOML: %v", err)
+		}
+		s.ApplyDefaults()
+		expectedOrder := []string{"3p-5h", "gemini-5h"}
+		if !reflect.DeepEqual(s.Quota.Order, expectedOrder) {
+			t.Errorf("Expected Quota.Order %+v, got %+v", expectedOrder, s.Quota.Order)
+		}
+		expectedExclude := []string{"3p-weekly"}
+		if !reflect.DeepEqual(s.Quota.Exclude, expectedExclude) {
+			t.Errorf("Expected Quota.Exclude %+v, got %+v", expectedExclude, s.Quota.Exclude)
 		}
 	})
 }

@@ -217,7 +217,11 @@ func TestLoadSettings_QuotaLabels(t *testing.T) {
 	initConfigPath(customPath)
 
 	tomlContent := `
-lines = [["quota-5h"]]
+lines = [["quota-all"]]
+
+[quota]
+order = ["3p-5h", "gemini-5h"]
+exclude = ["3p-weekly"]
 
 [quota.labels]
 gemini-5h = "Custom G5h"
@@ -236,5 +240,13 @@ gemini-5h = "Custom G5h"
 	}
 	if settings.Quota.Labels["3p-5h"] != "Claude 5h" {
 		t.Errorf("Expected default 'Claude 5h' for omitted 3p-5h key, got %q", settings.Quota.Labels["3p-5h"])
+	}
+	wantOrder := []string{"3p-5h", "gemini-5h"}
+	if len(settings.Quota.Order) != len(wantOrder) || settings.Quota.Order[0] != "3p-5h" || settings.Quota.Order[1] != "gemini-5h" {
+		t.Errorf("Expected Quota.Order %v, got %v", wantOrder, settings.Quota.Order)
+	}
+	wantExclude := []string{"3p-weekly"}
+	if len(settings.Quota.Exclude) != 1 || settings.Quota.Exclude[0] != "3p-weekly" {
+		t.Errorf("Expected Quota.Exclude %v, got %v", wantExclude, settings.Quota.Exclude)
 	}
 }

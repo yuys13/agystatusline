@@ -312,7 +312,20 @@ type PayloadDumpConfig struct {
 
 // QuotaConfig defines quota display customization options.
 type QuotaConfig struct {
-	Labels map[string]string `toml:"labels" json:"labels"`
+	Order   []string          `toml:"order" json:"order"`
+	Exclude []string          `toml:"exclude" json:"exclude"`
+	Labels  map[string]string `toml:"labels" json:"labels"`
+}
+
+// DefaultQuotaOrder returns a new slice of built-in canonical quota keys.
+func DefaultQuotaOrder() []string {
+	return []string{
+		"gemini-5h",
+		"gemini-weekly",
+		"gemini-argon-wtu-weekly",
+		"3p-5h",
+		"3p-weekly",
+	}
 }
 
 // DefaultQuotaLabels returns a new map of built-in default quota key-to-label mappings.
@@ -344,6 +357,12 @@ func (s *Settings) ApplyDefaults() {
 		s.PayloadDump.Path = trimmed
 	}
 
+	if s.Quota.Order == nil {
+		s.Quota.Order = DefaultQuotaOrder()
+	}
+	if s.Quota.Exclude == nil {
+		s.Quota.Exclude = []string{}
+	}
 	if s.Quota.Labels == nil {
 		s.Quota.Labels = DefaultQuotaLabels()
 	} else {
@@ -388,7 +407,9 @@ func DefaultSettings() Settings {
 			Path:    DefaultPayloadDumpPath,
 		},
 		Quota: QuotaConfig{
-			Labels: DefaultQuotaLabels(),
+			Order:   DefaultQuotaOrder(),
+			Exclude: []string{},
+			Labels:  DefaultQuotaLabels(),
 		},
 	}
 	s.ApplyDefaults()
