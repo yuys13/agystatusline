@@ -14,6 +14,7 @@ func TestGitProvider_GetBranch(t *testing.T) {
 		wantBranch string
 		wantDirty  bool
 		wantErr    bool
+		wantErrIs  error
 	}{
 		{
 			name: "Clean branch",
@@ -59,6 +60,7 @@ func TestGitProvider_GetBranch(t *testing.T) {
 			wantBranch: "",
 			wantDirty:  false,
 			wantErr:    true,
+			wantErrIs:  types.ErrNotGitRepository,
 		},
 	}
 
@@ -78,6 +80,9 @@ func TestGitProvider_GetBranch(t *testing.T) {
 			if (err != nil) != tt.wantErr {
 				t.Fatalf("GetBranch() error = %v, wantErr %v", err, tt.wantErr)
 			}
+			if tt.wantErrIs != nil && !errors.Is(err, tt.wantErrIs) {
+				t.Errorf("GetBranch() error = %v, wantErrIs %v", err, tt.wantErrIs)
+			}
 			if branch != tt.wantBranch {
 				t.Errorf("GetBranch() branch = %q, want %q", branch, tt.wantBranch)
 			}
@@ -95,6 +100,7 @@ func TestGitProvider_GetChanges(t *testing.T) {
 		wantInsertions int
 		wantDeletions  int
 		wantErr        bool
+		wantErrIs      error
 	}{
 		{
 			name: "With unstaged and staged changes",
@@ -122,6 +128,7 @@ func TestGitProvider_GetChanges(t *testing.T) {
 			wantInsertions: 0,
 			wantDeletions:  0,
 			wantErr:        true,
+			wantErrIs:      types.ErrNotGitRepository,
 		},
 	}
 
@@ -141,6 +148,9 @@ func TestGitProvider_GetChanges(t *testing.T) {
 			if (err != nil) != tt.wantErr {
 				t.Fatalf("GetChanges() error = %v, wantErr %v", err, tt.wantErr)
 			}
+			if tt.wantErrIs != nil && !errors.Is(err, tt.wantErrIs) {
+				t.Errorf("GetChanges() error = %v, wantErrIs %v", err, tt.wantErrIs)
+			}
 			if changes.Insertions != tt.wantInsertions {
 				t.Errorf("GetChanges() insertions = %d, want %d", changes.Insertions, tt.wantInsertions)
 			}
@@ -158,6 +168,7 @@ func TestGitProvider_GetAheadBehind(t *testing.T) {
 		wantAhead  int
 		wantBehind int
 		wantErr    bool
+		wantErrIs  error
 	}{
 		{
 			name: "Ahead and behind",
@@ -176,6 +187,16 @@ func TestGitProvider_GetAheadBehind(t *testing.T) {
 			wantErr:    false,
 		},
 		{
+			name: "Not a git repository",
+			runner: func(cmd string, ctx CwdResolver, ttl int) (string, error) {
+				return "", errors.New("fatal: not a git repository")
+			},
+			wantAhead:  0,
+			wantBehind: 0,
+			wantErr:    true,
+			wantErrIs:  types.ErrNotGitRepository,
+		},
+		{
 			name: "No upstream configured",
 			runner: func(cmd string, ctx CwdResolver, ttl int) (string, error) {
 				switch cmd {
@@ -190,6 +211,7 @@ func TestGitProvider_GetAheadBehind(t *testing.T) {
 			wantAhead:  0,
 			wantBehind: 0,
 			wantErr:    true,
+			wantErrIs:  types.ErrNoUpstream,
 		},
 	}
 
@@ -209,6 +231,9 @@ func TestGitProvider_GetAheadBehind(t *testing.T) {
 			if (err != nil) != tt.wantErr {
 				t.Fatalf("GetAheadBehind() error = %v, wantErr %v", err, tt.wantErr)
 			}
+			if tt.wantErrIs != nil && !errors.Is(err, tt.wantErrIs) {
+				t.Errorf("GetAheadBehind() error = %v, wantErrIs %v", err, tt.wantErrIs)
+			}
 			if ab.Ahead != tt.wantAhead {
 				t.Errorf("GetAheadBehind() ahead = %d, want %d", ab.Ahead, tt.wantAhead)
 			}
@@ -221,10 +246,11 @@ func TestGitProvider_GetAheadBehind(t *testing.T) {
 
 func TestGitProvider_GetRepoName(t *testing.T) {
 	tests := []struct {
-		name     string
-		runner   func(cmd string, ctx CwdResolver, ttl int) (string, error)
-		wantRepo string
-		wantErr  bool
+		name      string
+		runner    func(cmd string, ctx CwdResolver, ttl int) (string, error)
+		wantRepo  string
+		wantErr   bool
+		wantErrIs error
 	}{
 		{
 			name: "Valid repo name",
@@ -246,8 +272,9 @@ func TestGitProvider_GetRepoName(t *testing.T) {
 			runner: func(cmd string, ctx CwdResolver, ttl int) (string, error) {
 				return "", errors.New("not git")
 			},
-			wantRepo: "",
-			wantErr:  true,
+			wantRepo:  "",
+			wantErr:   true,
+			wantErrIs: types.ErrNotGitRepository,
 		},
 	}
 
@@ -266,6 +293,9 @@ func TestGitProvider_GetRepoName(t *testing.T) {
 			repo, err := p.GetRepoName(ctx)
 			if (err != nil) != tt.wantErr {
 				t.Fatalf("GetRepoName() error = %v, wantErr %v", err, tt.wantErr)
+			}
+			if tt.wantErrIs != nil && !errors.Is(err, tt.wantErrIs) {
+				t.Errorf("GetRepoName() error = %v, wantErrIs %v", err, tt.wantErrIs)
 			}
 			if repo != tt.wantRepo {
 				t.Errorf("GetRepoName() repo = %q, want %q", repo, tt.wantRepo)
