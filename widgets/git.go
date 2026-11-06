@@ -3,9 +3,6 @@ package widgets
 import (
 	"errors"
 	"fmt"
-	"regexp"
-	"strconv"
-	"strings"
 
 	"github.com/yuys13/agystatusline/types"
 )
@@ -90,23 +87,6 @@ func (g *GitChangesWidget) Render(item types.WidgetItem, ctx types.RenderContext
 	return "", fmt.Sprintf("(+%d,-%d)", changes.Insertions, changes.Deletions), nil
 }
 
-func parseShortStat(stat string) (int, int) {
-	insertMatch := regexp.MustCompile(`(\d+)\s+insertions?`).FindStringSubmatch(stat)
-	deleteMatch := regexp.MustCompile(`(\d+)\s+deletions?`).FindStringSubmatch(stat)
-
-	ins := 0
-	del := 0
-
-	if len(insertMatch) > 1 {
-		ins, _ = strconv.Atoi(insertMatch[1])
-	}
-	if len(deleteMatch) > 1 {
-		del, _ = strconv.Atoi(deleteMatch[1])
-	}
-
-	return ins, del
-}
-
 // GitAheadBehindWidget displays Git ahead/behind commits count against remote upstream.
 type GitAheadBehindWidget struct{}
 
@@ -146,19 +126,6 @@ func (g *GitAheadBehindWidget) Render(item types.WidgetItem, ctx types.RenderCon
 	}
 
 	return "", body, nil
-}
-
-func parseAheadBehind(out string) (int, int, error) {
-	fields := strings.Fields(out)
-	if len(fields) < 2 {
-		return 0, 0, fmt.Errorf("unexpected rev-list count output: %q", out)
-	}
-	ahead, err1 := strconv.Atoi(fields[0])
-	behind, err2 := strconv.Atoi(fields[1])
-	if err1 != nil || err2 != nil {
-		return 0, 0, fmt.Errorf("invalid rev-list count: %q", out)
-	}
-	return ahead, behind, nil
 }
 
 // GitRepoWidget displays the current Git repository name.

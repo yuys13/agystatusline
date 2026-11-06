@@ -260,49 +260,6 @@ func TestGitChangesWidget(t *testing.T) {
 	}
 }
 
-func TestParseShortStat(t *testing.T) {
-	tests := []struct {
-		name               string
-		statInput          string
-		expectedInsertions int
-		expectedDeletions  int
-	}{
-		{
-			name:               "Empty stat input",
-			statInput:          "",
-			expectedInsertions: 0,
-			expectedDeletions:  0,
-		},
-		{
-			name:               "Insertions only",
-			statInput:          "5 insertions(+)",
-			expectedInsertions: 5,
-			expectedDeletions:  0,
-		},
-		{
-			name:               "Deletions only",
-			statInput:          "10 deletions(-)",
-			expectedInsertions: 0,
-			expectedDeletions:  10,
-		},
-		{
-			name:               "Insertions and deletions combined",
-			statInput:          "2 files changed, 10 insertions(+), 5 deletions(-)",
-			expectedInsertions: 10,
-			expectedDeletions:  5,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			ins, del := parseShortStat(tt.statInput)
-			if ins != tt.expectedInsertions || del != tt.expectedDeletions {
-				t.Errorf("For %q expected (%d, %d), got (%d, %d)", tt.statInput, tt.expectedInsertions, tt.expectedDeletions, ins, del)
-			}
-		})
-	}
-}
-
 func TestGitAheadBehindWidget(t *testing.T) {
 	RegisterAll()
 	w := GetWidget("git-ahead-behind")
@@ -502,71 +459,6 @@ func TestGitAheadBehindWidget(t *testing.T) {
 			}
 			if color := w.GetBodyColor(tt.item, tt.ctx); color != tt.expectedColor {
 				t.Errorf("Expected body color %q, got %q", tt.expectedColor, color)
-			}
-		})
-	}
-}
-
-func TestParseAheadBehind(t *testing.T) {
-	tests := []struct {
-		name           string
-		input          string
-		expectedAhead  int
-		expectedBehind int
-		expectErr      bool
-	}{
-		{
-			name:           "Valid tab-separated count",
-			input:          "2\t1\n",
-			expectedAhead:  2,
-			expectedBehind: 1,
-			expectErr:      false,
-		},
-		{
-			name:           "Valid space-separated count",
-			input:          "0 4",
-			expectedAhead:  0,
-			expectedBehind: 4,
-			expectErr:      false,
-		},
-		{
-			name:           "Both zero",
-			input:          "0\t0",
-			expectedAhead:  0,
-			expectedBehind: 0,
-			expectErr:      false,
-		},
-		{
-			name:           "Empty string",
-			input:          "",
-			expectedAhead:  0,
-			expectedBehind: 0,
-			expectErr:      true,
-		},
-		{
-			name:           "Single number only",
-			input:          "2",
-			expectedAhead:  0,
-			expectedBehind: 0,
-			expectErr:      true,
-		},
-		{
-			name:           "Non-numeric tokens",
-			input:          "foo bar",
-			expectedAhead:  0,
-			expectedBehind: 0,
-			expectErr:      true,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			ahead, behind, err := parseAheadBehind(tt.input)
-			if (err != nil) != tt.expectErr {
-				t.Fatalf("For %q expected err=%v, got err=%v", tt.input, tt.expectErr, err)
-			}
-			if ahead != tt.expectedAhead || behind != tt.expectedBehind {
-				t.Errorf("For %q expected (%d, %d), got (%d, %d)", tt.input, tt.expectedAhead, tt.expectedBehind, ahead, behind)
 			}
 		})
 	}

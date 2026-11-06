@@ -2,11 +2,49 @@ package widgets
 
 import (
 	"errors"
+	"fmt"
 	"path/filepath"
+	"regexp"
+	"strconv"
 	"strings"
 
 	"github.com/yuys13/agystatusline/types"
 )
+
+var (
+	insertShortstatRe = regexp.MustCompile(`(\d+)\s+insertions?`)
+	deleteShortstatRe = regexp.MustCompile(`(\d+)\s+deletions?`)
+)
+
+func parseShortStat(stat string) (int, int) {
+	insertMatch := insertShortstatRe.FindStringSubmatch(stat)
+	deleteMatch := deleteShortstatRe.FindStringSubmatch(stat)
+
+	ins := 0
+	del := 0
+
+	if len(insertMatch) > 1 {
+		ins, _ = strconv.Atoi(insertMatch[1])
+	}
+	if len(deleteMatch) > 1 {
+		del, _ = strconv.Atoi(deleteMatch[1])
+	}
+
+	return ins, del
+}
+
+func parseAheadBehind(out string) (int, int, error) {
+	fields := strings.Fields(out)
+	if len(fields) < 2 {
+		return 0, 0, fmt.Errorf("unexpected rev-list count output: %q", out)
+	}
+	ahead, err1 := strconv.Atoi(fields[0])
+	behind, err2 := strconv.Atoi(fields[1])
+	if err1 != nil || err2 != nil {
+		return 0, 0, fmt.Errorf("invalid rev-list count: %q", out)
+	}
+	return ahead, behind, nil
+}
 
 // GitProvider implements types.GitDataProvider using git CLI commands with caching.
 type GitProvider struct{}
