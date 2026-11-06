@@ -2,6 +2,7 @@ package widgets
 
 import (
 	"errors"
+	"sync"
 	"testing"
 
 	"github.com/yuys13/agystatusline/types"
@@ -70,13 +71,9 @@ func TestGitProvider_GetBranch(t *testing.T) {
 			defer func() { runGitCommand = oldRunner }()
 			runGitCommand = tt.runner
 
-			p := &GitProvider{}
-			ctx := types.RenderContext{
-				Data:               types.StatusJSON{CWD: "/mock/dir"},
-				GitCacheTTLSeconds: 5,
-			}
+			p := NewGitProvider("/mock/dir", 5)
 
-			branch, dirty, err := p.GetBranch(ctx)
+			branch, dirty, err := p.GetBranch()
 			if (err != nil) != tt.wantErr {
 				t.Fatalf("GetBranch() error = %v, wantErr %v", err, tt.wantErr)
 			}
@@ -138,13 +135,9 @@ func TestGitProvider_GetChanges(t *testing.T) {
 			defer func() { runGitCommand = oldRunner }()
 			runGitCommand = tt.runner
 
-			p := &GitProvider{}
-			ctx := types.RenderContext{
-				Data:               types.StatusJSON{CWD: "/mock/dir"},
-				GitCacheTTLSeconds: 5,
-			}
+			p := NewGitProvider("/mock/dir", 5)
 
-			changes, err := p.GetChanges(ctx)
+			changes, err := p.GetChanges()
 			if (err != nil) != tt.wantErr {
 				t.Fatalf("GetChanges() error = %v, wantErr %v", err, tt.wantErr)
 			}
@@ -221,13 +214,9 @@ func TestGitProvider_GetAheadBehind(t *testing.T) {
 			defer func() { runGitCommand = oldRunner }()
 			runGitCommand = tt.runner
 
-			p := &GitProvider{}
-			ctx := types.RenderContext{
-				Data:               types.StatusJSON{CWD: "/mock/dir"},
-				GitCacheTTLSeconds: 5,
-			}
+			p := NewGitProvider("/mock/dir", 5)
 
-			ab, err := p.GetAheadBehind(ctx)
+			ab, err := p.GetAheadBehind()
 			if (err != nil) != tt.wantErr {
 				t.Fatalf("GetAheadBehind() error = %v, wantErr %v", err, tt.wantErr)
 			}
@@ -284,13 +273,9 @@ func TestGitProvider_GetRepoName(t *testing.T) {
 			defer func() { runGitCommand = oldRunner }()
 			runGitCommand = tt.runner
 
-			p := &GitProvider{}
-			ctx := types.RenderContext{
-				Data:               types.StatusJSON{CWD: "/mock/dir"},
-				GitCacheTTLSeconds: 5,
-			}
+			p := NewGitProvider("/mock/dir", 5)
 
-			repo, err := p.GetRepoName(ctx)
+			repo, err := p.GetRepoName()
 			if (err != nil) != tt.wantErr {
 				t.Fatalf("GetRepoName() error = %v, wantErr %v", err, tt.wantErr)
 			}
@@ -301,6 +286,88 @@ func TestGitProvider_GetRepoName(t *testing.T) {
 				t.Errorf("GetRepoName() repo = %q, want %q", repo, tt.wantRepo)
 			}
 		})
+	}
+}
+
+func TestGitProvider_IntraPassMemoization(t *testing.T) {
+	oldRunner := runGitCommand
+	defer func() { runGitCommand = oldRunner }()
+
+	callCounts := make(map[string]int)
+	var mu sync.Mutex
+
+	runGitCommand = func(cmd string, ctx CwdResolver, ttl int) (string, error) {
+		mu.Lock()
+		callCounts[cmd]++
+		mu.Unlock()
+
+		switch cmd {
+		case "rev-parse --is-inside-work-tree":
+			return "true", nil
+		case "symbolic-ref --short HEAD":
+			return "feature/memo\n", nil
+		case "status --porcelain":
+			return " M file.go\n", nil
+		case "diff --shortstat":
+			return " 1 file changed, 10 insertions(+), 2 deletions(-)", nil
+		case "diff --cached --shortstat":
+			return "", nil
+		case "rev-list --left-right --count HEAD...@{upstream}":
+			return "2\t1\n", nil
+		case "rev-parse --show-toplevel":
+			return "/path/to/my-repo\n", nil
+		default:
+			return "", nil
+		}
+	}
+
+	p := NewGitProvider("/mock/dir", 5)
+
+	// Call GetBranch twice
+	b1, d1, err1 := p.GetBranch()
+	b2, d2, err2 := p.GetBranch()
+	if err1 != nil || err2 != nil || b1 != b2 || d1 != d2 {
+		t.Fatalf("GetBranch mismatch or error: %v, %v", err1, err2)
+	}
+
+	// Call GetChanges twice
+	c1, err1 := p.GetChanges()
+	c2, err2 := p.GetChanges()
+	if err1 != nil || err2 != nil || c1 != c2 {
+		t.Fatalf("GetChanges mismatch or error: %v, %v", err1, err2)
+	}
+
+	// Call GetAheadBehind twice
+	ab1, err1 := p.GetAheadBehind()
+	ab2, err2 := p.GetAheadBehind()
+	if err1 != nil || err2 != nil || ab1 != ab2 {
+		t.Fatalf("GetAheadBehind mismatch or error: %v, %v", err1, err2)
+	}
+
+	// Call GetRepoName twice
+	r1, err1 := p.GetRepoName()
+	r2, err2 := p.GetRepoName()
+	if err1 != nil || err2 != nil || r1 != r2 {
+		t.Fatalf("GetRepoName mismatch or error: %v, %v", err1, err2)
+	}
+
+	// Verify each underlying command was executed exactly ONCE
+	mu.Lock()
+	defer mu.Unlock()
+	expectedOnce := []string{
+		"rev-parse --is-inside-work-tree",
+		"symbolic-ref --short HEAD",
+		"status --porcelain",
+		"diff --shortstat",
+		"diff --cached --shortstat",
+		"rev-list --left-right --count HEAD...@{upstream}",
+		"rev-parse --show-toplevel",
+	}
+
+	for _, cmd := range expectedOnce {
+		if count := callCounts[cmd]; count != 1 {
+			t.Errorf("command %q called %d times, want exactly 1", cmd, count)
+		}
 	}
 }
 

@@ -7,13 +7,11 @@ import (
 	"github.com/yuys13/agystatusline/types"
 )
 
-var defaultGitProvider types.GitDataProvider = &GitProvider{}
-
 func getGitProvider(ctx types.RenderContext) types.GitDataProvider {
 	if ctx.GitProvider != nil {
 		return ctx.GitProvider
 	}
-	return defaultGitProvider
+	return NewGitProvider(ctx.GetCwd(), ctx.GitCacheTTLSeconds)
 }
 
 // GitBranchWidget displays the current Git branch name.
@@ -29,7 +27,7 @@ func (g *GitBranchWidget) GetBodyColor(item types.WidgetItem, ctx types.RenderCo
 		return "brightBlue"
 	}
 	p := getGitProvider(ctx)
-	if _, dirty, err := p.GetBranch(ctx); err == nil && dirty {
+	if _, dirty, err := p.GetBranch(); err == nil && dirty {
 		return "brightRed"
 	}
 	return "brightBlue"
@@ -53,7 +51,7 @@ func (g *GitBranchWidget) Render(item types.WidgetItem, ctx types.RenderContext,
 
 	if branch == "" {
 		p := getGitProvider(ctx)
-		b, d, err := p.GetBranch(ctx)
+		b, d, err := p.GetBranch()
 		if err == nil {
 			branch = b
 			dirty = d
@@ -86,7 +84,7 @@ func (g *GitChangesWidget) GetBodyColor(item types.WidgetItem, ctx types.RenderC
 
 func (g *GitChangesWidget) Render(item types.WidgetItem, ctx types.RenderContext, settings types.Settings) (string, string, error) {
 	p := getGitProvider(ctx)
-	changes, err := p.GetChanges(ctx)
+	changes, err := p.GetChanges()
 	if err != nil {
 		return "", "(no git)", nil
 	}
@@ -105,7 +103,7 @@ func (g *GitAheadBehindWidget) GetBodyColor(item types.WidgetItem, ctx types.Ren
 
 func (g *GitAheadBehindWidget) Render(item types.WidgetItem, ctx types.RenderContext, settings types.Settings) (string, string, error) {
 	p := getGitProvider(ctx)
-	ab, err := p.GetAheadBehind(ctx)
+	ab, err := p.GetAheadBehind()
 	if err != nil {
 		body := "(no upstream)"
 		if errors.Is(err, types.ErrNotGitRepository) {
@@ -146,7 +144,7 @@ func (g *GitRepoWidget) GetBodyColor(item types.WidgetItem, ctx types.RenderCont
 
 func (g *GitRepoWidget) Render(item types.WidgetItem, ctx types.RenderContext, settings types.Settings) (string, string, error) {
 	p := getGitProvider(ctx)
-	repoName, err := p.GetRepoName(ctx)
+	repoName, err := p.GetRepoName()
 	if err != nil {
 		body := "(no git)"
 		if item.Symbol != "" && !item.Raw {

@@ -30,22 +30,22 @@ func TestDefaultPreviewContext(t *testing.T) {
 	}
 
 	// Verify MockGitProvider behavior
-	branch, dirty, err := ctx.GitProvider.GetBranch(ctx)
+	branch, dirty, err := ctx.GitProvider.GetBranch()
 	if err != nil || branch != "main" || dirty != false {
 		t.Errorf("expected GetBranch() = (main, false, nil), got (%q, %v, %v)", branch, dirty, err)
 	}
 
-	changes, err := ctx.GitProvider.GetChanges(ctx)
+	changes, err := ctx.GitProvider.GetChanges()
 	if err != nil || changes.Insertions != 42 || changes.Deletions != 10 {
 		t.Errorf("expected GetChanges() = (+42, -10), got (%+v, %v)", changes, err)
 	}
 
-	ab, err := ctx.GitProvider.GetAheadBehind(ctx)
+	ab, err := ctx.GitProvider.GetAheadBehind()
 	if err != nil || ab.Ahead != 2 || ab.Behind != 1 {
 		t.Errorf("expected GetAheadBehind() = (2, 1), got (%+v, %v)", ab, err)
 	}
 
-	repo, err := ctx.GitProvider.GetRepoName(ctx)
+	repo, err := ctx.GitProvider.GetRepoName()
 	if err != nil || repo != "agystatusline" {
 		t.Errorf("expected GetRepoName() = agystatusline, got (%q, %v)", repo, err)
 	}

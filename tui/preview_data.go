@@ -15,7 +15,7 @@ type MockGitProvider struct {
 	RepoName   string
 }
 
-func (m *MockGitProvider) GetBranch(ctx types.RenderContext) (string, bool, error) {
+func (m *MockGitProvider) GetBranch() (string, bool, error) {
 	branch := m.Branch
 	if branch == "" {
 		branch = "main"
@@ -23,21 +23,21 @@ func (m *MockGitProvider) GetBranch(ctx types.RenderContext) (string, bool, erro
 	return branch, m.Dirty, nil
 }
 
-func (m *MockGitProvider) GetChanges(ctx types.RenderContext) (types.GitChanges, error) {
+func (m *MockGitProvider) GetChanges() (types.GitChanges, error) {
 	return types.GitChanges{
 		Insertions: m.Insertions,
 		Deletions:  m.Deletions,
 	}, nil
 }
 
-func (m *MockGitProvider) GetAheadBehind(ctx types.RenderContext) (types.GitAheadBehind, error) {
+func (m *MockGitProvider) GetAheadBehind() (types.GitAheadBehind, error) {
 	return types.GitAheadBehind{
 		Ahead:  m.Ahead,
 		Behind: m.Behind,
 	}, nil
 }
 
-func (m *MockGitProvider) GetRepoName(ctx types.RenderContext) (string, error) {
+func (m *MockGitProvider) GetRepoName() (string, error) {
 	repo := m.RepoName
 	if repo == "" {
 		repo = "agystatusline"

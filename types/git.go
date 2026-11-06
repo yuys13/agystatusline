@@ -25,8 +25,8 @@ type GitAheadBehind struct {
 // GitDataProvider abstracts retrieval of Git repository state.
 // Methods should be called lazily when the corresponding widget requires data.
 type GitDataProvider interface {
-	GetBranch(ctx RenderContext) (branch string, dirty bool, err error)
-	GetChanges(ctx RenderContext) (GitChanges, error)
-	GetAheadBehind(ctx RenderContext) (GitAheadBehind, error)
-	GetRepoName(ctx RenderContext) (string, error)
+	GetBranch() (branch string, dirty bool, err error)
+	GetChanges() (GitChanges, error)
+	GetAheadBehind() (GitAheadBehind, error)
+	GetRepoName() (string, error)
 }

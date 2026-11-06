@@ -19,19 +19,19 @@ type testMockGitProvider struct {
 	repoErr     error
 }
 
-func (m *testMockGitProvider) GetBranch(ctx types.RenderContext) (string, bool, error) {
+func (m *testMockGitProvider) GetBranch() (string, bool, error) {
 	return m.branch, m.dirty, m.branchErr
 }
 
-func (m *testMockGitProvider) GetChanges(ctx types.RenderContext) (types.GitChanges, error) {
+func (m *testMockGitProvider) GetChanges() (types.GitChanges, error) {
 	return m.changes, m.changesErr
 }
 
-func (m *testMockGitProvider) GetAheadBehind(ctx types.RenderContext) (types.GitAheadBehind, error) {
+func (m *testMockGitProvider) GetAheadBehind() (types.GitAheadBehind, error) {
 	return m.aheadBehind, m.abErr
 }
 
-func (m *testMockGitProvider) GetRepoName(ctx types.RenderContext) (string, error) {
+func (m *testMockGitProvider) GetRepoName() (string, error) {
 	return m.repo, m.repoErr
 }
 
