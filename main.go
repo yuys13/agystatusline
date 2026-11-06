@@ -173,6 +173,7 @@ func runMain(args []string, stdin io.Reader, stdout, stderr io.Writer, isTermina
 		IsPreview:          false,
 		Minimalist:         settings.General.Minimalist,
 		GitCacheTTLSeconds: settings.General.GitCacheTTL,
+		GitProvider:        &widgets.GitProvider{},
 	}
 
 	lines := renderer.RenderStatusLines(settings, ctx)
