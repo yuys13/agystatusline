@@ -150,6 +150,14 @@ func TestGitBranchWidget(t *testing.T) {
 			expectedBody:  "⎇ main",
 			expectedColor: "brightBlue",
 		},
+		{
+			name:          "Git provider branch dirty",
+			item:          types.WidgetItem{Type: "git-branch"},
+			ctx:           types.RenderContext{GitProvider: &testMockGitProvider{branch: "feature/dirty", dirty: true}},
+			expectedTitle: "",
+			expectedBody:  "⎇ feature/dirty*",
+			expectedColor: "brightRed",
+		},
 	}
 
 	oldRunner := runGitCommand

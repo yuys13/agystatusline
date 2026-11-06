@@ -22,7 +22,14 @@ type GitBranchWidget struct{}
 func (g *GitBranchWidget) GetDefaultColor() string { return "brightMagenta" }
 func (g *GitBranchWidget) GetDisplayName() string  { return "Git Branch" }
 func (g *GitBranchWidget) GetBodyColor(item types.WidgetItem, ctx types.RenderContext) string {
-	if ctx.Data.VCS != nil && ctx.Data.VCS.Dirty != nil && *ctx.Data.VCS.Dirty {
+	if ctx.Data.VCS != nil && ctx.Data.VCS.Dirty != nil {
+		if *ctx.Data.VCS.Dirty {
+			return "brightRed"
+		}
+		return "brightBlue"
+	}
+	p := getGitProvider(ctx)
+	if _, dirty, err := p.GetBranch(ctx); err == nil && dirty {
 		return "brightRed"
 	}
 	return "brightBlue"
