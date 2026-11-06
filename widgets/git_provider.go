@@ -14,7 +14,7 @@ type GitProvider struct{}
 func (p *GitProvider) checkInsideWorkTree(ctx types.RenderContext) error {
 	isGit, err := runGitCommand("rev-parse --is-inside-work-tree", ctx, ctx.GitCacheTTLSeconds)
 	if err != nil || strings.TrimSpace(isGit) != "true" {
-		return errors.New("not a git repository")
+		return types.ErrNotGitRepository
 	}
 	return nil
 }
@@ -63,7 +63,7 @@ func (p *GitProvider) GetAheadBehind(ctx types.RenderContext) (types.GitAheadBeh
 
 	out, err := runGitCommand("rev-list --left-right --count HEAD...@{upstream}", ctx, ctx.GitCacheTTLSeconds)
 	if err != nil {
-		return types.GitAheadBehind{}, err
+		return types.GitAheadBehind{}, types.ErrNoUpstream
 	}
 
 	ahead, behind, err := parseAheadBehind(out)

@@ -1,14 +1,23 @@
 package widgets
 
 import (
+	"errors"
 	"fmt"
-	"path/filepath"
 	"regexp"
 	"strconv"
 	"strings"
 
 	"github.com/yuys13/agystatusline/types"
 )
+
+var defaultGitProvider types.GitDataProvider = &GitProvider{}
+
+func getGitProvider(ctx types.RenderContext) types.GitDataProvider {
+	if ctx.GitProvider != nil {
+		return ctx.GitProvider
+	}
+	return defaultGitProvider
+}
 
 // GitBranchWidget displays the current Git branch name.
 type GitBranchWidget struct{}
@@ -38,19 +47,13 @@ func (g *GitBranchWidget) Render(item types.WidgetItem, ctx types.RenderContext,
 		}
 	}
 
-	if branch == "" && !ctx.IsPreview {
-		// Fallback to git command
-		isGit, err := runGitCommand("rev-parse --is-inside-work-tree", ctx, ctx.GitCacheTTLSeconds)
-		if err == nil && strings.TrimSpace(isGit) == "true" {
-			b, _ := runGitCommand("symbolic-ref --short HEAD", ctx, ctx.GitCacheTTLSeconds)
-			branch = strings.TrimSpace(b)
-			status, _ := runGitCommand("status --porcelain", ctx, ctx.GitCacheTTLSeconds)
-			dirty = strings.TrimSpace(status) != ""
+	if branch == "" {
+		p := getGitProvider(ctx)
+		b, d, err := p.GetBranch(ctx)
+		if err == nil {
+			branch = b
+			dirty = d
 		}
-	}
-
-	if ctx.IsPreview && branch == "" {
-		branch = "main"
 	}
 
 	if branch == "" {
@@ -78,26 +81,13 @@ func (g *GitChangesWidget) GetBodyColor(item types.WidgetItem, ctx types.RenderC
 }
 
 func (g *GitChangesWidget) Render(item types.WidgetItem, ctx types.RenderContext, settings types.Settings) (string, string, error) {
-	if ctx.IsPreview {
-		return "", "(+42,-10)", nil
-	}
-
-	// Check if inside git tree
-	isGit, err := runGitCommand("rev-parse --is-inside-work-tree", ctx, ctx.GitCacheTTLSeconds)
-	if err != nil || strings.TrimSpace(isGit) != "true" {
+	p := getGitProvider(ctx)
+	changes, err := p.GetChanges(ctx)
+	if err != nil {
 		return "", "(no git)", nil
 	}
 
-	unstagedStat, _ := runGitCommand("diff --shortstat", ctx, ctx.GitCacheTTLSeconds)
-	stagedStat, _ := runGitCommand("diff --cached --shortstat", ctx, ctx.GitCacheTTLSeconds)
-
-	uIns, uDel := parseShortStat(unstagedStat)
-	sIns, sDel := parseShortStat(stagedStat)
-
-	insertions := uIns + sIns
-	deletions := uDel + sDel
-
-	return "", fmt.Sprintf("(+%d,-%d)", insertions, deletions), nil
+	return "", fmt.Sprintf("(+%d,-%d)", changes.Insertions, changes.Deletions), nil
 }
 
 func parseShortStat(stat string) (int, int) {
@@ -127,36 +117,13 @@ func (g *GitAheadBehindWidget) GetBodyColor(item types.WidgetItem, ctx types.Ren
 }
 
 func (g *GitAheadBehindWidget) Render(item types.WidgetItem, ctx types.RenderContext, settings types.Settings) (string, string, error) {
-	if ctx.IsPreview {
-		body := "↑2 ↓1"
-		if item.Symbol != "" && !item.Raw {
-			body = item.Symbol + body
-		}
-		return "", body, nil
-	}
-
-	// Check if inside git tree
-	isGit, err := runGitCommand("rev-parse --is-inside-work-tree", ctx, ctx.GitCacheTTLSeconds)
-	if err != nil || strings.TrimSpace(isGit) != "true" {
-		body := "(no git)"
-		if item.Symbol != "" && !item.Raw {
-			body = item.Symbol + body
-		}
-		return "", body, nil
-	}
-
-	out, err := runGitCommand("rev-list --left-right --count HEAD...@{upstream}", ctx, ctx.GitCacheTTLSeconds)
+	p := getGitProvider(ctx)
+	ab, err := p.GetAheadBehind(ctx)
 	if err != nil {
 		body := "(no upstream)"
-		if item.Symbol != "" && !item.Raw {
-			body = item.Symbol + body
+		if errors.Is(err, types.ErrNotGitRepository) {
+			body = "(no git)"
 		}
-		return "", body, nil
-	}
-
-	ahead, behind, err := parseAheadBehind(out)
-	if err != nil {
-		body := "(no upstream)"
 		if item.Symbol != "" && !item.Raw {
 			body = item.Symbol + body
 		}
@@ -164,12 +131,12 @@ func (g *GitAheadBehindWidget) Render(item types.WidgetItem, ctx types.RenderCon
 	}
 
 	var body string
-	if ahead > 0 && behind > 0 {
-		body = fmt.Sprintf("↑%d ↓%d", ahead, behind)
-	} else if ahead > 0 {
-		body = fmt.Sprintf("↑%d", ahead)
-	} else if behind > 0 {
-		body = fmt.Sprintf("↓%d", behind)
+	if ab.Ahead > 0 && ab.Behind > 0 {
+		body = fmt.Sprintf("↑%d ↓%d", ab.Ahead, ab.Behind)
+	} else if ab.Ahead > 0 {
+		body = fmt.Sprintf("↑%d", ab.Ahead)
+	} else if ab.Behind > 0 {
+		body = fmt.Sprintf("↓%d", ab.Behind)
 	} else {
 		body = "≡"
 	}
@@ -204,17 +171,9 @@ func (g *GitRepoWidget) GetBodyColor(item types.WidgetItem, ctx types.RenderCont
 }
 
 func (g *GitRepoWidget) Render(item types.WidgetItem, ctx types.RenderContext, settings types.Settings) (string, string, error) {
-	if ctx.IsPreview {
-		body := "agystatusline"
-		if item.Symbol != "" && !item.Raw {
-			body = item.Symbol + body
-		}
-		return "", body, nil
-	}
-
-	// Check if inside git tree
-	isGit, err := runGitCommand("rev-parse --is-inside-work-tree", ctx, ctx.GitCacheTTLSeconds)
-	if err != nil || strings.TrimSpace(isGit) != "true" {
+	p := getGitProvider(ctx)
+	repoName, err := p.GetRepoName(ctx)
+	if err != nil {
 		body := "(no git)"
 		if item.Symbol != "" && !item.Raw {
 			body = item.Symbol + body
@@ -222,16 +181,6 @@ func (g *GitRepoWidget) Render(item types.WidgetItem, ctx types.RenderContext, s
 		return "", body, nil
 	}
 
-	topLevel, err := runGitCommand("rev-parse --show-toplevel", ctx, ctx.GitCacheTTLSeconds)
-	if err != nil || strings.TrimSpace(topLevel) == "" {
-		body := "(no git)"
-		if item.Symbol != "" && !item.Raw {
-			body = item.Symbol + body
-		}
-		return "", body, nil
-	}
-
-	repoName := filepath.Base(strings.TrimSpace(topLevel))
 	body := repoName
 	if item.Symbol != "" && !item.Raw {
 		body = item.Symbol + body

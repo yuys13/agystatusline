@@ -1,5 +1,15 @@
 package types
 
+import "errors"
+
+var (
+	// ErrNotGitRepository indicates the target directory is not inside a git work tree.
+	ErrNotGitRepository = errors.New("not a git repository")
+
+	// ErrNoUpstream indicates HEAD does not have an upstream branch configured.
+	ErrNoUpstream = errors.New("no upstream configured")
+)
+
 // GitChanges represents counts of additions and deletions in Git working tree.
 type GitChanges struct {
 	Insertions int
