@@ -635,8 +635,8 @@ func TestRenderStatusLines_TerminalWidthAndTruncation(t *testing.T) {
 			if visWidth > tt.maxExpected {
 				t.Errorf("visible width %d exceeds max expected %d", visWidth, tt.maxExpected)
 			}
-			if !strings.HasSuffix(lines[0], "...") {
-				t.Errorf("expected truncated line to end with '...', got %q", lines[0])
+			if !strings.HasSuffix(lines[0], "...\x1b[0m") {
+				t.Errorf("expected truncated line to end with '...\\x1b[0m', got %q", lines[0])
 			}
 		})
 	}

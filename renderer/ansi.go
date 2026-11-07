@@ -152,5 +152,6 @@ func TruncateStyledText(text string, maxWidth int) string {
 	}
 
 	output.WriteString(ellipsis)
+	output.WriteString("\x1b[0m")
 	return output.String()
 }
