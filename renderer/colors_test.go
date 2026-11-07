@@ -140,46 +140,26 @@ func TestGetPowerlineTheme(t *testing.T) {
 func TestApplyGradientToText_EdgeCases(t *testing.T) {
 	stops := []RGB{{R: 255, G: 0, B: 0}, {R: 0, G: 255, B: 0}}
 
-	tests := []struct {
-		name   string
-		input  string
-		verify func(t *testing.T, result string)
-	}{
-		{
-			name:  "empty text",
-			input: "",
-			verify: func(t *testing.T, res string) {
-				if res != "" {
-					t.Errorf("Expected empty string for empty text gradient, got %q", res)
-				}
-			},
-		},
-		{
-			name:  "single character text",
-			input: "X",
-			verify: func(t *testing.T, res string) {
-				if !strings.Contains(res, "X") {
-					t.Errorf("Expected result to contain 'X', got %q", res)
-				}
-			},
-		},
-		{
-			name:  "text with ANSI escape sequences",
-			input: "BoldText",
-			verify: func(t *testing.T, res string) {
-				if !strings.Contains(res, "B") || !strings.Contains(res, "t") {
-					t.Errorf("Expected result to contain characters from 'BoldText', got %q", res)
-				}
-			},
-		},
-	}
+	t.Run("empty text", func(t *testing.T) {
+		res := applyGradientToText("", stops, "truecolor")
+		if res != "" {
+			t.Errorf("Expected empty string for empty text gradient, got %q", res)
+		}
+	})
 
-	for _, tc := range tests {
-		t.Run(tc.name, func(t *testing.T) {
-			res := applyGradientToText(tc.input, stops, "truecolor")
-			tc.verify(t, res)
-		})
-	}
+	t.Run("single character text", func(t *testing.T) {
+		res := applyGradientToText("X", stops, "truecolor")
+		if !strings.Contains(res, "X") {
+			t.Errorf("Expected result to contain 'X', got %q", res)
+		}
+	})
+
+	t.Run("text with ANSI escape sequences", func(t *testing.T) {
+		res := applyGradientToText("BoldText", stops, "truecolor")
+		if !strings.Contains(res, "B") || !strings.Contains(res, "t") {
+			t.Errorf("Expected result to contain characters from 'BoldText', got %q", res)
+		}
+	})
 }
 
 func TestWrapSolidColor(t *testing.T) {
@@ -188,32 +168,26 @@ func TestWrapSolidColor(t *testing.T) {
 	tests := []struct {
 		name       string
 		colorLevel string
-		verify     func(t *testing.T, result string)
+		wantSub    string
 	}{
 		{
 			name:       "truecolor mode",
 			colorLevel: "truecolor",
-			verify: func(t *testing.T, res string) {
-				if !strings.Contains(res, "255;128;0") || !strings.Contains(res, "test") {
-					t.Errorf("Expected truecolor wrap, got %q", res)
-				}
-			},
+			wantSub:    "255;128;0",
 		},
 		{
 			name:       "ansi256 mode",
 			colorLevel: "ansi256",
-			verify: func(t *testing.T, res string) {
-				if !strings.Contains(res, "\x1b[38;5;") || !strings.Contains(res, "test") {
-					t.Errorf("Expected ansi256 wrap, got %q", res)
-				}
-			},
+			wantSub:    "\x1b[38;5;",
 		},
 	}
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			res := wrapSolidColor("test", c, tc.colorLevel)
-			tc.verify(t, res)
+			if !strings.Contains(res, tc.wantSub) || !strings.Contains(res, "test") {
+				t.Errorf("wrapSolidColor() = %q, want substring %q and 'test'", res, tc.wantSub)
+			}
 		})
 	}
 }
