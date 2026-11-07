@@ -178,8 +178,8 @@ func runMain(args []string, stdin io.Reader, stdout, stderr io.Writer, isTermina
 
 	lines := renderer.RenderStatusLines(settings, ctx)
 	for _, line := range lines {
-		// Output statusline with ANSI reset prefix
-		_, _ = fmt.Fprintln(stdout, "\x1b[0m"+line)
+		// Output statusline with ANSI reset prefix and suffix
+		_, _ = fmt.Fprintln(stdout, "\x1b[0m"+line+"\x1b[0m")
 	}
 	return 0
 }

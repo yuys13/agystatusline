@@ -555,3 +555,64 @@ func TestRunMain_PayloadDump(t *testing.T) {
 		})
 	}
 }
+
+func TestRunMain_LinesEndWithSgrReset(t *testing.T) {
+	var stdout, stderr bytes.Buffer
+	stdin := strings.NewReader(standardTestJSON())
+
+	code := runMain([]string{"agystatusline"}, stdin, &stdout, &stderr, notTerminal)
+	if code != 0 {
+		t.Fatalf("runMain failed with exit code %d (stderr: %q)", code, stderr.String())
+	}
+
+	rawOutput := stdout.String()
+	lines := strings.Split(strings.TrimRight(rawOutput, "\n"), "\n")
+	if len(lines) == 0 {
+		t.Fatalf("Expected non-empty statusline output")
+	}
+
+	for i, line := range lines {
+		if !strings.HasPrefix(line, "\x1b[0m") {
+			t.Errorf("Line %d missing ANSI reset prefix: %q", i, line)
+		}
+		if !strings.HasSuffix(line, "\x1b[0m") {
+			t.Errorf("Line %d missing ANSI reset suffix (Color Bleeding hazard): %q", i, line)
+		}
+	}
+}
+
+func TestRunMain_MultiLine_LinesEndWithSgrReset(t *testing.T) {
+	tempDir := t.TempDir()
+	configPath := filepath.Join(tempDir, "multiline_settings.toml")
+
+	s := types.DefaultSettings()
+	s.Lines = [][]types.WidgetItem{
+		{{Type: "model"}},
+		{{Type: "context-bar"}},
+	}
+	cfgBytes, _ := toml.Marshal(s)
+	_ = os.WriteFile(configPath, cfgBytes, 0644)
+
+	var stdout, stderr bytes.Buffer
+	stdin := strings.NewReader(standardTestJSON())
+
+	code := runMain([]string{"agystatusline", "--config", configPath}, stdin, &stdout, &stderr, notTerminal)
+	if code != 0 {
+		t.Fatalf("Expected exit code 0, got %d (stderr: %q)", code, stderr.String())
+	}
+
+	raw := stdout.String()
+	lines := strings.Split(strings.TrimRight(raw, "\n"), "\n")
+	if len(lines) != 2 {
+		t.Fatalf("Expected 2 lines, got %d", len(lines))
+	}
+
+	for i, l := range lines {
+		if !strings.HasPrefix(l, "\x1b[0m") {
+			t.Errorf("Line %d does not start with ANSI reset prefix: %q", i, l)
+		}
+		if !strings.HasSuffix(l, "\x1b[0m") {
+			t.Errorf("Line %d does not end with ANSI reset suffix: %q", i, l)
+		}
+	}
+}

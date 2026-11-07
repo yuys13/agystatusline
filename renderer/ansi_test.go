@@ -100,8 +100,8 @@ func TestTruncateStyledText(t *testing.T) {
 		width    int
 		expected string
 	}{
-		{"plain text truncation", "Hello World", 8, "Hello..."},
-		{"ANSI styled text truncation", "\x1b[31mHello\x1b[0m World", 8, "\x1b[31mHello\x1b[0m..."},
+		{"plain text truncation", "Hello World", 8, "Hello...\x1b[0m"},
+		{"ANSI styled text truncation", "\x1b[31mHello\x1b[0m World", 8, "\x1b[31mHello\x1b[0m...\x1b[0m"},
 		{"OSC8 link fitting within width", "\x1b]8;;https://example.com\x1b\\Hello\x1b]8;;\x1b\\", 8, "\x1b]8;;https://example.com\x1b\\Hello\x1b]8;;\x1b\\"},
 	}
 
@@ -406,6 +406,107 @@ func TestProperty_TruncateStyledText_RandomGenerator(t *testing.T) {
 		s2 := StripAnsi(s1)
 		if s1 != s2 {
 			t.Fatalf("[Iteration %d] StripAnsi Idempotency Violation! s1=%q, s2=%q", i, s1, s2)
+		}
+	}
+}
+
+func TestTruncateStyledText_SgrReset(t *testing.T) {
+	tests := []struct {
+		name          string
+		input         string
+		maxWidth      int
+		wantSuffix    string
+		wantExact     string // if non-empty, checks exact output
+		checkNoModify bool   // if true, checks output == input
+	}{
+		{
+			name:       "truncated text with open foreground color ends with SGR reset",
+			input:      "\x1b[31mHello World\x1b[0m",
+			maxWidth:   8, // targetWidth = 5 -> "Hello" + "..." + "\x1b[0m"
+			wantSuffix: "\x1b[0m",
+			wantExact:  "\x1b[31mHello...\x1b[0m",
+		},
+		{
+			name:       "truncated text with open background and foreground truecolor",
+			input:      "\x1b[48;2;255;0;0m\x1b[38;2;0;255;0mSuperLongText\x1b[0m",
+			maxWidth:   8,
+			wantSuffix: "\x1b[0m",
+			wantExact:  "\x1b[48;2;255;0;0m\x1b[38;2;0;255;0mSuper...\x1b[0m",
+		},
+		{
+			name:       "truncated text with open OSC 8 hyperlink and open color",
+			input:      "\x1b[32m\x1b]8;;https://example.com\x1b\\LongLinkText\x1b]8;;\x1b\\\x1b[0m",
+			maxWidth:   8,
+			wantSuffix: "\x1b[0m",
+			wantExact:  "\x1b[32m\x1b]8;;https://example.com\x1b\\LongL\x1b]8;;\x1b\\...\x1b[0m",
+		},
+		{
+			name:          "non-truncated colored text remains untouched without superfluous reset",
+			input:         "\x1b[32mShort\x1b[0m",
+			maxWidth:      10,
+			checkNoModify: true,
+		},
+		{
+			name:          "non-truncated plain text remains untouched",
+			input:         "Short text",
+			maxWidth:      20,
+			checkNoModify: true,
+		},
+		{
+			name:      "truncation with width smaller than ellipsis returns dots without styling",
+			input:     "\x1b[31mHello\x1b[0m",
+			maxWidth:  2,
+			wantExact: "..",
+		},
+		{
+			name:      "zero and negative width return empty string",
+			input:     "\x1b[31mHello\x1b[0m",
+			maxWidth:  0,
+			wantExact: "",
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			got := TruncateStyledText(tc.input, tc.maxWidth)
+
+			if tc.checkNoModify {
+				if got != tc.input {
+					t.Errorf("Expected unmodified string %q, got %q", tc.input, got)
+				}
+				return
+			}
+
+			if tc.wantExact != "" && got != tc.wantExact {
+				t.Errorf("TruncateStyledText(%q, %d) = %q; want %q", tc.input, tc.maxWidth, got, tc.wantExact)
+			}
+
+			if tc.wantSuffix != "" && !strings.HasSuffix(got, tc.wantSuffix) {
+				t.Errorf("TruncateStyledText(%q, %d) = %q; expected suffix %q", tc.input, tc.maxWidth, got, tc.wantSuffix)
+			}
+
+			// Validate visible width invariant
+			expectedMax := max(tc.maxWidth, 0)
+			if vis := GetVisibleWidth(got); vis > expectedMax {
+				t.Errorf("Visible width %d exceeds maxWidth %d for %q", vis, expectedMax, got)
+			}
+		})
+	}
+}
+
+func TestTruncateStyledText_SgrClosureAcrossWidths(t *testing.T) {
+	coloredText := "\x1b[38;2;100;150;200mLongColoredLabelExceedingWidth\x1b[0m"
+	totalVisible := GetVisibleWidth(coloredText) // 30
+
+	for w := 4; w < totalVisible; w++ {
+		truncated := TruncateStyledText(coloredText, w)
+		visWidth := GetVisibleWidth(truncated)
+
+		if visWidth > w {
+			t.Errorf("Visible width %d > %d for %q", visWidth, w, truncated)
+		}
+		if !strings.HasSuffix(truncated, "\x1b[0m") {
+			t.Errorf("Width %d: expected truncated colored string to end with SGR reset '\\x1b[0m', got %q", w, truncated)
 		}
 	}
 }
