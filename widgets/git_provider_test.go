@@ -167,6 +167,26 @@ func TestGitProvider_GetBranch(t *testing.T) {
 			wantDirty:  false,
 			wantErr:    true,
 		},
+		{
+			name: "Detached HEAD where rev-parse returns empty string with nil error",
+			runner: func(cmd string, ctx CwdResolver, ttl int) (string, error) {
+				switch cmd {
+				case "rev-parse --is-inside-work-tree":
+					return "true", nil
+				case "symbolic-ref --short HEAD":
+					return "", nil
+				case "describe --tags --exact-match":
+					return "", errors.New("fatal: No names found")
+				case "rev-parse --short HEAD":
+					return "   ", nil
+				default:
+					return "", nil
+				}
+			},
+			wantBranch: "",
+			wantDirty:  false,
+			wantErr:    true,
+		},
 	}
 
 	for _, tt := range tests {

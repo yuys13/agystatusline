@@ -396,6 +396,32 @@ func TestGitBranchWidget(t *testing.T) {
 			expectedBody:  "(1a2b3c4)*",
 			expectedColor: "brightRed",
 		},
+		{
+			name: "Detached HEAD with empty VCS.Branch but VCS.Dirty=false while provider is dirty",
+			item: types.WidgetItem{Type: "git-branch"},
+			ctx: types.RenderContext{
+				Data: types.StatusJSON{
+					VCS: &types.VCSInfo{Branch: "", Dirty: &dirtyFalse},
+				},
+				GitProvider: &testMockGitProvider{branch: "(1a2b3c4)", dirty: true},
+			},
+			expectedTitle: "",
+			expectedBody:  "⎇ (1a2b3c4)*",
+			expectedColor: "brightRed",
+		},
+		{
+			name: "Detached HEAD with empty VCS.Branch but VCS.Dirty=true while provider is clean",
+			item: types.WidgetItem{Type: "git-branch"},
+			ctx: types.RenderContext{
+				Data: types.StatusJSON{
+					VCS: &types.VCSInfo{Branch: "", Dirty: &dirtyTrue},
+				},
+				GitProvider: &testMockGitProvider{branch: "(1a2b3c4)", dirty: false},
+			},
+			expectedTitle: "",
+			expectedBody:  "⎇ (1a2b3c4)",
+			expectedColor: "brightBlue",
+		},
 	}
 
 	oldRunner := runGitCommand
@@ -403,6 +429,7 @@ func TestGitBranchWidget(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			runGitCommand = oldRunner
 			if tt.gitRunner != nil {
 				runGitCommand = tt.gitRunner
 			}

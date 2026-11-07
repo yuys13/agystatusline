@@ -464,3 +464,133 @@ func TestIntegration_Git_AheadBehind(t *testing.T) {
 		t.Errorf("Expected '(no git)', got %q", plain)
 	}
 }
+
+// TestIntegration_Git_DetachedHEAD tests Git branch widget in detached HEAD state in a real Git repo.
+func TestIntegration_Git_DetachedHEAD(t *testing.T) {
+	cacheDir := setupTestCacheDir(t)
+	widgets.RegisterAll()
+
+	repoDir := setupGitRepo(t, "main")
+	settings := types.DefaultSettings()
+
+	clearAllCache := func() {
+		_ = os.RemoveAll(filepath.Join(cacheDir, "git-cache"))
+		utils.ClearGitCache()
+	}
+
+	// Get initial commit short sha
+	shaOut, err := exec.Command("git", "-C", repoDir, "rev-parse", "--short", "HEAD").Output()
+	if err != nil {
+		t.Fatalf("Failed to rev-parse: %v", err)
+	}
+	shortSHA := strings.TrimSpace(string(shaOut))
+
+	// Detach HEAD at initial commit
+	if err := exec.Command("git", "-C", repoDir, "checkout", "--detach", "HEAD").Run(); err != nil {
+		t.Fatalf("Failed to detach HEAD: %v", err)
+	}
+
+	w := widgets.GetWidget("git-branch")
+	if w == nil {
+		t.Fatalf("Git branch widget not found")
+	}
+
+	ctx := types.RenderContext{
+		Data: types.StatusJSON{
+			CWD: repoDir,
+		},
+		GitCacheTTLSeconds: 5,
+	}
+
+	// 1. Detached HEAD at commit SHA (clean)
+	clearAllCache()
+	title, body, err := w.Render(types.WidgetItem{Type: "git-branch"}, ctx, settings)
+	if err != nil {
+		t.Fatalf("Render error: %v", err)
+	}
+	if plain := renderer.StripAnsi(title + body); plain != "⎇ ("+shortSHA+")" {
+		t.Errorf("Expected '⎇ (%s)', got %q", shortSHA, plain)
+	}
+	if color := w.GetBodyColor(types.WidgetItem{Type: "git-branch"}, ctx); color != "brightBlue" {
+		t.Errorf("Expected body color 'brightBlue', got %q", color)
+	}
+
+	// 2. Detached HEAD at commit SHA (dirty)
+	if err := os.WriteFile(filepath.Join(repoDir, "dirty.txt"), []byte("dirty content"), 0644); err != nil {
+		t.Fatalf("Failed to write dirty file: %v", err)
+	}
+	clearAllCache()
+	title, body, err = w.Render(types.WidgetItem{Type: "git-branch"}, ctx, settings)
+	if err != nil {
+		t.Fatalf("Render error: %v", err)
+	}
+	if plain := renderer.StripAnsi(title + body); plain != "⎇ ("+shortSHA+")*" {
+		t.Errorf("Expected '⎇ (%s)*', got %q", shortSHA, plain)
+	}
+	if color := w.GetBodyColor(types.WidgetItem{Type: "git-branch"}, ctx); color != "brightRed" {
+		t.Errorf("Expected body color 'brightRed', got %q", color)
+	}
+
+	// 3. Detached HEAD with Raw=true (dirty)
+	title, body, err = w.Render(types.WidgetItem{Type: "git-branch", Raw: true}, ctx, settings)
+	if err != nil {
+		t.Fatalf("Render error: %v", err)
+	}
+	if plain := renderer.StripAnsi(title + body); plain != "("+shortSHA+")*" {
+		t.Errorf("Expected '(%s)*', got %q", shortSHA, plain)
+	}
+
+	// 4. Detached HEAD with tag checkout (clean)
+	_ = exec.Command("git", "-C", repoDir, "clean", "-fd").Run()
+	if err := exec.Command("git", "-C", repoDir, "tag", "v1.2.0").Run(); err != nil {
+		t.Fatalf("Failed to tag: %v", err)
+	}
+	clearAllCache()
+	title, body, err = w.Render(types.WidgetItem{Type: "git-branch"}, ctx, settings)
+	if err != nil {
+		t.Fatalf("Render error: %v", err)
+	}
+	if plain := renderer.StripAnsi(title + body); plain != "⎇ (v1.2.0)" {
+		t.Errorf("Expected '⎇ (v1.2.0)', got %q", plain)
+	}
+	if color := w.GetBodyColor(types.WidgetItem{Type: "git-branch"}, ctx); color != "brightBlue" {
+		t.Errorf("Expected body color 'brightBlue', got %q", color)
+	}
+
+	// 5. Detached HEAD with tag checkout (dirty) + custom symbol
+	if err := os.WriteFile(filepath.Join(repoDir, "dirty.txt"), []byte("dirty content 2"), 0644); err != nil {
+		t.Fatalf("Failed to write dirty file: %v", err)
+	}
+	clearAllCache()
+	title, body, err = w.Render(types.WidgetItem{Type: "git-branch", Symbol: "🌿 "}, ctx, settings)
+	if err != nil {
+		t.Fatalf("Render error: %v", err)
+	}
+	if plain := renderer.StripAnsi(title + body); plain != "🌿 (v1.2.0)*" {
+		t.Errorf("Expected '🌿 (v1.2.0)*', got %q", plain)
+	}
+	if color := w.GetBodyColor(types.WidgetItem{Type: "git-branch", Symbol: "🌿 "}, ctx); color != "brightRed" {
+		t.Errorf("Expected body color 'brightRed', got %q", color)
+	}
+
+	// 6. Detached HEAD with commit ahead of tag falls back to commit SHA
+	_ = exec.Command("git", "-C", repoDir, "add", ".").Run()
+	_ = exec.Command("git", "-C", repoDir, "commit", "-m", "second commit").Run()
+	sha2Out, err := exec.Command("git", "-C", repoDir, "rev-parse", "--short", "HEAD").Output()
+	if err != nil {
+		t.Fatalf("Failed to rev-parse: %v", err)
+	}
+	shortSHA2 := strings.TrimSpace(string(sha2Out))
+
+	clearAllCache()
+	title, body, err = w.Render(types.WidgetItem{Type: "git-branch"}, ctx, settings)
+	if err != nil {
+		t.Fatalf("Render error: %v", err)
+	}
+	if plain := renderer.StripAnsi(title + body); plain != "⎇ ("+shortSHA2+")" {
+		t.Errorf("Expected '⎇ (%s)', got %q", shortSHA2, plain)
+	}
+	if color := w.GetBodyColor(types.WidgetItem{Type: "git-branch"}, ctx); color != "brightBlue" {
+		t.Errorf("Expected body color 'brightBlue', got %q", color)
+	}
+}

@@ -133,9 +133,12 @@ func (p *GitProvider) GetBranch() (string, bool, error) {
 			// 2. Fall back to short commit SHA
 			sha, shaErr := runGitCommand("rev-parse --short HEAD", staticCwd(p.cwd), p.ttlSeconds)
 			if shaErr != nil || strings.TrimSpace(sha) == "" {
-				p.branchErr = err
 				if shaErr != nil {
 					p.branchErr = shaErr
+				} else if err != nil {
+					p.branchErr = err
+				} else {
+					p.branchErr = errors.New("could not determine git branch or detached HEAD commit")
 				}
 				return "", false, p.branchErr
 			}

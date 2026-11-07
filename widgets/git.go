@@ -20,7 +20,7 @@ type GitBranchWidget struct{}
 func (g *GitBranchWidget) GetDefaultColor() string { return "brightMagenta" }
 func (g *GitBranchWidget) GetDisplayName() string  { return "Git Branch" }
 func (g *GitBranchWidget) GetBodyColor(item types.WidgetItem, ctx types.RenderContext) string {
-	if ctx.Data.VCS != nil && ctx.Data.VCS.Dirty != nil {
+	if ctx.Data.VCS != nil && ctx.Data.VCS.Branch != "" && ctx.Data.VCS.Dirty != nil {
 		if *ctx.Data.VCS.Dirty {
 			return "brightRed"
 		}
@@ -42,7 +42,7 @@ func (g *GitBranchWidget) Render(item types.WidgetItem, ctx types.RenderContext,
 	// Try to get branch from VCS telemetry first
 	var branch string
 	var dirty bool
-	if ctx.Data.VCS != nil {
+	if ctx.Data.VCS != nil && ctx.Data.VCS.Branch != "" {
 		branch = ctx.Data.VCS.Branch
 		if ctx.Data.VCS.Dirty != nil {
 			dirty = *ctx.Data.VCS.Dirty
