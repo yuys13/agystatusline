@@ -412,83 +412,125 @@ func TestProperty_TruncateStyledText_RandomGenerator(t *testing.T) {
 
 func TestTruncateStyledText_SgrReset(t *testing.T) {
 	tests := []struct {
-		name          string
-		input         string
-		maxWidth      int
-		wantSuffix    string
-		wantExact     string // if non-empty, checks exact output
-		checkNoModify bool   // if true, checks output == input
+		name     string
+		input    string
+		maxWidth int
+		want     string
 	}{
 		{
-			name:       "truncated text with open foreground color ends with SGR reset",
-			input:      "\x1b[31mHello World\x1b[0m",
-			maxWidth:   8, // targetWidth = 5 -> "Hello" + "..." + "\x1b[0m"
-			wantSuffix: "\x1b[0m",
-			wantExact:  "\x1b[31mHello...\x1b[0m",
+			name:     "truncated text with open foreground color ends with SGR reset",
+			input:    "\x1b[31mHello World\x1b[0m",
+			maxWidth: 8, // targetWidth = 5 -> "Hello" + "..." + "\x1b[0m"
+			want:     "\x1b[31mHello...\x1b[0m",
 		},
 		{
-			name:       "truncated text with open background and foreground truecolor",
-			input:      "\x1b[48;2;255;0;0m\x1b[38;2;0;255;0mSuperLongText\x1b[0m",
-			maxWidth:   8,
-			wantSuffix: "\x1b[0m",
-			wantExact:  "\x1b[48;2;255;0;0m\x1b[38;2;0;255;0mSuper...\x1b[0m",
+			name:     "truncated text with open background and foreground truecolor",
+			input:    "\x1b[48;2;255;0;0m\x1b[38;2;0;255;0mSuperLongText\x1b[0m",
+			maxWidth: 8,
+			want:     "\x1b[48;2;255;0;0m\x1b[38;2;0;255;0mSuper...\x1b[0m",
 		},
 		{
-			name:       "truncated text with open OSC 8 hyperlink and open color",
-			input:      "\x1b[32m\x1b]8;;https://example.com\x1b\\LongLinkText\x1b]8;;\x1b\\\x1b[0m",
-			maxWidth:   8,
-			wantSuffix: "\x1b[0m",
-			wantExact:  "\x1b[32m\x1b]8;;https://example.com\x1b\\LongL\x1b]8;;\x1b\\...\x1b[0m",
+			name:     "truncated text with open OSC 8 hyperlink and open color",
+			input:    "\x1b[32m\x1b]8;;https://example.com\x1b\\LongLinkText\x1b]8;;\x1b\\\x1b[0m",
+			maxWidth: 8,
+			want:     "\x1b[32m\x1b]8;;https://example.com\x1b\\LongL\x1b]8;;\x1b\\...\x1b[0m",
 		},
 		{
-			name:          "non-truncated colored text remains untouched without superfluous reset",
-			input:         "\x1b[32mShort\x1b[0m",
-			maxWidth:      10,
-			checkNoModify: true,
-		},
-		{
-			name:          "non-truncated plain text remains untouched",
-			input:         "Short text",
-			maxWidth:      20,
-			checkNoModify: true,
-		},
-		{
-			name:      "truncation with width smaller than ellipsis returns dots without styling",
-			input:     "\x1b[31mHello\x1b[0m",
-			maxWidth:  2,
-			wantExact: "..",
-		},
-		{
-			name:      "zero and negative width return empty string",
-			input:     "\x1b[31mHello\x1b[0m",
-			maxWidth:  0,
-			wantExact: "",
+			name:     "truncated text with bold and underline attributes",
+			input:    "\x1b[1;4mStyledTextLong\x1b[0m",
+			maxWidth: 7,
+			want:     "\x1b[1;4mStyl...\x1b[0m",
 		},
 	}
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			got := TruncateStyledText(tc.input, tc.maxWidth)
-
-			if tc.checkNoModify {
-				if got != tc.input {
-					t.Errorf("Expected unmodified string %q, got %q", tc.input, got)
-				}
-				return
+			if got != tc.want {
+				t.Errorf("TruncateStyledText(%q, %d) = %q; want %q", tc.input, tc.maxWidth, got, tc.want)
 			}
-
-			if tc.wantExact != "" && got != tc.wantExact {
-				t.Errorf("TruncateStyledText(%q, %d) = %q; want %q", tc.input, tc.maxWidth, got, tc.wantExact)
+			if !strings.HasSuffix(got, "\x1b[0m") {
+				t.Errorf("TruncateStyledText(%q, %d) output does not end with SGR reset: %q", tc.input, tc.maxWidth, got)
 			}
+		})
+	}
+}
 
-			if tc.wantSuffix != "" && !strings.HasSuffix(got, tc.wantSuffix) {
-				t.Errorf("TruncateStyledText(%q, %d) = %q; expected suffix %q", tc.input, tc.maxWidth, got, tc.wantSuffix)
+func TestTruncateStyledText_NoTruncation(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		maxWidth int
+		want     string
+	}{
+		{
+			name:     "non-truncated plain text remains untouched",
+			input:    "Short text",
+			maxWidth: 20,
+			want:     "Short text",
+		},
+		{
+			name:     "non-truncated colored text remains untouched without superfluous reset",
+			input:    "\x1b[32mShort\x1b[0m",
+			maxWidth: 10,
+			want:     "\x1b[32mShort\x1b[0m",
+		},
+		{
+			name:     "non-truncated OSC 8 link remains untouched",
+			input:    "\x1b]8;;https://example.com\x1b\\Hello\x1b]8;;\x1b\\",
+			maxWidth: 10,
+			want:     "\x1b]8;;https://example.com\x1b\\Hello\x1b]8;;\x1b\\",
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			got := TruncateStyledText(tc.input, tc.maxWidth)
+			if got != tc.want {
+				t.Errorf("TruncateStyledText(%q, %d) = %q; want %q", tc.input, tc.maxWidth, got, tc.want)
 			}
+		})
+	}
+}
 
-			// Validate visible width invariant
-			expectedMax := max(tc.maxWidth, 0)
-			if vis := GetVisibleWidth(got); vis > expectedMax {
-				t.Errorf("Visible width %d exceeds maxWidth %d for %q", vis, expectedMax, got)
+func TestTruncateStyledText_BoundaryWidths(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		maxWidth int
+		want     string
+	}{
+		{
+			name:     "width equal to 2 returns two dots without styling",
+			input:    "\x1b[31mHello\x1b[0m",
+			maxWidth: 2,
+			want:     "..",
+		},
+		{
+			name:     "width equal to 1 returns one dot",
+			input:    "\x1b[31mHello\x1b[0m",
+			maxWidth: 1,
+			want:     ".",
+		},
+		{
+			name:     "zero width returns empty string",
+			input:    "\x1b[31mHello\x1b[0m",
+			maxWidth: 0,
+			want:     "",
+		},
+		{
+			name:     "negative width returns empty string",
+			input:    "\x1b[31mHello\x1b[0m",
+			maxWidth: -5,
+			want:     "",
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			got := TruncateStyledText(tc.input, tc.maxWidth)
+			if got != tc.want {
+				t.Errorf("TruncateStyledText(%q, %d) = %q; want %q", tc.input, tc.maxWidth, got, tc.want)
 			}
 		})
 	}
