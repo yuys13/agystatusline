@@ -48,40 +48,52 @@ func TestRunGitExec(t *testing.T) {
 func TestGetWidget(t *testing.T) {
 	RegisterAll()
 
-	tests := []struct {
-		name      string
-		wName     string
-		expectNil bool
-	}{
-		{name: "Valid widget model", wName: "model", expectNil: false},
-		{name: "Valid widget git-branch", wName: "git-branch", expectNil: false},
-		{name: "Valid widget git-repo", wName: "git-repo", expectNil: false},
-		{name: "Valid widget git-changes", wName: "git-changes", expectNil: false},
-		{name: "Valid widget git-ahead-behind", wName: "git-ahead-behind", expectNil: false},
-		{name: "Valid widget custom-text", wName: "custom-text", expectNil: false},
-		{name: "Valid widget sandbox", wName: "sandbox", expectNil: false},
-		{name: "Valid widget agent-state", wName: "agent-state", expectNil: false},
-		{name: "Valid widget context-bar", wName: "context-bar", expectNil: false},
-		{name: "Valid widget quota", wName: "quota", expectNil: false},
-		{name: "Valid widget quota-bar", wName: "quota-bar", expectNil: false},
-		{name: "Valid widget artifacts", wName: "artifacts", expectNil: false},
-		{name: "Valid widget subagents", wName: "subagents", expectNil: false},
-		{name: "Valid widget tasks", wName: "tasks", expectNil: false},
-		{name: "Non-existent widget", wName: "does-not-exist-widget", expectNil: true},
-		{name: "Empty widget name", wName: "", expectNil: true},
-	}
+	t.Run("RegisteredWidgets", func(t *testing.T) {
+		registered := []string{
+			"model",
+			"git-branch",
+			"git-repo",
+			"git-changes",
+			"git-ahead-behind",
+			"custom-text",
+			"sandbox",
+			"agent-state",
+			"context-bar",
+			"quota",
+			"quota-bar",
+			"artifacts",
+			"subagents",
+			"tasks",
+		}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			w := GetWidget(tt.wName)
-			if tt.expectNil && w != nil {
-				t.Errorf("Expected nil for widget %q, got %v", tt.wName, w)
-			}
-			if !tt.expectNil && w == nil {
-				t.Errorf("Expected non-nil widget for %q, got nil", tt.wName)
-			}
-		})
-	}
+		for _, name := range registered {
+			t.Run(name, func(t *testing.T) {
+				w := GetWidget(name)
+				if w == nil {
+					t.Errorf("Expected non-nil widget for %q, got nil", name)
+				}
+			})
+		}
+	})
+
+	t.Run("UnregisteredWidgets", func(t *testing.T) {
+		unregistered := []struct {
+			name  string
+			wName string
+		}{
+			{name: "Non-existent widget", wName: "does-not-exist-widget"},
+			{name: "Empty widget name", wName: ""},
+		}
+
+		for _, tt := range unregistered {
+			t.Run(tt.name, func(t *testing.T) {
+				w := GetWidget(tt.wName)
+				if w != nil {
+					t.Errorf("Expected nil for widget %q, got %v", tt.wName, w)
+				}
+			})
+		}
+	})
 }
 
 func TestWidgets_Raw(t *testing.T) {
@@ -450,7 +462,7 @@ func TestAdversarialStressAllWidgets_ExtremeEdgeCases(t *testing.T) {
 			if err != nil {
 				t.Errorf("quota render error on key %q: %v", key, err)
 			}
-			if key != "gemini-5h" && (title != "" || body != "") {
+			if title != "" || body != "" {
 				t.Errorf("Expected empty quota output for missing key %q, got title=%q body=%q", key, title, body)
 			}
 
@@ -459,7 +471,7 @@ func TestAdversarialStressAllWidgets_ExtremeEdgeCases(t *testing.T) {
 			if err != nil {
 				t.Errorf("quota-bar render error on key %q: %v", key, err)
 			}
-			if key != "gemini-5h" && (barTitle != "" || barBody != "") {
+			if barTitle != "" || barBody != "" {
 				t.Errorf("Expected empty quota-bar output for missing key %q, got title=%q body=%q", key, barTitle, barBody)
 			}
 		})

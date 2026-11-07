@@ -25,80 +25,113 @@ func TestSandboxWidget(t *testing.T) {
 	trueVal := true
 	falseVal := false
 
-	tests := []struct {
-		name          string
-		item          types.WidgetItem
-		ctx           types.RenderContext
-		expectedTitle string
-		expectedBody  string
-		expectedColor string
-	}{
-		{
-			name:          "Nil sandbox info",
-			item:          types.WidgetItem{Type: "sandbox"},
-			ctx:           types.RenderContext{Data: types.StatusJSON{}},
-			expectedTitle: "",
-			expectedBody:  "",
-			expectedColor: "brightBlack",
-		},
-		{
-			name:          "Sandbox.Enabled is nil",
-			item:          types.WidgetItem{Type: "sandbox"},
-			ctx:           types.RenderContext{Data: types.StatusJSON{Sandbox: &types.SandboxInfo{}}},
-			expectedTitle: "",
-			expectedBody:  "",
-			expectedColor: "brightBlack",
-		},
-		{
-			name:          "Sandbox.Enabled is true (normal)",
-			item:          types.WidgetItem{Type: "sandbox"},
-			ctx:           types.RenderContext{Data: types.StatusJSON{Sandbox: &types.SandboxInfo{Enabled: &trueVal}}},
-			expectedTitle: "sandbox",
-			expectedBody:  "on",
-			expectedColor: "brightGreen",
-		},
-		{
-			name:          "Sandbox.Enabled is true (raw value)",
-			item:          types.WidgetItem{Type: "sandbox", Raw: true},
-			ctx:           types.RenderContext{Data: types.StatusJSON{Sandbox: &types.SandboxInfo{Enabled: &trueVal}}},
-			expectedTitle: "",
-			expectedBody:  "on",
-			expectedColor: "brightGreen",
-		},
-		{
-			name:          "Sandbox.Enabled is false (normal)",
-			item:          types.WidgetItem{Type: "sandbox"},
-			ctx:           types.RenderContext{Data: types.StatusJSON{Sandbox: &types.SandboxInfo{Enabled: &falseVal}}},
-			expectedTitle: "sandbox",
-			expectedBody:  "off",
-			expectedColor: "brightBlack",
-		},
-		{
-			name:          "Sandbox.Enabled is false (raw value)",
-			item:          types.WidgetItem{Type: "sandbox", Raw: true},
-			ctx:           types.RenderContext{Data: types.StatusJSON{Sandbox: &types.SandboxInfo{Enabled: &falseVal}}},
-			expectedTitle: "",
-			expectedBody:  "off",
-			expectedColor: "brightBlack",
-		},
-	}
+	t.Run("Render", func(t *testing.T) {
+		tests := []struct {
+			name          string
+			item          types.WidgetItem
+			ctx           types.RenderContext
+			expectedTitle string
+			expectedBody  string
+		}{
+			{
+				name:          "Nil sandbox info",
+				item:          types.WidgetItem{Type: "sandbox"},
+				ctx:           types.RenderContext{Data: types.StatusJSON{}},
+				expectedTitle: "",
+				expectedBody:  "",
+			},
+			{
+				name:          "Sandbox.Enabled is nil",
+				item:          types.WidgetItem{Type: "sandbox"},
+				ctx:           types.RenderContext{Data: types.StatusJSON{Sandbox: &types.SandboxInfo{}}},
+				expectedTitle: "",
+				expectedBody:  "",
+			},
+			{
+				name:          "Sandbox.Enabled is true (normal)",
+				item:          types.WidgetItem{Type: "sandbox"},
+				ctx:           types.RenderContext{Data: types.StatusJSON{Sandbox: &types.SandboxInfo{Enabled: &trueVal}}},
+				expectedTitle: "sandbox",
+				expectedBody:  "on",
+			},
+			{
+				name:          "Sandbox.Enabled is true (raw value)",
+				item:          types.WidgetItem{Type: "sandbox", Raw: true},
+				ctx:           types.RenderContext{Data: types.StatusJSON{Sandbox: &types.SandboxInfo{Enabled: &trueVal}}},
+				expectedTitle: "",
+				expectedBody:  "on",
+			},
+			{
+				name:          "Sandbox.Enabled is false (normal)",
+				item:          types.WidgetItem{Type: "sandbox"},
+				ctx:           types.RenderContext{Data: types.StatusJSON{Sandbox: &types.SandboxInfo{Enabled: &falseVal}}},
+				expectedTitle: "sandbox",
+				expectedBody:  "off",
+			},
+			{
+				name:          "Sandbox.Enabled is false (raw value)",
+				item:          types.WidgetItem{Type: "sandbox", Raw: true},
+				ctx:           types.RenderContext{Data: types.StatusJSON{Sandbox: &types.SandboxInfo{Enabled: &falseVal}}},
+				expectedTitle: "",
+				expectedBody:  "off",
+			},
+		}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			title, body, err := w.Render(tt.item, tt.ctx, settings)
-			if err != nil {
-				t.Fatalf("Render error: %v", err)
-			}
-			if title != tt.expectedTitle || body != tt.expectedBody {
-				t.Errorf("Expected title %q and body %q, got title %q and body %q", tt.expectedTitle, tt.expectedBody, title, body)
-			}
-			if tt.expectedColor != "" {
-				if color := w.GetBodyColor(tt.item, tt.ctx); color != tt.expectedColor {
+		for _, tt := range tests {
+			t.Run(tt.name, func(t *testing.T) {
+				title, body, err := w.Render(tt.item, tt.ctx, settings)
+				if err != nil {
+					t.Fatalf("Render error: %v", err)
+				}
+				if title != tt.expectedTitle || body != tt.expectedBody {
+					t.Errorf("Expected title %q and body %q, got title %q and body %q", tt.expectedTitle, tt.expectedBody, title, body)
+				}
+			})
+		}
+	})
+
+	t.Run("GetBodyColor", func(t *testing.T) {
+		tests := []struct {
+			name          string
+			item          types.WidgetItem
+			ctx           types.RenderContext
+			expectedColor string
+		}{
+			{
+				name:          "Nil sandbox info",
+				item:          types.WidgetItem{Type: "sandbox"},
+				ctx:           types.RenderContext{Data: types.StatusJSON{}},
+				expectedColor: "brightBlack",
+			},
+			{
+				name:          "Sandbox.Enabled is nil",
+				item:          types.WidgetItem{Type: "sandbox"},
+				ctx:           types.RenderContext{Data: types.StatusJSON{Sandbox: &types.SandboxInfo{}}},
+				expectedColor: "brightBlack",
+			},
+			{
+				name:          "Sandbox.Enabled is false",
+				item:          types.WidgetItem{Type: "sandbox"},
+				ctx:           types.RenderContext{Data: types.StatusJSON{Sandbox: &types.SandboxInfo{Enabled: &falseVal}}},
+				expectedColor: "brightBlack",
+			},
+			{
+				name:          "Sandbox.Enabled is true",
+				item:          types.WidgetItem{Type: "sandbox"},
+				ctx:           types.RenderContext{Data: types.StatusJSON{Sandbox: &types.SandboxInfo{Enabled: &trueVal}}},
+				expectedColor: "brightGreen",
+			},
+		}
+
+		for _, tt := range tests {
+			t.Run(tt.name, func(t *testing.T) {
+				color := w.GetBodyColor(tt.item, tt.ctx)
+				if color != tt.expectedColor {
 					t.Errorf("Expected color %q, got %q", tt.expectedColor, color)
 				}
-			}
-		})
-	}
+			})
+		}
+	})
 }
 
 func TestAgentStateWidget(t *testing.T) {

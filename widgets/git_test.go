@@ -52,427 +52,534 @@ func TestGitBranchWidget(t *testing.T) {
 	dirtyTrue := true
 	dirtyFalse := false
 
-	tests := []struct {
-		name          string
-		gitRunner     func(cmd string, ctx CwdResolver, ttl int) (string, error)
-		item          types.WidgetItem
-		ctx           types.RenderContext
-		expectedTitle string
-		expectedBody  string
-		expectedColor string
-	}{
-		{
-			name: "Normal git repository branch from command",
-			gitRunner: func(cmd string, ctx CwdResolver, ttl int) (string, error) {
-				if cmd == "rev-parse --is-inside-work-tree" {
-					return "true", nil
-				}
-				if cmd == "symbolic-ref --short HEAD" {
-					return "feature/tdd", nil
-				}
-				return "", nil
-			},
-			item:          types.WidgetItem{Type: "git-branch"},
-			ctx:           types.RenderContext{Data: types.StatusJSON{CWD: "/dummy/repo"}},
-			expectedTitle: "",
-			expectedBody:  "⎇ feature/tdd",
-			expectedColor: "brightBlue",
-		},
-		{
-			name: "Custom symbol",
-			gitRunner: func(cmd string, ctx CwdResolver, ttl int) (string, error) {
-				if cmd == "rev-parse --is-inside-work-tree" {
-					return "true", nil
-				}
-				if cmd == "symbolic-ref --short HEAD" {
-					return "main", nil
-				}
-				return "", nil
-			},
-			item:          types.WidgetItem{Type: "git-branch", Symbol: "🌿 "},
-			ctx:           types.RenderContext{Data: types.StatusJSON{CWD: "/dummy/repo"}},
-			expectedTitle: "",
-			expectedBody:  "🌿 main",
-			expectedColor: "brightBlue",
-		},
-		{
-			name: "Branch from VCS telemetry with dirty",
-			item: types.WidgetItem{Type: "git-branch"},
-			ctx: types.RenderContext{
-				Data: types.StatusJSON{
-					VCS: &types.VCSInfo{Branch: "main", Dirty: &dirtyTrue},
-				},
-			},
-			expectedTitle: "",
-			expectedBody:  "⎇ main*",
-			expectedColor: "brightRed",
-		},
-		{
-			name: "Branch from VCS telemetry clean with Raw=true",
-			item: types.WidgetItem{Type: "git-branch", Raw: true},
-			ctx: types.RenderContext{
-				Data: types.StatusJSON{
-					VCS: &types.VCSInfo{Branch: "main", Dirty: &dirtyFalse},
-				},
-			},
-			expectedTitle: "",
-			expectedBody:  "main",
-			expectedColor: "brightBlue",
-		},
-		{
-			name: "Branch from VCS telemetry dirty with Raw=true",
-			item: types.WidgetItem{Type: "git-branch", Raw: true},
-			ctx: types.RenderContext{
-				Data: types.StatusJSON{
-					VCS: &types.VCSInfo{Branch: "main", Dirty: &dirtyTrue},
-				},
-			},
-			expectedTitle: "",
-			expectedBody:  "main*",
-			expectedColor: "brightRed",
-		},
-		{
-			name: "Non-git directory",
-			gitRunner: func(cmd string, ctx CwdResolver, ttl int) (string, error) {
-				return "false", nil
-			},
-			item:          types.WidgetItem{Type: "git-branch"},
-			ctx:           types.RenderContext{Data: types.StatusJSON{CWD: "/tmp/non-git-dir"}},
-			expectedTitle: "",
-			expectedBody:  "⎇ no git",
-			expectedColor: "brightBlue",
-		},
-		{
-			name:          "Git provider branch fallback to main",
-			item:          types.WidgetItem{Type: "git-branch"},
-			ctx:           types.RenderContext{GitProvider: &testMockGitProvider{branch: "main"}},
-			expectedTitle: "",
-			expectedBody:  "⎇ main",
-			expectedColor: "brightBlue",
-		},
-		{
-			name:          "Git provider branch dirty",
-			item:          types.WidgetItem{Type: "git-branch"},
-			ctx:           types.RenderContext{GitProvider: &testMockGitProvider{branch: "feature/dirty", dirty: true}},
-			expectedTitle: "",
-			expectedBody:  "⎇ feature/dirty*",
-			expectedColor: "brightRed",
-		},
-		{
-			name: "Detached HEAD with exact tag match clean from command",
-			gitRunner: func(cmd string, ctx CwdResolver, ttl int) (string, error) {
-				switch cmd {
-				case "rev-parse --is-inside-work-tree":
-					return "true", nil
-				case "symbolic-ref --short HEAD":
-					return "", fmt.Errorf("fatal: ref HEAD is not a symbolic ref")
-				case "describe --tags --exact-match":
-					return "v1.2.0\n", nil
-				case "status --porcelain":
-					return "", nil
-				default:
-					return "", nil
-				}
-			},
-			item:          types.WidgetItem{Type: "git-branch"},
-			ctx:           types.RenderContext{Data: types.StatusJSON{CWD: "/dummy/repo"}},
-			expectedTitle: "",
-			expectedBody:  "⎇ (v1.2.0)",
-			expectedColor: "brightBlue",
-		},
-		{
-			name: "Detached HEAD with exact tag match dirty from command",
-			gitRunner: func(cmd string, ctx CwdResolver, ttl int) (string, error) {
-				switch cmd {
-				case "rev-parse --is-inside-work-tree":
-					return "true", nil
-				case "symbolic-ref --short HEAD":
-					return "", fmt.Errorf("fatal: ref HEAD is not a symbolic ref")
-				case "describe --tags --exact-match":
-					return "v1.2.0\n", nil
-				case "status --porcelain":
-					return " M file.go\n", nil
-				default:
-					return "", nil
-				}
-			},
-			item:          types.WidgetItem{Type: "git-branch"},
-			ctx:           types.RenderContext{Data: types.StatusJSON{CWD: "/dummy/repo"}},
-			expectedTitle: "",
-			expectedBody:  "⎇ (v1.2.0)*",
-			expectedColor: "brightRed",
-		},
-		{
-			name: "Detached HEAD with commit SHA clean from command",
-			gitRunner: func(cmd string, ctx CwdResolver, ttl int) (string, error) {
-				switch cmd {
-				case "rev-parse --is-inside-work-tree":
-					return "true", nil
-				case "symbolic-ref --short HEAD":
-					return "", fmt.Errorf("fatal: ref HEAD is not a symbolic ref")
-				case "describe --tags --exact-match":
-					return "", fmt.Errorf("fatal: No names found")
-				case "rev-parse --short HEAD":
-					return "1a2b3c4\n", nil
-				case "status --porcelain":
-					return "", nil
-				default:
-					return "", nil
-				}
-			},
-			item:          types.WidgetItem{Type: "git-branch"},
-			ctx:           types.RenderContext{Data: types.StatusJSON{CWD: "/dummy/repo"}},
-			expectedTitle: "",
-			expectedBody:  "⎇ (1a2b3c4)",
-			expectedColor: "brightBlue",
-		},
-		{
-			name: "Detached HEAD with commit SHA dirty from command",
-			gitRunner: func(cmd string, ctx CwdResolver, ttl int) (string, error) {
-				switch cmd {
-				case "rev-parse --is-inside-work-tree":
-					return "true", nil
-				case "symbolic-ref --short HEAD":
-					return "", fmt.Errorf("fatal: ref HEAD is not a symbolic ref")
-				case "describe --tags --exact-match":
-					return "", fmt.Errorf("fatal: No names found")
-				case "rev-parse --short HEAD":
-					return "1a2b3c4\n", nil
-				case "status --porcelain":
-					return "?? newfile.txt\n", nil
-				default:
-					return "", nil
-				}
-			},
-			item:          types.WidgetItem{Type: "git-branch"},
-			ctx:           types.RenderContext{Data: types.StatusJSON{CWD: "/dummy/repo"}},
-			expectedTitle: "",
-			expectedBody:  "⎇ (1a2b3c4)*",
-			expectedColor: "brightRed",
-		},
-		{
-			name: "Detached HEAD with commit SHA clean Raw=true from command",
-			gitRunner: func(cmd string, ctx CwdResolver, ttl int) (string, error) {
-				switch cmd {
-				case "rev-parse --is-inside-work-tree":
-					return "true", nil
-				case "symbolic-ref --short HEAD":
-					return "", fmt.Errorf("fatal: ref HEAD is not a symbolic ref")
-				case "describe --tags --exact-match":
-					return "", fmt.Errorf("fatal: No names found")
-				case "rev-parse --short HEAD":
-					return "1a2b3c4\n", nil
-				case "status --porcelain":
-					return "", nil
-				default:
-					return "", nil
-				}
-			},
-			item:          types.WidgetItem{Type: "git-branch", Raw: true},
-			ctx:           types.RenderContext{Data: types.StatusJSON{CWD: "/dummy/repo"}},
-			expectedTitle: "",
-			expectedBody:  "(1a2b3c4)",
-			expectedColor: "brightBlue",
-		},
-		{
-			name: "Detached HEAD with commit SHA dirty Raw=true from command",
-			gitRunner: func(cmd string, ctx CwdResolver, ttl int) (string, error) {
-				switch cmd {
-				case "rev-parse --is-inside-work-tree":
-					return "true", nil
-				case "symbolic-ref --short HEAD":
-					return "", fmt.Errorf("fatal: ref HEAD is not a symbolic ref")
-				case "describe --tags --exact-match":
-					return "", fmt.Errorf("fatal: No names found")
-				case "rev-parse --short HEAD":
-					return "1a2b3c4\n", nil
-				case "status --porcelain":
-					return " M file.go\n", nil
-				default:
-					return "", nil
-				}
-			},
-			item:          types.WidgetItem{Type: "git-branch", Raw: true},
-			ctx:           types.RenderContext{Data: types.StatusJSON{CWD: "/dummy/repo"}},
-			expectedTitle: "",
-			expectedBody:  "(1a2b3c4)*",
-			expectedColor: "brightRed",
-		},
-		{
-			name: "Detached HEAD with tag clean Raw=true from command",
-			gitRunner: func(cmd string, ctx CwdResolver, ttl int) (string, error) {
-				switch cmd {
-				case "rev-parse --is-inside-work-tree":
-					return "true", nil
-				case "symbolic-ref --short HEAD":
-					return "", fmt.Errorf("fatal: ref HEAD is not a symbolic ref")
-				case "describe --tags --exact-match":
-					return "v1.2.0\n", nil
-				case "status --porcelain":
-					return "", nil
-				default:
-					return "", nil
-				}
-			},
-			item:          types.WidgetItem{Type: "git-branch", Raw: true},
-			ctx:           types.RenderContext{Data: types.StatusJSON{CWD: "/dummy/repo"}},
-			expectedTitle: "",
-			expectedBody:  "(v1.2.0)",
-			expectedColor: "brightBlue",
-		},
-		{
-			name: "Detached HEAD with tag dirty Raw=true from command",
-			gitRunner: func(cmd string, ctx CwdResolver, ttl int) (string, error) {
-				switch cmd {
-				case "rev-parse --is-inside-work-tree":
-					return "true", nil
-				case "symbolic-ref --short HEAD":
-					return "", fmt.Errorf("fatal: ref HEAD is not a symbolic ref")
-				case "describe --tags --exact-match":
-					return "v1.2.0\n", nil
-				case "status --porcelain":
-					return " M main.go\n", nil
-				default:
-					return "", nil
-				}
-			},
-			item:          types.WidgetItem{Type: "git-branch", Raw: true},
-			ctx:           types.RenderContext{Data: types.StatusJSON{CWD: "/dummy/repo"}},
-			expectedTitle: "",
-			expectedBody:  "(v1.2.0)*",
-			expectedColor: "brightRed",
-		},
-		{
-			name: "Detached HEAD with custom symbol",
-			gitRunner: func(cmd string, ctx CwdResolver, ttl int) (string, error) {
-				switch cmd {
-				case "rev-parse --is-inside-work-tree":
-					return "true", nil
-				case "symbolic-ref --short HEAD":
-					return "", fmt.Errorf("fatal: ref HEAD is not a symbolic ref")
-				case "describe --tags --exact-match":
-					return "v1.2.0\n", nil
-				case "status --porcelain":
-					return "", nil
-				default:
-					return "", nil
-				}
-			},
-			item:          types.WidgetItem{Type: "git-branch", Symbol: "🌿 "},
-			ctx:           types.RenderContext{Data: types.StatusJSON{CWD: "/dummy/repo"}},
-			expectedTitle: "",
-			expectedBody:  "🌿 (v1.2.0)",
-			expectedColor: "brightBlue",
-		},
-		{
-			name:          "Detached HEAD via GitProvider mock clean",
-			item:          types.WidgetItem{Type: "git-branch"},
-			ctx:           types.RenderContext{GitProvider: &testMockGitProvider{branch: "(v1.2.0)", dirty: false}},
-			expectedTitle: "",
-			expectedBody:  "⎇ (v1.2.0)",
-			expectedColor: "brightBlue",
-		},
-		{
-			name:          "Detached HEAD via GitProvider mock dirty",
-			item:          types.WidgetItem{Type: "git-branch"},
-			ctx:           types.RenderContext{GitProvider: &testMockGitProvider{branch: "(1a2b3c4)", dirty: true}},
-			expectedTitle: "",
-			expectedBody:  "⎇ (1a2b3c4)*",
-			expectedColor: "brightRed",
-		},
-		{
-			name:          "Detached HEAD via GitProvider mock with Raw=true clean",
-			item:          types.WidgetItem{Type: "git-branch", Raw: true},
-			ctx:           types.RenderContext{GitProvider: &testMockGitProvider{branch: "(1a2b3c4)", dirty: false}},
-			expectedTitle: "",
-			expectedBody:  "(1a2b3c4)",
-			expectedColor: "brightBlue",
-		},
-		{
-			name:          "Detached HEAD via GitProvider mock with Raw=true dirty",
-			item:          types.WidgetItem{Type: "git-branch", Raw: true},
-			ctx:           types.RenderContext{GitProvider: &testMockGitProvider{branch: "(1a2b3c4)", dirty: true}},
-			expectedTitle: "",
-			expectedBody:  "(1a2b3c4)*",
-			expectedColor: "brightRed",
-		},
-		{
-			name: "Detached HEAD with empty VCS.Branch but VCS.Dirty=false while provider is dirty",
-			item: types.WidgetItem{Type: "git-branch"},
-			ctx: types.RenderContext{
-				Data: types.StatusJSON{
-					VCS: &types.VCSInfo{Branch: "", Dirty: &dirtyFalse},
-				},
-				GitProvider: &testMockGitProvider{branch: "(1a2b3c4)", dirty: true},
-			},
-			expectedTitle: "",
-			expectedBody:  "⎇ (1a2b3c4)*",
-			expectedColor: "brightRed",
-		},
-		{
-			name: "Detached HEAD with empty VCS.Branch but VCS.Dirty=true while provider is clean",
-			item: types.WidgetItem{Type: "git-branch"},
-			ctx: types.RenderContext{
-				Data: types.StatusJSON{
-					VCS: &types.VCSInfo{Branch: "", Dirty: &dirtyTrue},
-				},
-				GitProvider: &testMockGitProvider{branch: "(1a2b3c4)", dirty: false},
-			},
-			expectedTitle: "",
-			expectedBody:  "⎇ (1a2b3c4)",
-			expectedColor: "brightBlue",
-		},
-		{
-			name: "Branch from VCS telemetry with Dirty=nil and clean GitProvider",
-			item: types.WidgetItem{Type: "git-branch"},
-			ctx: types.RenderContext{
-				Data: types.StatusJSON{
-					VCS: &types.VCSInfo{Branch: "main", Dirty: nil},
-				},
-				GitProvider: &testMockGitProvider{branch: "main", dirty: false},
-			},
-			expectedTitle: "",
-			expectedBody:  "⎇ main",
-			expectedColor: "brightBlue",
-		},
-		{
-			name: "Branch from VCS telemetry with Dirty=nil and dirty GitProvider",
-			item: types.WidgetItem{Type: "git-branch"},
-			ctx: types.RenderContext{
-				Data: types.StatusJSON{
-					VCS: &types.VCSInfo{Branch: "main", Dirty: nil},
-				},
-				GitProvider: &testMockGitProvider{branch: "main", dirty: true},
-			},
-			expectedTitle: "",
-			expectedBody:  "⎇ main*",
-			expectedColor: "brightRed",
-		},
-	}
-
 	oldRunner := runGitCommand
 	defer func() { runGitCommand = oldRunner }()
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			runGitCommand = oldRunner
-			if tt.gitRunner != nil {
-				runGitCommand = tt.gitRunner
-			}
-			title, body, err := w.Render(tt.item, tt.ctx, settings)
-			if err != nil {
-				t.Fatalf("Render error: %v", err)
-			}
-			if title != tt.expectedTitle || body != tt.expectedBody {
-				t.Errorf("Expected title %q and body %q, got title %q and body %q", tt.expectedTitle, tt.expectedBody, title, body)
-			}
-			if tt.expectedColor != "" {
-				if color := w.GetBodyColor(tt.item, tt.ctx); color != tt.expectedColor {
+	t.Run("Render", func(t *testing.T) {
+		tests := []struct {
+			name          string
+			gitRunner     func(cmd string, ctx CwdResolver, ttl int) (string, error)
+			item          types.WidgetItem
+			ctx           types.RenderContext
+			expectedTitle string
+			expectedBody  string
+		}{
+			{
+				name: "Normal git repository branch from command",
+				gitRunner: func(cmd string, ctx CwdResolver, ttl int) (string, error) {
+					if cmd == "rev-parse --is-inside-work-tree" {
+						return "true", nil
+					}
+					if cmd == "symbolic-ref --short HEAD" {
+						return "feature/tdd", nil
+					}
+					return "", nil
+				},
+				item:          types.WidgetItem{Type: "git-branch"},
+				ctx:           types.RenderContext{Data: types.StatusJSON{CWD: "/dummy/repo"}},
+				expectedTitle: "",
+				expectedBody:  "⎇ feature/tdd",
+			},
+			{
+				name: "Custom symbol",
+				gitRunner: func(cmd string, ctx CwdResolver, ttl int) (string, error) {
+					if cmd == "rev-parse --is-inside-work-tree" {
+						return "true", nil
+					}
+					if cmd == "symbolic-ref --short HEAD" {
+						return "main", nil
+					}
+					return "", nil
+				},
+				item:          types.WidgetItem{Type: "git-branch", Symbol: "🌿 "},
+				ctx:           types.RenderContext{Data: types.StatusJSON{CWD: "/dummy/repo"}},
+				expectedTitle: "",
+				expectedBody:  "🌿 main",
+			},
+			{
+				name: "Branch from VCS telemetry with dirty",
+				item: types.WidgetItem{Type: "git-branch"},
+				ctx: types.RenderContext{
+					Data: types.StatusJSON{
+						VCS: &types.VCSInfo{Branch: "main", Dirty: &dirtyTrue},
+					},
+				},
+				expectedTitle: "",
+				expectedBody:  "⎇ main*",
+			},
+			{
+				name: "Branch from VCS telemetry clean with Raw=true",
+				item: types.WidgetItem{Type: "git-branch", Raw: true},
+				ctx: types.RenderContext{
+					Data: types.StatusJSON{
+						VCS: &types.VCSInfo{Branch: "main", Dirty: &dirtyFalse},
+					},
+				},
+				expectedTitle: "",
+				expectedBody:  "main",
+			},
+			{
+				name: "Branch from VCS telemetry dirty with Raw=true",
+				item: types.WidgetItem{Type: "git-branch", Raw: true},
+				ctx: types.RenderContext{
+					Data: types.StatusJSON{
+						VCS: &types.VCSInfo{Branch: "main", Dirty: &dirtyTrue},
+					},
+				},
+				expectedTitle: "",
+				expectedBody:  "main*",
+			},
+			{
+				name: "Non-git directory",
+				gitRunner: func(cmd string, ctx CwdResolver, ttl int) (string, error) {
+					return "false", nil
+				},
+				item:          types.WidgetItem{Type: "git-branch"},
+				ctx:           types.RenderContext{Data: types.StatusJSON{CWD: "/tmp/non-git-dir"}},
+				expectedTitle: "",
+				expectedBody:  "⎇ no git",
+			},
+			{
+				name:          "Git provider branch fallback to main",
+				item:          types.WidgetItem{Type: "git-branch"},
+				ctx:           types.RenderContext{GitProvider: &testMockGitProvider{branch: "main"}},
+				expectedTitle: "",
+				expectedBody:  "⎇ main",
+			},
+			{
+				name:          "Git provider branch dirty",
+				item:          types.WidgetItem{Type: "git-branch"},
+				ctx:           types.RenderContext{GitProvider: &testMockGitProvider{branch: "feature/dirty", dirty: true}},
+				expectedTitle: "",
+				expectedBody:  "⎇ feature/dirty*",
+			},
+			{
+				name: "Detached HEAD with exact tag match clean from command",
+				gitRunner: func(cmd string, ctx CwdResolver, ttl int) (string, error) {
+					switch cmd {
+					case "rev-parse --is-inside-work-tree":
+						return "true", nil
+					case "symbolic-ref --short HEAD":
+						return "", fmt.Errorf("fatal: ref HEAD is not a symbolic ref")
+					case "describe --tags --exact-match":
+						return "v1.2.0\n", nil
+					case "status --porcelain":
+						return "", nil
+					default:
+						return "", nil
+					}
+				},
+				item:          types.WidgetItem{Type: "git-branch"},
+				ctx:           types.RenderContext{Data: types.StatusJSON{CWD: "/dummy/repo"}},
+				expectedTitle: "",
+				expectedBody:  "⎇ (v1.2.0)",
+			},
+			{
+				name: "Detached HEAD with exact tag match dirty from command",
+				gitRunner: func(cmd string, ctx CwdResolver, ttl int) (string, error) {
+					switch cmd {
+					case "rev-parse --is-inside-work-tree":
+						return "true", nil
+					case "symbolic-ref --short HEAD":
+						return "", fmt.Errorf("fatal: ref HEAD is not a symbolic ref")
+					case "describe --tags --exact-match":
+						return "v1.2.0\n", nil
+					case "status --porcelain":
+						return " M file.go\n", nil
+					default:
+						return "", nil
+					}
+				},
+				item:          types.WidgetItem{Type: "git-branch"},
+				ctx:           types.RenderContext{Data: types.StatusJSON{CWD: "/dummy/repo"}},
+				expectedTitle: "",
+				expectedBody:  "⎇ (v1.2.0)*",
+			},
+			{
+				name: "Detached HEAD with commit SHA clean from command",
+				gitRunner: func(cmd string, ctx CwdResolver, ttl int) (string, error) {
+					switch cmd {
+					case "rev-parse --is-inside-work-tree":
+						return "true", nil
+					case "symbolic-ref --short HEAD":
+						return "", fmt.Errorf("fatal: ref HEAD is not a symbolic ref")
+					case "describe --tags --exact-match":
+						return "", fmt.Errorf("fatal: No names found")
+					case "rev-parse --short HEAD":
+						return "1a2b3c4\n", nil
+					case "status --porcelain":
+						return "", nil
+					default:
+						return "", nil
+					}
+				},
+				item:          types.WidgetItem{Type: "git-branch"},
+				ctx:           types.RenderContext{Data: types.StatusJSON{CWD: "/dummy/repo"}},
+				expectedTitle: "",
+				expectedBody:  "⎇ (1a2b3c4)",
+			},
+			{
+				name: "Detached HEAD with commit SHA dirty from command",
+				gitRunner: func(cmd string, ctx CwdResolver, ttl int) (string, error) {
+					switch cmd {
+					case "rev-parse --is-inside-work-tree":
+						return "true", nil
+					case "symbolic-ref --short HEAD":
+						return "", fmt.Errorf("fatal: ref HEAD is not a symbolic ref")
+					case "describe --tags --exact-match":
+						return "", fmt.Errorf("fatal: No names found")
+					case "rev-parse --short HEAD":
+						return "1a2b3c4\n", nil
+					case "status --porcelain":
+						return "?? newfile.txt\n", nil
+					default:
+						return "", nil
+					}
+				},
+				item:          types.WidgetItem{Type: "git-branch"},
+				ctx:           types.RenderContext{Data: types.StatusJSON{CWD: "/dummy/repo"}},
+				expectedTitle: "",
+				expectedBody:  "⎇ (1a2b3c4)*",
+			},
+			{
+				name: "Detached HEAD with commit SHA clean Raw=true from command",
+				gitRunner: func(cmd string, ctx CwdResolver, ttl int) (string, error) {
+					switch cmd {
+					case "rev-parse --is-inside-work-tree":
+						return "true", nil
+					case "symbolic-ref --short HEAD":
+						return "", fmt.Errorf("fatal: ref HEAD is not a symbolic ref")
+					case "describe --tags --exact-match":
+						return "", fmt.Errorf("fatal: No names found")
+					case "rev-parse --short HEAD":
+						return "1a2b3c4\n", nil
+					case "status --porcelain":
+						return "", nil
+					default:
+						return "", nil
+					}
+				},
+				item:          types.WidgetItem{Type: "git-branch", Raw: true},
+				ctx:           types.RenderContext{Data: types.StatusJSON{CWD: "/dummy/repo"}},
+				expectedTitle: "",
+				expectedBody:  "(1a2b3c4)",
+			},
+			{
+				name: "Detached HEAD with commit SHA dirty Raw=true from command",
+				gitRunner: func(cmd string, ctx CwdResolver, ttl int) (string, error) {
+					switch cmd {
+					case "rev-parse --is-inside-work-tree":
+						return "true", nil
+					case "symbolic-ref --short HEAD":
+						return "", fmt.Errorf("fatal: ref HEAD is not a symbolic ref")
+					case "describe --tags --exact-match":
+						return "", fmt.Errorf("fatal: No names found")
+					case "rev-parse --short HEAD":
+						return "1a2b3c4\n", nil
+					case "status --porcelain":
+						return " M file.go\n", nil
+					default:
+						return "", nil
+					}
+				},
+				item:          types.WidgetItem{Type: "git-branch", Raw: true},
+				ctx:           types.RenderContext{Data: types.StatusJSON{CWD: "/dummy/repo"}},
+				expectedTitle: "",
+				expectedBody:  "(1a2b3c4)*",
+			},
+			{
+				name: "Detached HEAD with tag clean Raw=true from command",
+				gitRunner: func(cmd string, ctx CwdResolver, ttl int) (string, error) {
+					switch cmd {
+					case "rev-parse --is-inside-work-tree":
+						return "true", nil
+					case "symbolic-ref --short HEAD":
+						return "", fmt.Errorf("fatal: ref HEAD is not a symbolic ref")
+					case "describe --tags --exact-match":
+						return "v1.2.0\n", nil
+					case "status --porcelain":
+						return "", nil
+					default:
+						return "", nil
+					}
+				},
+				item:          types.WidgetItem{Type: "git-branch", Raw: true},
+				ctx:           types.RenderContext{Data: types.StatusJSON{CWD: "/dummy/repo"}},
+				expectedTitle: "",
+				expectedBody:  "(v1.2.0)",
+			},
+			{
+				name: "Detached HEAD with tag dirty Raw=true from command",
+				gitRunner: func(cmd string, ctx CwdResolver, ttl int) (string, error) {
+					switch cmd {
+					case "rev-parse --is-inside-work-tree":
+						return "true", nil
+					case "symbolic-ref --short HEAD":
+						return "", fmt.Errorf("fatal: ref HEAD is not a symbolic ref")
+					case "describe --tags --exact-match":
+						return "v1.2.0\n", nil
+					case "status --porcelain":
+						return " M main.go\n", nil
+					default:
+						return "", nil
+					}
+				},
+				item:          types.WidgetItem{Type: "git-branch", Raw: true},
+				ctx:           types.RenderContext{Data: types.StatusJSON{CWD: "/dummy/repo"}},
+				expectedTitle: "",
+				expectedBody:  "(v1.2.0)*",
+			},
+			{
+				name: "Detached HEAD with custom symbol",
+				gitRunner: func(cmd string, ctx CwdResolver, ttl int) (string, error) {
+					switch cmd {
+					case "rev-parse --is-inside-work-tree":
+						return "true", nil
+					case "symbolic-ref --short HEAD":
+						return "", fmt.Errorf("fatal: ref HEAD is not a symbolic ref")
+					case "describe --tags --exact-match":
+						return "v1.2.0\n", nil
+					case "status --porcelain":
+						return "", nil
+					default:
+						return "", nil
+					}
+				},
+				item:          types.WidgetItem{Type: "git-branch", Symbol: "🌿 "},
+				ctx:           types.RenderContext{Data: types.StatusJSON{CWD: "/dummy/repo"}},
+				expectedTitle: "",
+				expectedBody:  "🌿 (v1.2.0)",
+			},
+			{
+				name:          "Detached HEAD via GitProvider mock clean",
+				item:          types.WidgetItem{Type: "git-branch"},
+				ctx:           types.RenderContext{GitProvider: &testMockGitProvider{branch: "(v1.2.0)", dirty: false}},
+				expectedTitle: "",
+				expectedBody:  "⎇ (v1.2.0)",
+			},
+			{
+				name:          "Detached HEAD via GitProvider mock dirty",
+				item:          types.WidgetItem{Type: "git-branch"},
+				ctx:           types.RenderContext{GitProvider: &testMockGitProvider{branch: "(1a2b3c4)", dirty: true}},
+				expectedTitle: "",
+				expectedBody:  "⎇ (1a2b3c4)*",
+			},
+			{
+				name:          "Detached HEAD via GitProvider mock with Raw=true clean",
+				item:          types.WidgetItem{Type: "git-branch", Raw: true},
+				ctx:           types.RenderContext{GitProvider: &testMockGitProvider{branch: "(1a2b3c4)", dirty: false}},
+				expectedTitle: "",
+				expectedBody:  "(1a2b3c4)",
+			},
+			{
+				name:          "Detached HEAD via GitProvider mock with Raw=true dirty",
+				item:          types.WidgetItem{Type: "git-branch", Raw: true},
+				ctx:           types.RenderContext{GitProvider: &testMockGitProvider{branch: "(1a2b3c4)", dirty: true}},
+				expectedTitle: "",
+				expectedBody:  "(1a2b3c4)*",
+			},
+			{
+				name: "Detached HEAD with empty VCS.Branch but VCS.Dirty=false while provider is dirty",
+				item: types.WidgetItem{Type: "git-branch"},
+				ctx: types.RenderContext{
+					Data: types.StatusJSON{
+						VCS: &types.VCSInfo{Branch: "", Dirty: &dirtyFalse},
+					},
+					GitProvider: &testMockGitProvider{branch: "(1a2b3c4)", dirty: true},
+				},
+				expectedTitle: "",
+				expectedBody:  "⎇ (1a2b3c4)*",
+			},
+			{
+				name: "Detached HEAD with empty VCS.Branch but VCS.Dirty=true while provider is clean",
+				item: types.WidgetItem{Type: "git-branch"},
+				ctx: types.RenderContext{
+					Data: types.StatusJSON{
+						VCS: &types.VCSInfo{Branch: "", Dirty: &dirtyTrue},
+					},
+					GitProvider: &testMockGitProvider{branch: "(1a2b3c4)", dirty: false},
+				},
+				expectedTitle: "",
+				expectedBody:  "⎇ (1a2b3c4)",
+			},
+			{
+				name: "Branch from VCS telemetry with Dirty=nil and clean GitProvider",
+				item: types.WidgetItem{Type: "git-branch"},
+				ctx: types.RenderContext{
+					Data: types.StatusJSON{
+						VCS: &types.VCSInfo{Branch: "main", Dirty: nil},
+					},
+					GitProvider: &testMockGitProvider{branch: "main", dirty: false},
+				},
+				expectedTitle: "",
+				expectedBody:  "⎇ main",
+			},
+			{
+				name: "Branch from VCS telemetry with Dirty=nil and dirty GitProvider",
+				item: types.WidgetItem{Type: "git-branch"},
+				ctx: types.RenderContext{
+					Data: types.StatusJSON{
+						VCS: &types.VCSInfo{Branch: "main", Dirty: nil},
+					},
+					GitProvider: &testMockGitProvider{branch: "main", dirty: true},
+				},
+				expectedTitle: "",
+				expectedBody:  "⎇ main*",
+			},
+		}
+
+		for _, tt := range tests {
+			t.Run(tt.name, func(t *testing.T) {
+				runGitCommand = oldRunner
+				if tt.gitRunner != nil {
+					runGitCommand = tt.gitRunner
+				}
+				title, body, err := w.Render(tt.item, tt.ctx, settings)
+				if err != nil {
+					t.Fatalf("Render error: %v", err)
+				}
+				if title != tt.expectedTitle || body != tt.expectedBody {
+					t.Errorf("Expected title %q and body %q, got title %q and body %q", tt.expectedTitle, tt.expectedBody, title, body)
+				}
+			})
+		}
+	})
+
+	t.Run("GetBodyColor", func(t *testing.T) {
+		tests := []struct {
+			name          string
+			gitRunner     func(cmd string, ctx CwdResolver, ttl int) (string, error)
+			item          types.WidgetItem
+			ctx           types.RenderContext
+			expectedColor string
+		}{
+			{
+				name: "VCS telemetry clean",
+				item: types.WidgetItem{Type: "git-branch"},
+				ctx: types.RenderContext{
+					Data: types.StatusJSON{
+						VCS: &types.VCSInfo{Branch: "main", Dirty: &dirtyFalse},
+					},
+				},
+				expectedColor: "brightBlue",
+			},
+			{
+				name: "VCS telemetry dirty",
+				item: types.WidgetItem{Type: "git-branch"},
+				ctx: types.RenderContext{
+					Data: types.StatusJSON{
+						VCS: &types.VCSInfo{Branch: "main", Dirty: &dirtyTrue},
+					},
+				},
+				expectedColor: "brightRed",
+			},
+			{
+				name:          "GitProvider fallback clean",
+				item:          types.WidgetItem{Type: "git-branch"},
+				ctx:           types.RenderContext{GitProvider: &testMockGitProvider{branch: "main", dirty: false}},
+				expectedColor: "brightBlue",
+			},
+			{
+				name:          "GitProvider fallback dirty",
+				item:          types.WidgetItem{Type: "git-branch"},
+				ctx:           types.RenderContext{GitProvider: &testMockGitProvider{branch: "feature/dirty", dirty: true}},
+				expectedColor: "brightRed",
+			},
+			{
+				name: "VCS Dirty nil fallback to GitProvider clean",
+				item: types.WidgetItem{Type: "git-branch"},
+				ctx: types.RenderContext{
+					Data: types.StatusJSON{
+						VCS: &types.VCSInfo{Branch: "main", Dirty: nil},
+					},
+					GitProvider: &testMockGitProvider{branch: "main", dirty: false},
+				},
+				expectedColor: "brightBlue",
+			},
+			{
+				name: "VCS Dirty nil fallback to GitProvider dirty",
+				item: types.WidgetItem{Type: "git-branch"},
+				ctx: types.RenderContext{
+					Data: types.StatusJSON{
+						VCS: &types.VCSInfo{Branch: "main", Dirty: nil},
+					},
+					GitProvider: &testMockGitProvider{branch: "main", dirty: true},
+				},
+				expectedColor: "brightRed",
+			},
+			{
+				name: "Command runner clean",
+				gitRunner: func(cmd string, ctx CwdResolver, ttl int) (string, error) {
+					switch cmd {
+					case "rev-parse --is-inside-work-tree":
+						return "true", nil
+					case "symbolic-ref --short HEAD":
+						return "main\n", nil
+					case "status --porcelain":
+						return "", nil
+					default:
+						return "", nil
+					}
+				},
+				item:          types.WidgetItem{Type: "git-branch"},
+				ctx:           types.RenderContext{Data: types.StatusJSON{CWD: "/dummy/repo"}},
+				expectedColor: "brightBlue",
+			},
+			{
+				name: "Command runner dirty",
+				gitRunner: func(cmd string, ctx CwdResolver, ttl int) (string, error) {
+					switch cmd {
+					case "rev-parse --is-inside-work-tree":
+						return "true", nil
+					case "symbolic-ref --short HEAD":
+						return "main\n", nil
+					case "status --porcelain":
+						return " M file.go\n", nil
+					default:
+						return "", nil
+					}
+				},
+				item:          types.WidgetItem{Type: "git-branch"},
+				ctx:           types.RenderContext{Data: types.StatusJSON{CWD: "/dummy/repo"}},
+				expectedColor: "brightRed",
+			},
+			{
+				name: "Detached HEAD with empty VCS.Branch but VCS.Dirty=false while provider is dirty",
+				item: types.WidgetItem{Type: "git-branch"},
+				ctx: types.RenderContext{
+					Data: types.StatusJSON{
+						VCS: &types.VCSInfo{Branch: "", Dirty: &dirtyFalse},
+					},
+					GitProvider: &testMockGitProvider{branch: "(1a2b3c4)", dirty: true},
+				},
+				expectedColor: "brightRed",
+			},
+			{
+				name: "Detached HEAD with empty VCS.Branch but VCS.Dirty=true while provider is clean",
+				item: types.WidgetItem{Type: "git-branch"},
+				ctx: types.RenderContext{
+					Data: types.StatusJSON{
+						VCS: &types.VCSInfo{Branch: "", Dirty: &dirtyTrue},
+					},
+					GitProvider: &testMockGitProvider{branch: "(1a2b3c4)", dirty: false},
+				},
+				expectedColor: "brightBlue",
+			},
+		}
+
+		for _, tt := range tests {
+			t.Run(tt.name, func(t *testing.T) {
+				runGitCommand = oldRunner
+				if tt.gitRunner != nil {
+					runGitCommand = tt.gitRunner
+				}
+				color := w.GetBodyColor(tt.item, tt.ctx)
+				if color != tt.expectedColor {
 					t.Errorf("Expected body color %q, got %q", tt.expectedColor, color)
 				}
-			}
-		})
-	}
+			})
+		}
+	})
 }
 
 func TestGitChangesWidget(t *testing.T) {
