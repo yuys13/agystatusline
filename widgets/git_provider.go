@@ -121,11 +121,27 @@ func (p *GitProvider) GetBranch() (string, bool, error) {
 	p.branchChecked = true
 
 	b, err := runGitCommand("symbolic-ref --short HEAD", staticCwd(p.cwd), p.ttlSeconds)
-	if err != nil {
-		p.branchErr = err
-		return "", false, err
+	if err == nil && strings.TrimSpace(b) != "" {
+		p.branch = strings.TrimSpace(b)
+	} else {
+		// Fallback for detached HEAD state:
+		// 1. Prioritize exact tag name if available
+		tag, tagErr := runGitCommand("describe --tags --exact-match", staticCwd(p.cwd), p.ttlSeconds)
+		if tagErr == nil && strings.TrimSpace(tag) != "" {
+			p.branch = "(" + strings.TrimSpace(tag) + ")"
+		} else {
+			// 2. Fall back to short commit SHA
+			sha, shaErr := runGitCommand("rev-parse --short HEAD", staticCwd(p.cwd), p.ttlSeconds)
+			if shaErr != nil || strings.TrimSpace(sha) == "" {
+				p.branchErr = err
+				if shaErr != nil {
+					p.branchErr = shaErr
+				}
+				return "", false, p.branchErr
+			}
+			p.branch = "(" + strings.TrimSpace(sha) + ")"
+		}
 	}
-	p.branch = strings.TrimSpace(b)
 
 	status, _ := runGitCommand("status --porcelain", staticCwd(p.cwd), p.ttlSeconds)
 	p.branchDirty = strings.TrimSpace(status) != ""

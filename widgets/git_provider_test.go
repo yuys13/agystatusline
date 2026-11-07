@@ -63,6 +63,110 @@ func TestGitProvider_GetBranch(t *testing.T) {
 			wantErr:    true,
 			wantErrIs:  types.ErrNotGitRepository,
 		},
+		{
+			name: "Detached HEAD with exact tag match (clean)",
+			runner: func(cmd string, ctx CwdResolver, ttl int) (string, error) {
+				switch cmd {
+				case "rev-parse --is-inside-work-tree":
+					return "true", nil
+				case "symbolic-ref --short HEAD":
+					return "", errors.New("fatal: ref HEAD is not a symbolic ref")
+				case "describe --tags --exact-match":
+					return "v1.2.0\n", nil
+				case "status --porcelain":
+					return "", nil
+				default:
+					return "", nil
+				}
+			},
+			wantBranch: "(v1.2.0)",
+			wantDirty:  false,
+			wantErr:    false,
+		},
+		{
+			name: "Detached HEAD with exact tag match (dirty)",
+			runner: func(cmd string, ctx CwdResolver, ttl int) (string, error) {
+				switch cmd {
+				case "rev-parse --is-inside-work-tree":
+					return "true", nil
+				case "symbolic-ref --short HEAD":
+					return "", errors.New("fatal: ref HEAD is not a symbolic ref")
+				case "describe --tags --exact-match":
+					return "v1.2.0\n", nil
+				case "status --porcelain":
+					return " M main.go\n", nil
+				default:
+					return "", nil
+				}
+			},
+			wantBranch: "(v1.2.0)",
+			wantDirty:  true,
+			wantErr:    false,
+		},
+		{
+			name: "Detached HEAD without tag match, fallback to short commit SHA (clean)",
+			runner: func(cmd string, ctx CwdResolver, ttl int) (string, error) {
+				switch cmd {
+				case "rev-parse --is-inside-work-tree":
+					return "true", nil
+				case "symbolic-ref --short HEAD":
+					return "", errors.New("fatal: ref HEAD is not a symbolic ref")
+				case "describe --tags --exact-match":
+					return "", errors.New("fatal: No names found, cannot describe anything.")
+				case "rev-parse --short HEAD":
+					return "1a2b3c4\n", nil
+				case "status --porcelain":
+					return "", nil
+				default:
+					return "", nil
+				}
+			},
+			wantBranch: "(1a2b3c4)",
+			wantDirty:  false,
+			wantErr:    false,
+		},
+		{
+			name: "Detached HEAD without tag match, fallback to short commit SHA (dirty)",
+			runner: func(cmd string, ctx CwdResolver, ttl int) (string, error) {
+				switch cmd {
+				case "rev-parse --is-inside-work-tree":
+					return "true", nil
+				case "symbolic-ref --short HEAD":
+					return "", errors.New("fatal: ref HEAD is not a symbolic ref")
+				case "describe --tags --exact-match":
+					return "", errors.New("fatal: No names found, cannot describe anything.")
+				case "rev-parse --short HEAD":
+					return "1a2b3c4\n", nil
+				case "status --porcelain":
+					return "?? newfile.txt\n", nil
+				default:
+					return "", nil
+				}
+			},
+			wantBranch: "(1a2b3c4)",
+			wantDirty:  true,
+			wantErr:    false,
+		},
+		{
+			name: "Detached HEAD where both tag and rev-parse fail",
+			runner: func(cmd string, ctx CwdResolver, ttl int) (string, error) {
+				switch cmd {
+				case "rev-parse --is-inside-work-tree":
+					return "true", nil
+				case "symbolic-ref --short HEAD":
+					return "", errors.New("fatal: ref HEAD is not a symbolic ref")
+				case "describe --tags --exact-match":
+					return "", errors.New("fatal: No names found")
+				case "rev-parse --short HEAD":
+					return "", errors.New("fatal: Needed a single revision")
+				default:
+					return "", nil
+				}
+			},
+			wantBranch: "",
+			wantDirty:  false,
+			wantErr:    true,
+		},
 	}
 
 	for _, tt := range tests {
@@ -368,6 +472,111 @@ func TestGitProvider_IntraPassMemoization(t *testing.T) {
 		if count := callCounts[cmd]; count != 1 {
 			t.Errorf("command %q called %d times, want exactly 1", cmd, count)
 		}
+	}
+}
+
+func TestGitProvider_DetachedHEAD_IntraPassMemoization(t *testing.T) {
+	tests := []struct {
+		name                 string
+		runner               func(cmd string, ctx CwdResolver, ttl int) (string, error)
+		wantBranch           string
+		wantDirty            bool
+		expectedCommandCalls map[string]int
+	}{
+		{
+			name: "Detached HEAD with tag memoization",
+			runner: func(cmd string, ctx CwdResolver, ttl int) (string, error) {
+				switch cmd {
+				case "rev-parse --is-inside-work-tree":
+					return "true", nil
+				case "symbolic-ref --short HEAD":
+					return "", errors.New("fatal: ref HEAD is not a symbolic ref")
+				case "describe --tags --exact-match":
+					return "v1.2.0\n", nil
+				case "status --porcelain":
+					return " M file.go\n", nil
+				default:
+					return "", nil
+				}
+			},
+			wantBranch: "(v1.2.0)",
+			wantDirty:  true,
+			expectedCommandCalls: map[string]int{
+				"rev-parse --is-inside-work-tree": 1,
+				"symbolic-ref --short HEAD":       1,
+				"describe --tags --exact-match":   1,
+				"status --porcelain":              1,
+			},
+		},
+		{
+			name: "Detached HEAD with short SHA memoization",
+			runner: func(cmd string, ctx CwdResolver, ttl int) (string, error) {
+				switch cmd {
+				case "rev-parse --is-inside-work-tree":
+					return "true", nil
+				case "symbolic-ref --short HEAD":
+					return "", errors.New("fatal: ref HEAD is not a symbolic ref")
+				case "describe --tags --exact-match":
+					return "", errors.New("fatal: No names found")
+				case "rev-parse --short HEAD":
+					return "1a2b3c4\n", nil
+				case "status --porcelain":
+					return "", nil
+				default:
+					return "", nil
+				}
+			},
+			wantBranch: "(1a2b3c4)",
+			wantDirty:  false,
+			expectedCommandCalls: map[string]int{
+				"rev-parse --is-inside-work-tree": 1,
+				"symbolic-ref --short HEAD":       1,
+				"describe --tags --exact-match":   1,
+				"rev-parse --short HEAD":          1,
+				"status --porcelain":              1,
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			oldRunner := runGitCommand
+			defer func() { runGitCommand = oldRunner }()
+
+			callCounts := make(map[string]int)
+			var mu sync.Mutex
+
+			runGitCommand = func(cmd string, ctx CwdResolver, ttl int) (string, error) {
+				mu.Lock()
+				callCounts[cmd]++
+				mu.Unlock()
+				return tt.runner(cmd, ctx, ttl)
+			}
+
+			p := NewGitProvider("/mock/dir", 5)
+
+			// Call GetBranch twice to test memoization
+			b1, d1, err1 := p.GetBranch()
+			b2, d2, err2 := p.GetBranch()
+
+			if err1 != nil || err2 != nil {
+				t.Fatalf("unexpected error: %v, %v", err1, err2)
+			}
+			if b1 != tt.wantBranch || b2 != tt.wantBranch {
+				t.Errorf("got branches %q and %q, want %q", b1, b2, tt.wantBranch)
+			}
+			if d1 != tt.wantDirty || d2 != tt.wantDirty {
+				t.Errorf("got dirties %v and %v, want %v", d1, d2, tt.wantDirty)
+			}
+
+			mu.Lock()
+			defer mu.Unlock()
+			for cmd, expectedCount := range tt.expectedCommandCalls {
+				if count := callCounts[cmd]; count != expectedCount {
+					t.Errorf("command %q called %d times, want %d", cmd, count, expectedCount)
+				}
+			}
+		})
 	}
 }
 
