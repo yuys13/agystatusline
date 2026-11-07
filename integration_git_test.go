@@ -596,28 +596,30 @@ func TestIntegration_Git_DetachedHEAD(t *testing.T) {
 
 	// 7. Other git widgets in detached HEAD (ahead-behind and repo)
 	abWidget := widgets.GetWidget("git-ahead-behind")
-	if abWidget != nil {
-		clearAllCache()
-		_, abBody, err := abWidget.Render(types.WidgetItem{Type: "git-ahead-behind"}, ctx, settings)
-		if err != nil {
-			t.Fatalf("Ahead/behind render error in detached HEAD: %v", err)
-		}
-		if plain := renderer.StripAnsi(abBody); plain != "(no upstream)" {
-			t.Errorf("Expected ahead-behind '(no upstream)' in detached HEAD, got %q", plain)
-		}
+	if abWidget == nil {
+		t.Fatalf("Expected git-ahead-behind widget to be registered, got nil")
+	}
+	clearAllCache()
+	_, abBody, err := abWidget.Render(types.WidgetItem{Type: "git-ahead-behind"}, ctx, settings)
+	if err != nil {
+		t.Fatalf("Ahead/behind render error in detached HEAD: %v", err)
+	}
+	if plain := renderer.StripAnsi(abBody); plain != "(no upstream)" {
+		t.Errorf("Expected ahead-behind '(no upstream)' in detached HEAD, got %q", plain)
 	}
 
 	repoWidget := widgets.GetWidget("git-repo")
-	if repoWidget != nil {
-		clearAllCache()
-		_, repoBody, err := repoWidget.Render(types.WidgetItem{Type: "git-repo"}, ctx, settings)
-		if err != nil {
-			t.Fatalf("Repo render error in detached HEAD: %v", err)
-		}
-		expectedRepoName := filepath.Base(repoDir)
-		if plain := renderer.StripAnsi(repoBody); plain != expectedRepoName {
-			t.Errorf("Expected repo %q in detached HEAD, got %q", expectedRepoName, plain)
-		}
+	if repoWidget == nil {
+		t.Fatalf("Expected git-repo widget to be registered, got nil")
+	}
+	clearAllCache()
+	_, repoBody, err := repoWidget.Render(types.WidgetItem{Type: "git-repo"}, ctx, settings)
+	if err != nil {
+		t.Fatalf("Repo render error in detached HEAD: %v", err)
+	}
+	expectedRepoName := filepath.Base(repoDir)
+	if plain := renderer.StripAnsi(repoBody); plain != expectedRepoName {
+		t.Errorf("Expected repo %q in detached HEAD, got %q", expectedRepoName, plain)
 	}
 
 	// 8. Detached HEAD in a git worktree
