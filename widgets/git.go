@@ -46,6 +46,11 @@ func (g *GitBranchWidget) Render(item types.WidgetItem, ctx types.RenderContext,
 		branch = ctx.Data.VCS.Branch
 		if ctx.Data.VCS.Dirty != nil {
 			dirty = *ctx.Data.VCS.Dirty
+		} else {
+			p := getGitProvider(ctx)
+			if _, d, err := p.GetBranch(); err == nil {
+				dirty = d
+			}
 		}
 	}
 

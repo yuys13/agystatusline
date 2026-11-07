@@ -422,6 +422,32 @@ func TestGitBranchWidget(t *testing.T) {
 			expectedBody:  "⎇ (1a2b3c4)",
 			expectedColor: "brightBlue",
 		},
+		{
+			name: "Branch from VCS telemetry with Dirty=nil and clean GitProvider",
+			item: types.WidgetItem{Type: "git-branch"},
+			ctx: types.RenderContext{
+				Data: types.StatusJSON{
+					VCS: &types.VCSInfo{Branch: "main", Dirty: nil},
+				},
+				GitProvider: &testMockGitProvider{branch: "main", dirty: false},
+			},
+			expectedTitle: "",
+			expectedBody:  "⎇ main",
+			expectedColor: "brightBlue",
+		},
+		{
+			name: "Branch from VCS telemetry with Dirty=nil and dirty GitProvider",
+			item: types.WidgetItem{Type: "git-branch"},
+			ctx: types.RenderContext{
+				Data: types.StatusJSON{
+					VCS: &types.VCSInfo{Branch: "main", Dirty: nil},
+				},
+				GitProvider: &testMockGitProvider{branch: "main", dirty: true},
+			},
+			expectedTitle: "",
+			expectedBody:  "⎇ main*",
+			expectedColor: "brightRed",
+		},
 	}
 
 	oldRunner := runGitCommand

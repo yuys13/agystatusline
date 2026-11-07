@@ -600,6 +600,80 @@ func TestGitProvider_DetachedHEAD_IntraPassMemoization(t *testing.T) {
 	}
 }
 
+func TestGitProvider_DetachedHEAD_ThreadSafety(t *testing.T) {
+	oldRunner := runGitCommand
+	defer func() { runGitCommand = oldRunner }()
+
+	callCounts := make(map[string]int)
+	var mu sync.Mutex
+
+	runGitCommand = func(cmd string, ctx CwdResolver, ttl int) (string, error) {
+		mu.Lock()
+		callCounts[cmd]++
+		mu.Unlock()
+
+		switch cmd {
+		case "rev-parse --is-inside-work-tree":
+			return "true", nil
+		case "symbolic-ref --short HEAD":
+			return "", errors.New("fatal: ref HEAD is not a symbolic ref")
+		case "describe --tags --exact-match":
+			return "v1.2.0\n", nil
+		case "status --porcelain":
+			return " M file.go\n", nil
+		default:
+			return "", nil
+		}
+	}
+
+	p := NewGitProvider("/mock/dir", 5)
+
+	var wg sync.WaitGroup
+	startSignal := make(chan struct{})
+	numWorkers := 20
+	branches := make([]string, numWorkers)
+	dirties := make([]bool, numWorkers)
+	errs := make([]error, numWorkers)
+
+	for i := range numWorkers {
+		wg.Add(1)
+		go func(workerID int) {
+			defer wg.Done()
+			<-startSignal
+			branches[workerID], dirties[workerID], errs[workerID] = p.GetBranch()
+		}(i)
+	}
+
+	close(startSignal)
+	wg.Wait()
+
+	for i := range numWorkers {
+		if errs[i] != nil {
+			t.Errorf("Worker %d returned unexpected error: %v", i, errs[i])
+		}
+		if branches[i] != "(v1.2.0)" {
+			t.Errorf("Worker %d returned branch %q, want %q", i, branches[i], "(v1.2.0)")
+		}
+		if !dirties[i] {
+			t.Errorf("Worker %d returned dirty %v, want true", i, dirties[i])
+		}
+	}
+
+	mu.Lock()
+	defer mu.Unlock()
+	expectedOnce := []string{
+		"rev-parse --is-inside-work-tree",
+		"symbolic-ref --short HEAD",
+		"describe --tags --exact-match",
+		"status --porcelain",
+	}
+	for _, cmd := range expectedOnce {
+		if count := callCounts[cmd]; count != 1 {
+			t.Errorf("command %q called %d times, want exactly 1", cmd, count)
+		}
+	}
+}
+
 func TestParseShortStat(t *testing.T) {
 	tests := []struct {
 		name               string

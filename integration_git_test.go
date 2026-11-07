@@ -593,4 +593,72 @@ func TestIntegration_Git_DetachedHEAD(t *testing.T) {
 	if color := w.GetBodyColor(types.WidgetItem{Type: "git-branch"}, ctx); color != "brightBlue" {
 		t.Errorf("Expected body color 'brightBlue', got %q", color)
 	}
+
+	// 7. Other git widgets in detached HEAD (ahead-behind and repo)
+	abWidget := widgets.GetWidget("git-ahead-behind")
+	if abWidget != nil {
+		clearAllCache()
+		_, abBody, err := abWidget.Render(types.WidgetItem{Type: "git-ahead-behind"}, ctx, settings)
+		if err != nil {
+			t.Fatalf("Ahead/behind render error in detached HEAD: %v", err)
+		}
+		if plain := renderer.StripAnsi(abBody); plain != "(no upstream)" {
+			t.Errorf("Expected ahead-behind '(no upstream)' in detached HEAD, got %q", plain)
+		}
+	}
+
+	repoWidget := widgets.GetWidget("git-repo")
+	if repoWidget != nil {
+		clearAllCache()
+		_, repoBody, err := repoWidget.Render(types.WidgetItem{Type: "git-repo"}, ctx, settings)
+		if err != nil {
+			t.Fatalf("Repo render error in detached HEAD: %v", err)
+		}
+		expectedRepoName := filepath.Base(repoDir)
+		if plain := renderer.StripAnsi(repoBody); plain != expectedRepoName {
+			t.Errorf("Expected repo %q in detached HEAD, got %q", expectedRepoName, plain)
+		}
+	}
+
+	// 8. Detached HEAD in a git worktree
+	wtDir := filepath.Join(t.TempDir(), "wt-detached")
+	wtCmd := exec.Command("git", "-C", repoDir, "worktree", "add", "--detach", wtDir, "HEAD")
+	if err := wtCmd.Run(); err != nil {
+		t.Skipf("git worktree command failed (unsupported or environment limitation): %v", err)
+	}
+	ctxWt := types.RenderContext{
+		Data: types.StatusJSON{
+			CWD: wtDir,
+		},
+		GitCacheTTLSeconds: 5,
+	}
+
+	// 8a. Clean worktree
+	clearAllCache()
+	title, body, err = w.Render(types.WidgetItem{Type: "git-branch"}, ctxWt, settings)
+	if err != nil {
+		t.Fatalf("Worktree render error: %v", err)
+	}
+	if plain := renderer.StripAnsi(title + body); plain != "⎇ ("+shortSHA2+")" {
+		t.Errorf("Expected worktree branch '⎇ (%s)', got %q", shortSHA2, plain)
+	}
+	if color := w.GetBodyColor(types.WidgetItem{Type: "git-branch"}, ctxWt); color != "brightBlue" {
+		t.Errorf("Expected worktree body color 'brightBlue', got %q", color)
+	}
+
+	// 8b. Dirty worktree with Raw=true
+	if err := os.WriteFile(filepath.Join(wtDir, "wt-dirty.txt"), []byte("worktree dirty"), 0644); err != nil {
+		t.Fatalf("Failed to write dirty file in worktree: %v", err)
+	}
+	clearAllCache()
+	title, body, err = w.Render(types.WidgetItem{Type: "git-branch", Raw: true}, ctxWt, settings)
+	if err != nil {
+		t.Fatalf("Worktree render error (dirty): %v", err)
+	}
+	if plain := renderer.StripAnsi(title + body); plain != "("+shortSHA2+")*" {
+		t.Errorf("Expected worktree branch '(%s)*', got %q", shortSHA2, plain)
+	}
+	if color := w.GetBodyColor(types.WidgetItem{Type: "git-branch", Raw: true}, ctxWt); color != "brightRed" {
+		t.Errorf("Expected worktree body color 'brightRed', got %q", color)
+	}
 }
