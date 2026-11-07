@@ -423,6 +423,7 @@ type RenderContext struct {
 	IsPreview          bool
 	Minimalist         bool
 	GitCacheTTLSeconds int
+	GitProvider        GitDataProvider
 }
 
 func (r RenderContext) GetCwd() string {

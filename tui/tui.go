@@ -700,70 +700,7 @@ func (m Model) View() string {
 	s.WriteString(lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("244")).Render("--- Live Preview ---"))
 	s.WriteString("\n")
 
-	width := 160
-	inputTokens := float64(14200)
-
-	usedPct := float64(20.0)
-	remainingPct := float64(80.0)
-	g5hFraction := 0.5019274
-	g5hReset := 8891.0
-	p35hFraction := 1.0
-	p35hReset := 17956.0
-	gWkFraction := 0.9090967
-	gWkReset := 567440.0
-	gArgonFraction := 1.0
-	gArgonReset := 604724.0
-	p3WkFraction := 1.0
-	p3WkReset := 604756.0
-	sandboxEnabled := true
-	artCount := 3
-	taskCnt := 1
-	previewCtx := types.RenderContext{
-		TerminalWidth:      &width,
-		IsPreview:          true,
-		Minimalist:         m.settings.General.Minimalist,
-		GitCacheTTLSeconds: m.settings.General.GitCacheTTL,
-		Data: types.StatusJSON{
-			Model: types.ModelInfo{
-				ID:          "gemini-3.5-flash-medium",
-				DisplayName: "Gemini 3.5 Flash (Medium)",
-			},
-			ContextWindow: &types.ContextWindowInfo{
-				TotalInputTokens:    &inputTokens,
-				UsedPercentage:      &usedPct,
-				RemainingPercentage: &remainingPct,
-			},
-			Quota: map[string]types.QuotaInfo{
-				"gemini-5h": {
-					RemainingFraction: &g5hFraction,
-					ResetInSeconds:    &g5hReset,
-				},
-				"gemini-weekly": {
-					RemainingFraction: &gWkFraction,
-					ResetInSeconds:    &gWkReset,
-				},
-				"gemini-argon-wtu-weekly": {
-					RemainingFraction: &gArgonFraction,
-					ResetInSeconds:    &gArgonReset,
-				},
-				"3p-5h": {
-					RemainingFraction: &p35hFraction,
-					ResetInSeconds:    &p35hReset,
-				},
-				"3p-weekly": {
-					RemainingFraction: &p3WkFraction,
-					ResetInSeconds:    &p3WkReset,
-				},
-			},
-			Sandbox: &types.SandboxInfo{
-				Enabled: &sandboxEnabled,
-			},
-			AgentState:    "idle",
-			ArtifactCount: &artCount,
-			Subagents:     []string{"subagent-1", "subagent-2"},
-			TaskCount:     &taskCnt,
-		},
-	}
+	previewCtx := DefaultPreviewContext(m.settings)
 
 	previewSettings := m.settings
 	switch m.activeMenu {

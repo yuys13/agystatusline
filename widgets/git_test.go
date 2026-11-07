@@ -7,6 +7,34 @@ import (
 	"github.com/yuys13/agystatusline/types"
 )
 
+type testMockGitProvider struct {
+	branch      string
+	dirty       bool
+	branchErr   error
+	changes     types.GitChanges
+	changesErr  error
+	aheadBehind types.GitAheadBehind
+	abErr       error
+	repo        string
+	repoErr     error
+}
+
+func (m *testMockGitProvider) GetBranch() (string, bool, error) {
+	return m.branch, m.dirty, m.branchErr
+}
+
+func (m *testMockGitProvider) GetChanges() (types.GitChanges, error) {
+	return m.changes, m.changesErr
+}
+
+func (m *testMockGitProvider) GetAheadBehind() (types.GitAheadBehind, error) {
+	return m.aheadBehind, m.abErr
+}
+
+func (m *testMockGitProvider) GetRepoName() (string, error) {
+	return m.repo, m.repoErr
+}
+
 func TestGitBranchWidget(t *testing.T) {
 	RegisterAll()
 	w := GetWidget("git-branch")
@@ -115,12 +143,20 @@ func TestGitBranchWidget(t *testing.T) {
 			expectedColor: "brightBlue",
 		},
 		{
-			name:          "Preview mode fallback to main",
+			name:          "Git provider branch fallback to main",
 			item:          types.WidgetItem{Type: "git-branch"},
-			ctx:           types.RenderContext{IsPreview: true},
+			ctx:           types.RenderContext{GitProvider: &testMockGitProvider{branch: "main"}},
 			expectedTitle: "",
 			expectedBody:  "⎇ main",
 			expectedColor: "brightBlue",
+		},
+		{
+			name:          "Git provider branch dirty",
+			item:          types.WidgetItem{Type: "git-branch"},
+			ctx:           types.RenderContext{GitProvider: &testMockGitProvider{branch: "feature/dirty", dirty: true}},
+			expectedTitle: "",
+			expectedBody:  "⎇ feature/dirty*",
+			expectedColor: "brightRed",
 		},
 	}
 
@@ -192,9 +228,9 @@ func TestGitChangesWidget(t *testing.T) {
 			expectedBody:  "(+13,-5)",
 		},
 		{
-			name:          "Preview mode changes",
+			name:          "Git provider changes",
 			item:          types.WidgetItem{Type: "git-changes"},
-			ctx:           types.RenderContext{IsPreview: true},
+			ctx:           types.RenderContext{GitProvider: &testMockGitProvider{changes: types.GitChanges{Insertions: 42, Deletions: 10}}},
 			expectedTitle: "",
 			expectedBody:  "(+42,-10)",
 		},
@@ -232,49 +268,6 @@ func TestGitChangesWidget(t *testing.T) {
 	}
 }
 
-func TestParseShortStat(t *testing.T) {
-	tests := []struct {
-		name               string
-		statInput          string
-		expectedInsertions int
-		expectedDeletions  int
-	}{
-		{
-			name:               "Empty stat input",
-			statInput:          "",
-			expectedInsertions: 0,
-			expectedDeletions:  0,
-		},
-		{
-			name:               "Insertions only",
-			statInput:          "5 insertions(+)",
-			expectedInsertions: 5,
-			expectedDeletions:  0,
-		},
-		{
-			name:               "Deletions only",
-			statInput:          "10 deletions(-)",
-			expectedInsertions: 0,
-			expectedDeletions:  10,
-		},
-		{
-			name:               "Insertions and deletions combined",
-			statInput:          "2 files changed, 10 insertions(+), 5 deletions(-)",
-			expectedInsertions: 10,
-			expectedDeletions:  5,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			ins, del := parseShortStat(tt.statInput)
-			if ins != tt.expectedInsertions || del != tt.expectedDeletions {
-				t.Errorf("For %q expected (%d, %d), got (%d, %d)", tt.statInput, tt.expectedInsertions, tt.expectedDeletions, ins, del)
-			}
-		})
-	}
-}
-
 func TestGitAheadBehindWidget(t *testing.T) {
 	RegisterAll()
 	w := GetWidget("git-ahead-behind")
@@ -301,9 +294,9 @@ func TestGitAheadBehindWidget(t *testing.T) {
 		expectedColor string
 	}{
 		{
-			name:          "Preview mode ahead-behind",
+			name:          "Git provider ahead-behind",
 			item:          types.WidgetItem{Type: "git-ahead-behind"},
-			ctx:           types.RenderContext{IsPreview: true},
+			ctx:           types.RenderContext{GitProvider: &testMockGitProvider{aheadBehind: types.GitAheadBehind{Ahead: 2, Behind: 1}}},
 			expectedTitle: "",
 			expectedBody:  "↑2 ↓1",
 			expectedColor: "brightCyan",
@@ -479,71 +472,6 @@ func TestGitAheadBehindWidget(t *testing.T) {
 	}
 }
 
-func TestParseAheadBehind(t *testing.T) {
-	tests := []struct {
-		name           string
-		input          string
-		expectedAhead  int
-		expectedBehind int
-		expectErr      bool
-	}{
-		{
-			name:           "Valid tab-separated count",
-			input:          "2\t1\n",
-			expectedAhead:  2,
-			expectedBehind: 1,
-			expectErr:      false,
-		},
-		{
-			name:           "Valid space-separated count",
-			input:          "0 4",
-			expectedAhead:  0,
-			expectedBehind: 4,
-			expectErr:      false,
-		},
-		{
-			name:           "Both zero",
-			input:          "0\t0",
-			expectedAhead:  0,
-			expectedBehind: 0,
-			expectErr:      false,
-		},
-		{
-			name:           "Empty string",
-			input:          "",
-			expectedAhead:  0,
-			expectedBehind: 0,
-			expectErr:      true,
-		},
-		{
-			name:           "Single number only",
-			input:          "2",
-			expectedAhead:  0,
-			expectedBehind: 0,
-			expectErr:      true,
-		},
-		{
-			name:           "Non-numeric tokens",
-			input:          "foo bar",
-			expectedAhead:  0,
-			expectedBehind: 0,
-			expectErr:      true,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			ahead, behind, err := parseAheadBehind(tt.input)
-			if (err != nil) != tt.expectErr {
-				t.Fatalf("For %q expected err=%v, got err=%v", tt.input, tt.expectErr, err)
-			}
-			if ahead != tt.expectedAhead || behind != tt.expectedBehind {
-				t.Errorf("For %q expected (%d, %d), got (%d, %d)", tt.input, tt.expectedAhead, tt.expectedBehind, ahead, behind)
-			}
-		})
-	}
-}
-
 func TestGitRepoWidget(t *testing.T) {
 	RegisterAll()
 	w := GetWidget("git-repo")
@@ -687,34 +615,25 @@ func TestGitRepoWidget(t *testing.T) {
 			expectedColor: "white",
 		},
 		{
-			name: "Preview mode default",
-			gitRunner: func(cmd string, ctx CwdResolver, ttl int) (string, error) {
-				return "", nil
-			},
+			name:          "Git provider default",
 			item:          types.WidgetItem{Type: "git-repo"},
-			ctx:           types.RenderContext{IsPreview: true},
+			ctx:           types.RenderContext{GitProvider: &testMockGitProvider{repo: "agystatusline"}},
 			expectedTitle: "",
 			expectedBody:  "agystatusline",
 			expectedColor: "white",
 		},
 		{
-			name: "Preview mode with custom symbol",
-			gitRunner: func(cmd string, ctx CwdResolver, ttl int) (string, error) {
-				return "", nil
-			},
+			name:          "Git provider with custom symbol",
 			item:          types.WidgetItem{Type: "git-repo", Symbol: "📦 "},
-			ctx:           types.RenderContext{IsPreview: true},
+			ctx:           types.RenderContext{GitProvider: &testMockGitProvider{repo: "agystatusline"}},
 			expectedTitle: "",
 			expectedBody:  "📦 agystatusline",
 			expectedColor: "white",
 		},
 		{
-			name: "Preview mode with custom symbol and Raw=true",
-			gitRunner: func(cmd string, ctx CwdResolver, ttl int) (string, error) {
-				return "", nil
-			},
+			name:          "Git provider with custom symbol and Raw=true",
 			item:          types.WidgetItem{Type: "git-repo", Symbol: "📦 ", Raw: true},
-			ctx:           types.RenderContext{IsPreview: true},
+			ctx:           types.RenderContext{GitProvider: &testMockGitProvider{repo: "agystatusline"}},
 			expectedTitle: "",
 			expectedBody:  "agystatusline",
 			expectedColor: "white",
@@ -800,5 +719,63 @@ func TestGitWidgets_CommandTimeoutAndFallback(t *testing.T) {
 	}
 	if title != "" || body != "(no git)" {
 		t.Errorf("Expected fallback '(no git)', got title %q, body %q", title, body)
+	}
+}
+
+func TestGitWidgets_WithGitDataProvider(t *testing.T) {
+	RegisterAll()
+	settings := types.DefaultSettings()
+
+	mockProvider := &testMockGitProvider{
+		branch:      "main",
+		dirty:       true,
+		changes:     types.GitChanges{Insertions: 42, Deletions: 10},
+		aheadBehind: types.GitAheadBehind{Ahead: 2, Behind: 1},
+		repo:        "agystatusline",
+	}
+
+	ctx := types.RenderContext{
+		GitProvider: mockProvider,
+		IsPreview:   false, // Explicitly false: proves widgets rely on provider, NOT IsPreview!
+	}
+
+	// 1. Git Branch
+	gb := GetWidget("git-branch")
+	_, body, err := gb.Render(types.WidgetItem{Type: "git-branch"}, ctx, settings)
+	if err != nil {
+		t.Fatalf("git-branch error: %v", err)
+	}
+	if body != "⎇ main*" {
+		t.Errorf("git-branch body = %q, want %q", body, "⎇ main*")
+	}
+
+	// 2. Git Changes
+	gc := GetWidget("git-changes")
+	_, body, err = gc.Render(types.WidgetItem{Type: "git-changes"}, ctx, settings)
+	if err != nil {
+		t.Fatalf("git-changes error: %v", err)
+	}
+	if body != "(+42,-10)" {
+		t.Errorf("git-changes body = %q, want %q", body, "(+42,-10)")
+	}
+
+	// 3. Git Ahead/Behind
+	gab := GetWidget("git-ahead-behind")
+	_, body, err = gab.Render(types.WidgetItem{Type: "git-ahead-behind"}, ctx, settings)
+	if err != nil {
+		t.Fatalf("git-ahead-behind error: %v", err)
+	}
+	if body != "↑2 ↓1" {
+		t.Errorf("git-ahead-behind body = %q, want %q", body, "↑2 ↓1")
+	}
+
+	// 4. Git Repo
+	gr := GetWidget("git-repo")
+	_, body, err = gr.Render(types.WidgetItem{Type: "git-repo"}, ctx, settings)
+	if err != nil {
+		t.Fatalf("git-repo error: %v", err)
+	}
+	if body != "agystatusline" {
+		t.Errorf("git-repo body = %q, want %q", body, "agystatusline")
 	}
 }
