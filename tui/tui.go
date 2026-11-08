@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"time"
 
@@ -131,8 +132,7 @@ func NewModel(settings types.Settings, configPath string, loadError ...string) M
 		}
 	}
 
-	separators := make([]choiceItem, len(defaultSeparators))
-	copy(separators, defaultSeparators)
+	separators := slices.Clone(defaultSeparators)
 	initialSeparatorIndex := -1
 	currentSep := settings.Powerline.Separator
 	for i, s := range separators {
@@ -146,8 +146,7 @@ func NewModel(settings types.Settings, configPath string, loadError ...string) M
 		initialSeparatorIndex = len(separators) - 1
 	}
 
-	startCaps := make([]choiceItem, len(defaultStartCaps))
-	copy(startCaps, defaultStartCaps)
+	startCaps := slices.Clone(defaultStartCaps)
 	initialStartCapIndex := -1
 	currentStartCap := settings.Powerline.StartCaps
 	for i, s := range startCaps {
@@ -161,8 +160,7 @@ func NewModel(settings types.Settings, configPath string, loadError ...string) M
 		initialStartCapIndex = len(startCaps) - 1
 	}
 
-	endCaps := make([]choiceItem, len(defaultEndCaps))
-	copy(endCaps, defaultEndCaps)
+	endCaps := slices.Clone(defaultEndCaps)
 	initialEndCapIndex := -1
 	currentEndCap := settings.Powerline.EndCaps
 	for i, s := range endCaps {
