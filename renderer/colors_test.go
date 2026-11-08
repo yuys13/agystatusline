@@ -69,8 +69,18 @@ func TestBgToFg(t *testing.T) {
 	}{
 		{"bgRed to red", "bgRed", "red"},
 		{"bgBrightGreen to brightGreen", "bgBrightGreen", "brightGreen"},
-		{"ansi256 unchanged", "ansi256:123", "ansi256:123"},
-		{"hex unchanged", "hex:ffffff", "hex:ffffff"},
+		{"bgBrightRed to brightRed", "bgBrightRed", "brightRed"},
+		{"bgBlack to black", "bgBlack", "black"},
+		{"bgBrightBlack to brightBlack", "bgBrightBlack", "brightBlack"},
+		{"empty string", "", ""},
+		{"bg prefix only", "bg", "bg"},
+		{"bgBright prefix only", "bgBright", "bgBright"},
+		{"ansi256 unchanged (123)", "ansi256:123", "ansi256:123"},
+		{"ansi256 unchanged (100)", "ansi256:100", "ansi256:100"},
+		{"hex unchanged (ffffff)", "hex:ffffff", "hex:ffffff"},
+		{"hex unchanged (123456)", "hex:123456", "hex:123456"},
+		{"gradient unchanged", "gradient:red,blue", "gradient:red,blue"},
+		{"customColor unchanged", "customColor", "customColor"},
 	}
 
 	for _, tc := range tests {
@@ -137,29 +147,44 @@ func TestGetPowerlineTheme(t *testing.T) {
 	})
 }
 
-func TestApplyGradientToText_EdgeCases(t *testing.T) {
+func TestApplyGradientToText_EmptyText(t *testing.T) {
+	stops := []RGB{{R: 255, G: 0, B: 0}, {R: 0, G: 255, B: 0}}
+	res := applyGradientToText("", stops, "truecolor")
+	if res != "" {
+		t.Errorf("Expected empty string for empty text gradient, got %q", res)
+	}
+}
+
+func TestApplyGradientToText_Characters(t *testing.T) {
 	stops := []RGB{{R: 255, G: 0, B: 0}, {R: 0, G: 255, B: 0}}
 
-	t.Run("empty text", func(t *testing.T) {
-		res := applyGradientToText("", stops, "truecolor")
-		if res != "" {
-			t.Errorf("Expected empty string for empty text gradient, got %q", res)
-		}
-	})
+	tests := []struct {
+		name          string
+		input         string
+		expectedChars []string
+	}{
+		{
+			name:          "single character text",
+			input:         "X",
+			expectedChars: []string{"X"},
+		},
+		{
+			name:          "multi-character text",
+			input:         "BoldText",
+			expectedChars: []string{"B", "t"},
+		},
+	}
 
-	t.Run("single character text", func(t *testing.T) {
-		res := applyGradientToText("X", stops, "truecolor")
-		if !strings.Contains(res, "X") {
-			t.Errorf("Expected result to contain 'X', got %q", res)
-		}
-	})
-
-	t.Run("text with ANSI escape sequences", func(t *testing.T) {
-		res := applyGradientToText("BoldText", stops, "truecolor")
-		if !strings.Contains(res, "B") || !strings.Contains(res, "t") {
-			t.Errorf("Expected result to contain characters from 'BoldText', got %q", res)
-		}
-	})
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			res := applyGradientToText(tt.input, stops, "truecolor")
+			for _, expected := range tt.expectedChars {
+				if !strings.Contains(res, expected) {
+					t.Errorf("Expected result to contain %q, got %q", expected, res)
+				}
+			}
+		})
+	}
 }
 
 func TestWrapSolidColor(t *testing.T) {
@@ -224,31 +249,6 @@ func TestGetColorAnsiCode_InvalidColorsAndLevels(t *testing.T) {
 	}
 }
 
-func TestBgToFg_EdgeCases(t *testing.T) {
-	inputs := []struct {
-		input    string
-		expected string
-	}{
-		{"", ""},
-		{"bg", "bg"},
-		{"bgBright", "bgBright"},
-		{"bgRed", "red"},
-		{"bgBrightRed", "brightRed"},
-		{"bgBlack", "black"},
-		{"bgBrightBlack", "brightBlack"},
-		{"ansi256:100", "ansi256:100"},
-		{"hex:123456", "hex:123456"},
-		{"gradient:red,blue", "gradient:red,blue"},
-		{"customColor", "customColor"},
-	}
-
-	for _, tt := range inputs {
-		got := BgToFg(tt.input)
-		if got != tt.expected {
-			t.Errorf("BgToFg(%q) = %q, expected %q", tt.input, got, tt.expected)
-		}
-	}
-}
 
 func TestApplyGradientToText_WithAnsiSequences(t *testing.T) {
 	stops := parseGradientStops("gradient:red,blue")

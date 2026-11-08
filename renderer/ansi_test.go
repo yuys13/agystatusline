@@ -115,7 +115,7 @@ func TestTruncateStyledText(t *testing.T) {
 	}
 }
 
-func TestParseEscape_OSC8_TerminationAndEdgeCases(t *testing.T) {
+func TestParseEscape_OSC8_Termination(t *testing.T) {
 	tests := []struct {
 		name        string
 		input       string
@@ -200,7 +200,7 @@ func TestParseEscape_OSC8_TerminationAndEdgeCases(t *testing.T) {
 	}
 }
 
-func TestGetVisibleWidth_Osc8AndCsiEdgeCases(t *testing.T) {
+func TestGetVisibleWidth_EscapeSequences(t *testing.T) {
 	tests := []struct {
 		name          string
 		input         string
