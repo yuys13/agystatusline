@@ -249,7 +249,6 @@ func TestGetColorAnsiCode_InvalidColorsAndLevels(t *testing.T) {
 	}
 }
 
-
 func TestApplyGradientToText_WithAnsiSequences(t *testing.T) {
 	stops := parseGradientStops("gradient:red,blue")
 	plainText := "Hello World"
