@@ -1675,36 +1675,63 @@ func TestTUI_UpdateItems_BoundaryAndMoveMode(t *testing.T) {
 	}
 }
 
-func TestTUI_UpdateAddWidget_NavigationAndEdgeCases(t *testing.T) {
+func TestTUI_UpdateAddWidget_Navigation(t *testing.T) {
+	tests := []struct {
+		name        string
+		startCursor int
+		key         tea.KeyMsg
+		wantCursor  int
+	}{
+		{
+			name:        "up when cursor > 0 decreases cursor",
+			startCursor: 2,
+			key:         tea.KeyMsg{Type: tea.KeyUp},
+			wantCursor:  1,
+		},
+		{
+			name:        "up boundary when cursor == 0 keeps cursor at 0",
+			startCursor: 0,
+			key:         tea.KeyMsg{Type: tea.KeyUp},
+			wantCursor:  0,
+		},
+		{
+			name:        "down when cursor < len-1 increases cursor",
+			startCursor: 1,
+			key:         tea.KeyMsg{Type: tea.KeyDown},
+			wantCursor:  2,
+		},
+		{
+			name:        "down boundary when cursor == len-1 keeps cursor at bottom",
+			startCursor: len(widgetTypes) - 1,
+			key:         tea.KeyMsg{Type: tea.KeyDown},
+			wantCursor:  len(widgetTypes) - 1,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			m := NewModel(types.DefaultSettings(), "/tmp/settings.toml")
+			m.activeMenu = "add_widget"
+			m.selectedLine = 0
+			m.cursor = tt.startCursor
+
+			updatedModel, _ := m.Update(tt.key)
+			got := updatedModel.(Model).cursor
+			if got != tt.wantCursor {
+				t.Errorf("Expected cursor %d, got %d", tt.wantCursor, got)
+			}
+		})
+	}
+}
+
+func TestTUI_UpdateAddWidget_EscKey(t *testing.T) {
 	settings := types.DefaultSettings()
 	m := NewModel(settings, "/tmp/settings.toml")
 	m.activeMenu = "add_widget"
 	m.selectedLine = 0
-
-	// 1. Navigation up when cursor > 0
-	m.cursor = 2
-	updatedModel, _ := m.Update(tea.KeyMsg{Type: tea.KeyUp})
-	if updatedModel.(Model).cursor != 1 {
-		t.Errorf("Expected cursor to decrease to 1, got %d", updatedModel.(Model).cursor)
-	}
-
-	// 2. Navigation up boundary when cursor == 0
-	m.cursor = 0
-	updatedModel, _ = m.Update(tea.KeyMsg{Type: tea.KeyUp})
-	if updatedModel.(Model).cursor != 0 {
-		t.Errorf("Expected cursor to stay 0, got %d", updatedModel.(Model).cursor)
-	}
-
-	// 3. Navigation down boundary when cursor == len(widgetTypes)-1
-	m.cursor = len(widgetTypes) - 1
-	updatedModel, _ = m.Update(tea.KeyMsg{Type: tea.KeyDown})
-	if updatedModel.(Model).cursor != len(widgetTypes)-1 {
-		t.Errorf("Expected cursor to stay %d at bottom, got %d", len(widgetTypes)-1, updatedModel.(Model).cursor)
-	}
-
-	// 4. Esc key handling (cancels and returns to items menu)
 	m.itemIndex = 3
-	updatedModel, _ = m.Update(tea.KeyMsg{Type: tea.KeyEsc})
+
+	updatedModel, _ := m.Update(tea.KeyMsg{Type: tea.KeyEsc})
 	mEsc := updatedModel.(Model)
 	if mEsc.activeMenu != "items" {
 		t.Errorf("Expected activeMenu to return to 'items' on Esc, got %q", mEsc.activeMenu)
@@ -1712,8 +1739,9 @@ func TestTUI_UpdateAddWidget_NavigationAndEdgeCases(t *testing.T) {
 	if mEsc.cursor != 3 {
 		t.Errorf("Expected cursor to reset to itemIndex 3, got %d", mEsc.cursor)
 	}
+}
 
-	// 5. Empty line insertion (len(widgets) == 0)
+func TestTUI_UpdateAddWidget_EmptyLineInsertion(t *testing.T) {
 	emptyLineSettings := types.DefaultSettings()
 	emptyLineSettings.Lines[0] = []types.WidgetItem{}
 	mEmpty := NewModel(emptyLineSettings, "/tmp/settings.toml")
@@ -1721,7 +1749,7 @@ func TestTUI_UpdateAddWidget_NavigationAndEdgeCases(t *testing.T) {
 	mEmpty.selectedLine = 0
 	mEmpty.cursor = 0 // add first widget type
 
-	updatedModel, _ = mEmpty.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("\n")})
+	updatedModel, _ := mEmpty.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("\n")})
 	mAdded := updatedModel.(Model)
 	if len(mAdded.settings.Lines[0]) != 1 {
 		t.Fatalf("Expected 1 widget in empty line after insert, got %d", len(mAdded.settings.Lines[0]))
