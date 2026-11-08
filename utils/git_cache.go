@@ -135,6 +135,56 @@ func discoverGitDir(startDir string) (string, error) {
 	return "", errors.New("git directory not found")
 }
 
+func resolveCommonDir(gitDir string) string {
+	commondirFile := filepath.Join(gitDir, "commondir")
+	contentBytes, err := os.ReadFile(commondirFile)
+	if err != nil {
+		return gitDir
+	}
+	target := strings.TrimSpace(string(contentBytes))
+	if target == "" {
+		return gitDir
+	}
+	if filepath.IsAbs(target) {
+		return target
+	}
+	return filepath.Clean(filepath.Join(gitDir, target))
+}
+
+func getHeadMtimeMs(gitDir string) int64 {
+	headPath := filepath.Join(gitDir, "HEAD")
+	maxMtime := getMtimeMs(headPath)
+
+	commonDir := resolveCommonDir(gitDir)
+
+	contentBytes, err := os.ReadFile(headPath)
+	if err == nil {
+		content := strings.TrimSpace(string(contentBytes))
+		if strings.HasPrefix(content, "ref:") {
+			refRel := strings.TrimSpace(strings.TrimPrefix(content, "ref:"))
+			if filepath.IsLocal(refRel) {
+				refPath := filepath.Join(commonDir, refRel)
+				if refMtime := getMtimeMs(refPath); refMtime > maxMtime {
+					maxMtime = refMtime
+				}
+				if gitDir != commonDir {
+					wtRefPath := filepath.Join(gitDir, refRel)
+					if wtRefMtime := getMtimeMs(wtRefPath); wtRefMtime > maxMtime {
+						maxMtime = wtRefMtime
+					}
+				}
+			}
+		}
+	}
+
+	packedRefsPath := filepath.Join(commonDir, "packed-refs")
+	if packedMtime := getMtimeMs(packedRefsPath); packedMtime > maxMtime {
+		maxMtime = packedMtime
+	}
+
+	return maxMtime
+}
+
 func getGitRepoMetadata(cwd string) (*GitRepoMetadata, error) {
 	if cwd == "" {
 		return nil, errors.New("empty cwd")
@@ -152,7 +202,7 @@ func getGitRepoMetadata(cwd string) (*GitRepoMetadata, error) {
 
 	return &GitRepoMetadata{
 		CachePath:    getRepoCachePath(gitDir),
-		HeadMtimeMS:  getMtimeMs(filepath.Join(gitDir, "HEAD")),
+		HeadMtimeMS:  getHeadMtimeMs(gitDir),
 		IndexMtimeMS: getMtimeMs(filepath.Join(gitDir, "index")),
 	}, nil
 }
@@ -216,12 +266,15 @@ func writePersistentCache(cachePath string, cache *PersistentGitCacheInternal) {
 }
 
 func isCacheEntryFresh(entry GitCacheEntryInternal, metadata *GitRepoMetadata, ttlMs int64, now int64) bool {
+	if ttlMs <= 0 {
+		return false
+	}
 	if metadata != nil {
 		if entry.HeadMtimeMS != metadata.HeadMtimeMS || entry.IndexMtimeMS != metadata.IndexMtimeMS {
 			return false
 		}
 	}
-	return ttlMs == 0 || now-entry.CreatedAt <= ttlMs
+	return now-entry.CreatedAt <= ttlMs
 }
 
 // ResolveGitCwd resolves the CWD from candidate paths inside the context.
@@ -241,6 +294,10 @@ func ResolveGitCwd(ctx CwdResolver) string {
 
 // GetCacheEntry checks the cache (memory, then file) and returns the output if fresh.
 func GetCacheEntry(cwd string, command string, ttlSeconds int) (string, bool) {
+	if ttlSeconds <= 0 {
+		return "", false
+	}
+
 	gitCacheMutex.Lock()
 	defer gitCacheMutex.Unlock()
 
@@ -278,6 +335,10 @@ func GetCacheEntry(cwd string, command string, ttlSeconds int) (string, bool) {
 
 // SetCacheEntry stores a cache entry both in memory and persistently in file cache.
 func SetCacheEntry(cwd string, command string, output string, timestampMS int64, ttlSeconds int) {
+	if ttlSeconds <= 0 {
+		return
+	}
+
 	gitCacheMutex.Lock()
 	defer gitCacheMutex.Unlock()
 
