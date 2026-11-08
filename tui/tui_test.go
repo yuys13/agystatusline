@@ -2256,7 +2256,7 @@ func TestNewModel_PresetsImmutability(t *testing.T) {
 	}
 }
 
-func TestNewModel_ModelInstanceIsolation(t *testing.T) {
+func TestNewModel_ModelInstanceIsolation_Separators(t *testing.T) {
 	tests := []struct {
 		name         string
 		customSep    string
@@ -2272,7 +2272,7 @@ func TestNewModel_ModelInstanceIsolation(t *testing.T) {
 			wantSepValue: "★",
 		},
 		{
-			name:         "model B with custom separator diamond",
+			name:         "model B with custom separator diamond does not accumulate previous custom",
 			customSep:    "♦",
 			wantSepCount: 7, // 6 presets + 1 custom (not 8)
 			wantSepName:  "Custom (♦)",
@@ -2299,6 +2299,102 @@ func TestNewModel_ModelInstanceIsolation(t *testing.T) {
 			gotValue := m.separators[m.separatorIndex].value
 			if gotValue != tt.wantSepValue {
 				t.Errorf("model separator value: got %q, want %q", gotValue, tt.wantSepValue)
+			}
+		})
+	}
+}
+
+func TestNewModel_ModelInstanceIsolation_StartCaps(t *testing.T) {
+	tests := []struct {
+		name           string
+		customStartCap string
+		wantStartCount int
+		wantStartName  string
+		wantStartValue string
+	}{
+		{
+			name:           "model A with custom start cap 1",
+			customStartCap: "[START_A]",
+			wantStartCount: 9, // 8 presets + 1 custom
+			wantStartName:  "Custom ([START_A])",
+			wantStartValue: "[START_A]",
+		},
+		{
+			name:           "model B with custom start cap 2 does not accumulate previous custom",
+			customStartCap: "[START_B]",
+			wantStartCount: 9, // 8 presets + 1 custom (not 10)
+			wantStartName:  "Custom ([START_B])",
+			wantStartValue: "[START_B]",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			s := types.DefaultSettings()
+			s.Powerline.StartCaps = tt.customStartCap
+			m := NewModel(s, "/tmp/settings.toml")
+
+			gotCount := len(m.startCaps)
+			if gotCount != tt.wantStartCount {
+				t.Errorf("model startCaps length: got %d, want %d", gotCount, tt.wantStartCount)
+			}
+
+			gotName := m.startCaps[m.startCapIndex].name
+			if gotName != tt.wantStartName {
+				t.Errorf("model startCap name: got %q, want %q", gotName, tt.wantStartName)
+			}
+
+			gotValue := m.startCaps[m.startCapIndex].value
+			if gotValue != tt.wantStartValue {
+				t.Errorf("model startCap value: got %q, want %q", gotValue, tt.wantStartValue)
+			}
+		})
+	}
+}
+
+func TestNewModel_ModelInstanceIsolation_EndCaps(t *testing.T) {
+	tests := []struct {
+		name         string
+		customEndCap string
+		wantEndCount int
+		wantEndName  string
+		wantEndValue string
+	}{
+		{
+			name:         "model A with custom end cap 1",
+			customEndCap: "[END_A]",
+			wantEndCount: 9, // 8 presets + 1 custom
+			wantEndName:  "Custom ([END_A])",
+			wantEndValue: "[END_A]",
+		},
+		{
+			name:         "model B with custom end cap 2 does not accumulate previous custom",
+			customEndCap: "[END_B]",
+			wantEndCount: 9, // 8 presets + 1 custom (not 10)
+			wantEndName:  "Custom ([END_B])",
+			wantEndValue: "[END_B]",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			s := types.DefaultSettings()
+			s.Powerline.EndCaps = tt.customEndCap
+			m := NewModel(s, "/tmp/settings.toml")
+
+			gotCount := len(m.endCaps)
+			if gotCount != tt.wantEndCount {
+				t.Errorf("model endCaps length: got %d, want %d", gotCount, tt.wantEndCount)
+			}
+
+			gotName := m.endCaps[m.endCapIndex].name
+			if gotName != tt.wantEndName {
+				t.Errorf("model endCap name: got %q, want %q", gotName, tt.wantEndName)
+			}
+
+			gotValue := m.endCaps[m.endCapIndex].value
+			if gotValue != tt.wantEndValue {
+				t.Errorf("model endCap value: got %q, want %q", gotValue, tt.wantEndValue)
 			}
 		})
 	}
