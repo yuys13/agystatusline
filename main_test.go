@@ -53,82 +53,95 @@ func TestParseConfigArg(t *testing.T) {
 }
 
 func TestLoadSettings(t *testing.T) {
-	tests := []struct {
-		name             string
-		setup            func(path string)
-		wantLinesCount   int
-		expectFileExists bool
-		expectErr        bool
-	}{
-		{
-			name: "Return default settings without creating file when file does not exist",
-			setup: func(path string) {
-				// Ensure file does not exist initially
-			},
-			wantLinesCount:   1,
-			expectFileExists: false,
-			expectErr:        false,
-		},
-		{
-			name: "Fallback to default settings on invalid TOML",
-			setup: func(path string) {
-				_ = os.WriteFile(path, []byte("invalid = toml [ broken"), 0644)
-			},
-			wantLinesCount:   1,
-			expectFileExists: true,
-			expectErr:        true,
-		},
-		{
-			name: "Omitted lines in TOML preserves default lines",
-			setup: func(path string) {
-				_ = os.WriteFile(path, []byte("[general]\ncolor_level = 1\n"), 0644)
-			},
-			wantLinesCount:   1,
-			expectFileExists: true,
-			expectErr:        false,
-		},
-		{
-			name: "Explicit empty lines in TOML sets zero lines",
-			setup: func(path string) {
-				_ = os.WriteFile(path, []byte("lines = []\n"), 0644)
-			},
-			wantLinesCount:   0,
-			expectFileExists: true,
-			expectErr:        false,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
+	t.Run("valid settings", func(t *testing.T) {
+		t.Run("Return default settings without creating file when file does not exist", func(t *testing.T) {
 			tempDir := t.TempDir()
 			customPath := filepath.Join(tempDir, "settings.toml")
 			initConfigPath(customPath)
-			lastLoadError = "" // reset error state
-
-			tt.setup(customPath)
+			lastLoadError = ""
 
 			settings, err := loadSettings()
 			if err != nil {
 				t.Fatalf("loadSettings() unexpected error: %v", err)
 			}
-			if len(settings.Lines) != tt.wantLinesCount {
-				t.Errorf("loadSettings() lines count = %d, want %d", len(settings.Lines), tt.wantLinesCount)
+			if len(settings.Lines) != 1 {
+				t.Errorf("loadSettings() lines count = %d, want 1", len(settings.Lines))
 			}
-			_, statErr := os.Stat(customPath)
-			if tt.expectFileExists && os.IsNotExist(statErr) {
-				t.Errorf("Settings file was expected to exist at %q, but does not", customPath)
-			}
-			if !tt.expectFileExists && !os.IsNotExist(statErr) {
+			if _, statErr := os.Stat(customPath); !os.IsNotExist(statErr) {
 				t.Errorf("Settings file was expected NOT to exist at %q, but exists", customPath)
 			}
-			if tt.expectErr && lastLoadError == "" {
-				t.Errorf("Expected lastLoadError to be recorded, but got empty")
-			}
-			if !tt.expectErr && lastLoadError != "" {
+			if lastLoadError != "" {
 				t.Errorf("Expected empty lastLoadError, got %q", lastLoadError)
 			}
 		})
-	}
+
+		tests := []struct {
+			name           string
+			tomlContent    string
+			wantLinesCount int
+		}{
+			{
+				name:           "Omitted lines in TOML preserves default lines",
+				tomlContent:    "[general]\ncolor_level = 1\n",
+				wantLinesCount: 1,
+			},
+			{
+				name:           "Explicit empty lines in TOML sets zero lines",
+				tomlContent:    "lines = []\n",
+				wantLinesCount: 0,
+			},
+		}
+
+		for _, tt := range tests {
+			t.Run(tt.name, func(t *testing.T) {
+				tempDir := t.TempDir()
+				customPath := filepath.Join(tempDir, "settings.toml")
+				initConfigPath(customPath)
+				lastLoadError = ""
+
+				_ = os.WriteFile(customPath, []byte(tt.tomlContent), 0644)
+
+				settings, err := loadSettings()
+				if err != nil {
+					t.Fatalf("loadSettings() unexpected error: %v", err)
+				}
+				if len(settings.Lines) != tt.wantLinesCount {
+					t.Errorf("loadSettings() lines count = %d, want %d", len(settings.Lines), tt.wantLinesCount)
+				}
+				if _, statErr := os.Stat(customPath); os.IsNotExist(statErr) {
+					t.Errorf("Settings file was expected to exist at %q, but does not", customPath)
+				}
+				if lastLoadError != "" {
+					t.Errorf("Expected empty lastLoadError, got %q", lastLoadError)
+				}
+			})
+		}
+	})
+
+	t.Run("error handling", func(t *testing.T) {
+		t.Run("Fallback to default settings on invalid TOML", func(t *testing.T) {
+			tempDir := t.TempDir()
+			customPath := filepath.Join(tempDir, "settings.toml")
+			initConfigPath(customPath)
+			lastLoadError = ""
+
+			_ = os.WriteFile(customPath, []byte("invalid = toml [ broken"), 0644)
+
+			settings, err := loadSettings()
+			if err != nil {
+				t.Fatalf("loadSettings() unexpected error: %v", err)
+			}
+			if len(settings.Lines) != 1 {
+				t.Errorf("loadSettings() lines count = %d, want 1", len(settings.Lines))
+			}
+			if _, statErr := os.Stat(customPath); os.IsNotExist(statErr) {
+				t.Errorf("Settings file was expected to exist at %q, but does not", customPath)
+			}
+			if lastLoadError == "" {
+				t.Errorf("Expected lastLoadError to be recorded, but got empty")
+			}
+		})
+	})
 }
 
 func TestLoadSettings_PayloadDumpDefaults(t *testing.T) {

@@ -15,82 +15,87 @@ func TestExpandPath(t *testing.T) {
 		t.Fatalf("Failed to get home dir: %v", err)
 	}
 
-	tests := []struct {
-		name      string
-		homeEnv   *string
-		input     string
-		expected  string
-		expectErr bool
-	}{
-		{
-			name:     "empty string remains empty",
-			input:    "",
-			expected: "",
-		},
-		{
-			name:     "whitespace only string becomes empty",
-			input:    "   \t\n  ",
-			expected: "",
-		},
-		{
-			name:     "absolute path remains unchanged",
-			input:    "/var/log/status.json",
-			expected: "/var/log/status.json",
-		},
-		{
-			name:     "surrounding whitespace on path is trimmed",
-			input:    "  ~/.local/share/agystatusline/payload.json  ",
-			expected: filepath.Join(home, ".local", "share", "agystatusline", "payload.json"),
-		},
-		{
-			name:     "tilde slash expands to home dir",
-			input:    "~/.local/share/agystatusline/payload.json",
-			expected: filepath.Join(home, ".local", "share", "agystatusline", "payload.json"),
-		},
-		{
-			name:     "tilde only expands to home dir",
-			input:    "~",
-			expected: home,
-		},
-		{
-			name:     "relative path without tilde remains unchanged",
-			input:    "data/payload.json",
-			expected: "data/payload.json",
-		},
-		{
-			name:      "tilde only returns error when HOME is unset",
-			homeEnv:   func() *string { s := ""; return &s }(),
-			input:     "~",
-			expectErr: true,
-		},
-		{
-			name:      "tilde slash returns error when HOME is unset",
-			homeEnv:   func() *string { s := ""; return &s }(),
-			input:     "~/.local/share/agystatusline/payload.json",
-			expectErr: true,
-		},
-	}
+	t.Run("valid", func(t *testing.T) {
+		tests := []struct {
+			name     string
+			input    string
+			expected string
+		}{
+			{
+				name:     "empty string remains empty",
+				input:    "",
+				expected: "",
+			},
+			{
+				name:     "whitespace only string becomes empty",
+				input:    "   \t\n  ",
+				expected: "",
+			},
+			{
+				name:     "absolute path remains unchanged",
+				input:    "/var/log/status.json",
+				expected: "/var/log/status.json",
+			},
+			{
+				name:     "surrounding whitespace on path is trimmed",
+				input:    "  ~/.local/share/agystatusline/payload.json  ",
+				expected: filepath.Join(home, ".local", "share", "agystatusline", "payload.json"),
+			},
+			{
+				name:     "tilde slash expands to home dir",
+				input:    "~/.local/share/agystatusline/payload.json",
+				expected: filepath.Join(home, ".local", "share", "agystatusline", "payload.json"),
+			},
+			{
+				name:     "tilde only expands to home dir",
+				input:    "~",
+				expected: home,
+			},
+			{
+				name:     "relative path without tilde remains unchanged",
+				input:    "data/payload.json",
+				expected: "data/payload.json",
+			},
+		}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			if tt.homeEnv != nil {
-				t.Setenv("HOME", *tt.homeEnv)
-			}
-			got, err := ExpandPath(tt.input)
-			if tt.expectErr {
+		for _, tt := range tests {
+			t.Run(tt.name, func(t *testing.T) {
+				got, err := ExpandPath(tt.input)
+				if err != nil {
+					t.Fatalf("ExpandPath(%q) unexpected error: %v", tt.input, err)
+				}
+				if got != tt.expected {
+					t.Errorf("ExpandPath(%q) = %q, want %q", tt.input, got, tt.expected)
+				}
+			})
+		}
+	})
+
+	t.Run("error when HOME is unset", func(t *testing.T) {
+		tests := []struct {
+			name  string
+			input string
+		}{
+			{
+				name:  "tilde only returns error when HOME is unset",
+				input: "~",
+			},
+			{
+				name:  "tilde slash returns error when HOME is unset",
+				input: "~/.local/share/agystatusline/payload.json",
+			},
+		}
+
+		for _, tt := range tests {
+			t.Run(tt.name, func(t *testing.T) {
+				t.Setenv("HOME", "")
+				got, err := ExpandPath(tt.input)
 				if err == nil {
 					t.Fatalf("ExpandPath(%q) expected error, got nil (result: %q)", tt.input, got)
 				}
-				return
-			}
-			if err != nil {
-				t.Fatalf("ExpandPath(%q) unexpected error: %v", tt.input, err)
-			}
-			if got != tt.expected {
-				t.Errorf("ExpandPath(%q) = %q, want %q", tt.input, got, tt.expected)
-			}
-		})
-	}
+			})
+		}
+	})
 }
 
 func TestDumpPayload(t *testing.T) {

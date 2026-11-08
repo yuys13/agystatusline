@@ -14,373 +14,311 @@ func init() {
 }
 
 func TestRenderStatusLines_StandardNonPowerline(t *testing.T) {
-	tests := []struct {
-		name       string
-		settings   types.Settings
-		ctx        types.RenderContext
-		assertFunc func(t *testing.T, lines []string)
-	}{
-		{
-			name: "default model rendering",
-			settings: types.Settings{
-				General: types.GeneralConfig{
-					Separator: " · ",
-				},
-				Lines: [][]types.WidgetItem{
-					{
-						{Type: "model"},
-					},
+	t.Run("default model rendering", func(t *testing.T) {
+		settings := types.Settings{
+			General: types.GeneralConfig{
+				Separator: " · ",
+			},
+			Lines: [][]types.WidgetItem{
+				{
+					{Type: "model"},
 				},
 			},
-			ctx: types.RenderContext{
-				Data: types.StatusJSON{
-					Model: types.ModelInfo{
-						DisplayName: "Claude 3.5 Sonnet",
-					},
+		}
+		ctx := types.RenderContext{
+			Data: types.StatusJSON{
+				Model: types.ModelInfo{
+					DisplayName: "Claude 3.5 Sonnet",
 				},
 			},
-			assertFunc: func(t *testing.T, lines []string) {
-				if len(lines) != 1 {
-					t.Fatalf("expected 1 line, got %d", len(lines))
-				}
-				stripped := StripAnsi(lines[0])
-				if !strings.Contains(stripped, "Claude 3.5 Sonnet") {
-					t.Errorf("expected 'Claude 3.5 Sonnet' in output, got %q", stripped)
-				}
-			},
-		},
-		{
-			name: "title and body styling",
-			settings: types.Settings{
-				General: types.GeneralConfig{
-					ColorLevel: 1,
-				},
-				Lines: [][]types.WidgetItem{
-					{
-						{Type: "sandbox"},
-					},
-				},
-			},
-			ctx: types.RenderContext{
-				Data: types.StatusJSON{
-					Sandbox: &types.SandboxInfo{
-						Enabled: new(true),
-					},
-				},
-			},
-			assertFunc: func(t *testing.T, lines []string) {
-				if len(lines) != 1 {
-					t.Fatalf("expected 1 line, got %d", len(lines))
-				}
-				// Sandbox widget returns ("sandbox", "on")
-				// Title "sandbox" should be colored with brightBlack (\x1b[90m)
-				// Body "on" should be colored with brightGreen (\x1b[92m)
-				line := lines[0]
-				if !strings.Contains(line, "\x1b[90msandbox\x1b[39m") {
-					t.Errorf("expected title 'sandbox' in brightBlack, got %q", line)
-				}
-				if !strings.Contains(line, "\x1b[92mon\x1b[39m") {
-					t.Errorf("expected body 'on' in brightGreen, got %q", line)
-				}
-			},
-		},
-		{
-			name: "custom color override",
-			settings: types.Settings{
-				General: types.GeneralConfig{
-					ColorLevel: 1,
-				},
-				Lines: [][]types.WidgetItem{
-					{
-						{Type: "custom-text", Text: "Hello", Color: "red"},
-					},
-				},
-			},
-			ctx: types.RenderContext{},
-			assertFunc: func(t *testing.T, lines []string) {
-				if len(lines) != 1 {
-					t.Fatalf("expected 1 line, got %d", len(lines))
-				}
-				line := lines[0]
-				if !strings.Contains(line, "\x1b[31mHello\x1b[39m") {
-					t.Errorf("expected custom color red (\x1b[31m) for Hello, got %q", line)
-				}
-			},
-		},
-		{
-			name: "item raw mode omits title",
-			settings: types.Settings{
-				Lines: [][]types.WidgetItem{
-					{
-						{Type: "sandbox", Raw: true},
-					},
-				},
-			},
-			ctx: types.RenderContext{
-				Data: types.StatusJSON{
-					Sandbox: &types.SandboxInfo{
-						Enabled: new(true),
-					},
-				},
-			},
-			assertFunc: func(t *testing.T, lines []string) {
-				if len(lines) != 1 {
-					t.Fatalf("expected 1 line, got %d", len(lines))
-				}
-				stripped := StripAnsi(lines[0])
-				if stripped != "on" {
-					t.Errorf("expected raw output 'on', got %q", stripped)
-				}
-			},
-		},
-		{
-			name: "settings minimalist mode omits title",
-			settings: types.Settings{
-				General: types.GeneralConfig{
-					Minimalist: true,
-				},
-				Lines: [][]types.WidgetItem{
-					{
-						{Type: "sandbox"},
-						{Type: "artifacts"},
-					},
-				},
-			},
-			ctx: types.RenderContext{
-				Data: types.StatusJSON{
-					Sandbox: &types.SandboxInfo{
-						Enabled: new(true),
-					},
-					ArtifactCount: new(5),
-				},
-			},
-			assertFunc: func(t *testing.T, lines []string) {
-				if len(lines) != 1 {
-					t.Fatalf("expected 1 line, got %d", len(lines))
-				}
-				stripped := StripAnsi(lines[0])
-				if strings.Contains(stripped, "sandbox") || strings.Contains(stripped, "artifacts") {
-					t.Errorf("expected titles to be omitted in minimalist mode, got %q", stripped)
-				}
-				if !strings.Contains(stripped, "on") || !strings.Contains(stripped, "5") {
-					t.Errorf("expected bodies 'on' and '5' in output, got %q", stripped)
-				}
-			},
-		},
-		{
-			name: "context minimalist mode omits title",
-			settings: types.Settings{
-				Lines: [][]types.WidgetItem{
-					{
-						{Type: "sandbox"},
-					},
-				},
-			},
-			ctx: types.RenderContext{
-				Minimalist: true,
-				Data: types.StatusJSON{
-					Sandbox: &types.SandboxInfo{
-						Enabled: new(true),
-					},
-				},
-			},
-			assertFunc: func(t *testing.T, lines []string) {
-				if len(lines) != 1 {
-					t.Fatalf("expected 1 line, got %d", len(lines))
-				}
-				stripped := StripAnsi(lines[0])
-				if stripped != "on" {
-					t.Errorf("expected minimalist output 'on', got %q", stripped)
-				}
-			},
-		},
-		{
-			name: "custom separator and padding",
-			settings: types.Settings{
-				General: types.GeneralConfig{
-					Separator: "|",
-					Padding:   " ",
-				},
-				Lines: [][]types.WidgetItem{
-					{
-						{Type: "custom-text", Text: "A"},
-						{Type: "custom-text", Text: "B"},
-						{Type: "custom-text", Text: "C"},
-					},
-				},
-			},
-			ctx: types.RenderContext{},
-			assertFunc: func(t *testing.T, lines []string) {
-				if len(lines) != 1 {
-					t.Fatalf("expected 1 line, got %d", len(lines))
-				}
-				stripped := StripAnsi(lines[0])
-				expected := " A  |  B  |  C "
-				if stripped != expected {
-					t.Errorf("expected %q, got %q", expected, stripped)
-				}
-			},
-		},
-		{
-			name: "comma separator formatting",
-			settings: types.Settings{
-				General: types.GeneralConfig{
-					Separator: ",",
-				},
-				Lines: [][]types.WidgetItem{
-					{
-						{Type: "custom-text", Text: "X"},
-						{Type: "custom-text", Text: "Y"},
-					},
-				},
-			},
-			ctx: types.RenderContext{},
-			assertFunc: func(t *testing.T, lines []string) {
-				if len(lines) != 1 {
-					t.Fatalf("expected 1 line, got %d", len(lines))
-				}
-				stripped := StripAnsi(lines[0])
-				expected := "X, Y"
-				if stripped != expected {
-					t.Errorf("expected %q, got %q", expected, stripped)
-				}
-			},
-		},
-		{
-			name: "dash separator formatting",
-			settings: types.Settings{
-				General: types.GeneralConfig{
-					Separator: "-",
-				},
-				Lines: [][]types.WidgetItem{
-					{
-						{Type: "custom-text", Text: "X"},
-						{Type: "custom-text", Text: "Y"},
-					},
-				},
-			},
-			ctx: types.RenderContext{},
-			assertFunc: func(t *testing.T, lines []string) {
-				if len(lines) != 1 {
-					t.Fatalf("expected 1 line, got %d", len(lines))
-				}
-				stripped := StripAnsi(lines[0])
-				expected := "X - Y"
-				if stripped != expected {
-					t.Errorf("expected %q, got %q", expected, stripped)
-				}
-			},
-		},
-		{
-			name: "space separator formatting",
-			settings: types.Settings{
-				General: types.GeneralConfig{
-					Separator: " ",
-				},
-				Lines: [][]types.WidgetItem{
-					{
-						{Type: "custom-text", Text: "X"},
-						{Type: "custom-text", Text: "Y"},
-					},
-				},
-			},
-			ctx: types.RenderContext{},
-			assertFunc: func(t *testing.T, lines []string) {
-				if len(lines) != 1 {
-					t.Fatalf("expected 1 line, got %d", len(lines))
-				}
-				stripped := StripAnsi(lines[0])
-				expected := "X Y"
-				if stripped != expected {
-					t.Errorf("expected %q, got %q", expected, stripped)
-				}
-			},
-		},
-		{
-			name: "empty separator renders widgets without separator",
-			settings: types.Settings{
-				General: types.GeneralConfig{
-					Separator: "",
-				},
-				Lines: [][]types.WidgetItem{
-					{
-						{Type: "custom-text", Text: "X"},
-						{Type: "custom-text", Text: "Y"},
-					},
-				},
-			},
-			ctx: types.RenderContext{},
-			assertFunc: func(t *testing.T, lines []string) {
-				if len(lines) != 1 {
-					t.Fatalf("expected 1 line, got %d", len(lines))
-				}
-				stripped := StripAnsi(lines[0])
-				expected := "XY"
-				if stripped != expected {
-					t.Errorf("expected %q, got %q", expected, stripped)
-				}
-			},
-		},
-		{
-			name: "default settings use middle dot separator",
-			settings: types.Settings{
-				General: types.DefaultSettings().General,
-				Lines: [][]types.WidgetItem{
-					{
-						{Type: "custom-text", Text: "X"},
-						{Type: "custom-text", Text: "Y"},
-					},
-				},
-			},
-			ctx: types.RenderContext{},
-			assertFunc: func(t *testing.T, lines []string) {
-				if len(lines) != 1 {
-					t.Fatalf("expected 1 line, got %d", len(lines))
-				}
-				stripped := StripAnsi(lines[0])
-				expected := "X · Y"
-				if stripped != expected {
-					t.Errorf("expected %q, got %q", expected, stripped)
-				}
-			},
-		},
-		{
-			name: "multiple lines with empty line handling",
-			settings: types.Settings{
-				Lines: [][]types.WidgetItem{
-					{
-						{Type: "custom-text", Text: "Line 1"},
-					},
-					{},
-					{
-						{Type: "custom-text", Text: "Line 3"},
-					},
-				},
-			},
-			ctx: types.RenderContext{},
-			assertFunc: func(t *testing.T, lines []string) {
-				if len(lines) != 3 {
-					t.Fatalf("expected 3 lines, got %d", len(lines))
-				}
-				if StripAnsi(lines[0]) != "Line 1" {
-					t.Errorf("expected line 1 to be 'Line 1', got %q", lines[0])
-				}
-				if lines[1] != "" {
-					t.Errorf("expected line 2 to be empty, got %q", lines[1])
-				}
-				if StripAnsi(lines[2]) != "Line 3" {
-					t.Errorf("expected line 3 to be 'Line 3', got %q", lines[2])
-				}
-			},
-		},
-	}
+		}
+		lines := RenderStatusLines(settings, ctx)
+		if len(lines) != 1 {
+			t.Fatalf("expected 1 line, got %d", len(lines))
+		}
+		stripped := StripAnsi(lines[0])
+		if !strings.Contains(stripped, "Claude 3.5 Sonnet") {
+			t.Errorf("expected 'Claude 3.5 Sonnet' in output, got %q", stripped)
+		}
+	})
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			lines := RenderStatusLines(tt.settings, tt.ctx)
-			tt.assertFunc(t, lines)
-		})
-	}
+	t.Run("title and body styling", func(t *testing.T) {
+		settings := types.Settings{
+			General: types.GeneralConfig{
+				ColorLevel: 1,
+			},
+			Lines: [][]types.WidgetItem{
+				{
+					{Type: "sandbox"},
+				},
+			},
+		}
+		ctx := types.RenderContext{
+			Data: types.StatusJSON{
+				Sandbox: &types.SandboxInfo{
+					Enabled: new(true),
+				},
+			},
+		}
+		lines := RenderStatusLines(settings, ctx)
+		if len(lines) != 1 {
+			t.Fatalf("expected 1 line, got %d", len(lines))
+		}
+		// Sandbox widget returns ("sandbox", "on")
+		// Title "sandbox" should be colored with brightBlack (\x1b[90m)
+		// Body "on" should be colored with brightGreen (\x1b[92m)
+		line := lines[0]
+		if !strings.Contains(line, "\x1b[90msandbox\x1b[39m") {
+			t.Errorf("expected title 'sandbox' in brightBlack, got %q", line)
+		}
+		if !strings.Contains(line, "\x1b[92mon\x1b[39m") {
+			t.Errorf("expected body 'on' in brightGreen, got %q", line)
+		}
+	})
+
+	t.Run("custom color override", func(t *testing.T) {
+		settings := types.Settings{
+			General: types.GeneralConfig{
+				ColorLevel: 1,
+			},
+			Lines: [][]types.WidgetItem{
+				{
+					{Type: "custom-text", Text: "Hello", Color: "red"},
+				},
+			},
+		}
+		lines := RenderStatusLines(settings, types.RenderContext{})
+		if len(lines) != 1 {
+			t.Fatalf("expected 1 line, got %d", len(lines))
+		}
+		line := lines[0]
+		if !strings.Contains(line, "\x1b[31mHello\x1b[39m") {
+			t.Errorf("expected custom color red (\x1b[31m) for Hello, got %q", line)
+		}
+	})
+
+	t.Run("item raw mode omits title", func(t *testing.T) {
+		settings := types.Settings{
+			Lines: [][]types.WidgetItem{
+				{
+					{Type: "sandbox", Raw: true},
+				},
+			},
+		}
+		ctx := types.RenderContext{
+			Data: types.StatusJSON{
+				Sandbox: &types.SandboxInfo{
+					Enabled: new(true),
+				},
+			},
+		}
+		lines := RenderStatusLines(settings, ctx)
+		if len(lines) != 1 {
+			t.Fatalf("expected 1 line, got %d", len(lines))
+		}
+		stripped := StripAnsi(lines[0])
+		if stripped != "on" {
+			t.Errorf("expected raw output 'on', got %q", stripped)
+		}
+	})
+
+	t.Run("settings minimalist mode omits title", func(t *testing.T) {
+		settings := types.Settings{
+			General: types.GeneralConfig{
+				Minimalist: true,
+			},
+			Lines: [][]types.WidgetItem{
+				{
+					{Type: "sandbox"},
+					{Type: "artifacts"},
+				},
+			},
+		}
+		ctx := types.RenderContext{
+			Data: types.StatusJSON{
+				Sandbox: &types.SandboxInfo{
+					Enabled: new(true),
+				},
+				ArtifactCount: new(5),
+			},
+		}
+		lines := RenderStatusLines(settings, ctx)
+		if len(lines) != 1 {
+			t.Fatalf("expected 1 line, got %d", len(lines))
+		}
+		stripped := StripAnsi(lines[0])
+		if strings.Contains(stripped, "sandbox") || strings.Contains(stripped, "artifacts") {
+			t.Errorf("expected titles to be omitted in minimalist mode, got %q", stripped)
+		}
+		if !strings.Contains(stripped, "on") || !strings.Contains(stripped, "5") {
+			t.Errorf("expected bodies 'on' and '5' in output, got %q", stripped)
+		}
+	})
+
+	t.Run("context minimalist mode omits title", func(t *testing.T) {
+		settings := types.Settings{
+			Lines: [][]types.WidgetItem{
+				{
+					{Type: "sandbox"},
+				},
+			},
+		}
+		ctx := types.RenderContext{
+			Minimalist: true,
+			Data: types.StatusJSON{
+				Sandbox: &types.SandboxInfo{
+					Enabled: new(true),
+				},
+			},
+		}
+		lines := RenderStatusLines(settings, ctx)
+		if len(lines) != 1 {
+			t.Fatalf("expected 1 line, got %d", len(lines))
+		}
+		stripped := StripAnsi(lines[0])
+		if stripped != "on" {
+			t.Errorf("expected minimalist output 'on', got %q", stripped)
+		}
+	})
+
+	t.Run("separator and padding formatting", func(t *testing.T) {
+		tests := []struct {
+			name     string
+			settings types.Settings
+			expected string
+		}{
+			{
+				name: "custom separator and padding",
+				settings: types.Settings{
+					General: types.GeneralConfig{
+						Separator: "|",
+						Padding:   " ",
+					},
+					Lines: [][]types.WidgetItem{
+						{
+							{Type: "custom-text", Text: "A"},
+							{Type: "custom-text", Text: "B"},
+							{Type: "custom-text", Text: "C"},
+						},
+					},
+				},
+				expected: " A  |  B  |  C ",
+			},
+			{
+				name: "comma separator formatting",
+				settings: types.Settings{
+					General: types.GeneralConfig{
+						Separator: ",",
+					},
+					Lines: [][]types.WidgetItem{
+						{
+							{Type: "custom-text", Text: "X"},
+							{Type: "custom-text", Text: "Y"},
+						},
+					},
+				},
+				expected: "X, Y",
+			},
+			{
+				name: "dash separator formatting",
+				settings: types.Settings{
+					General: types.GeneralConfig{
+						Separator: "-",
+					},
+					Lines: [][]types.WidgetItem{
+						{
+							{Type: "custom-text", Text: "X"},
+							{Type: "custom-text", Text: "Y"},
+						},
+					},
+				},
+				expected: "X - Y",
+			},
+			{
+				name: "space separator formatting",
+				settings: types.Settings{
+					General: types.GeneralConfig{
+						Separator: " ",
+					},
+					Lines: [][]types.WidgetItem{
+						{
+							{Type: "custom-text", Text: "X"},
+							{Type: "custom-text", Text: "Y"},
+						},
+					},
+				},
+				expected: "X Y",
+			},
+			{
+				name: "empty separator renders widgets without separator",
+				settings: types.Settings{
+					General: types.GeneralConfig{
+						Separator: "",
+					},
+					Lines: [][]types.WidgetItem{
+						{
+							{Type: "custom-text", Text: "X"},
+							{Type: "custom-text", Text: "Y"},
+						},
+					},
+				},
+				expected: "XY",
+			},
+			{
+				name: "default settings use middle dot separator",
+				settings: types.Settings{
+					General: types.DefaultSettings().General,
+					Lines: [][]types.WidgetItem{
+						{
+							{Type: "custom-text", Text: "X"},
+							{Type: "custom-text", Text: "Y"},
+						},
+					},
+				},
+				expected: "X · Y",
+			},
+		}
+
+		for _, tc := range tests {
+			t.Run(tc.name, func(t *testing.T) {
+				lines := RenderStatusLines(tc.settings, types.RenderContext{})
+				if len(lines) != 1 {
+					t.Fatalf("expected 1 line, got %d", len(lines))
+				}
+				stripped := StripAnsi(lines[0])
+				if stripped != tc.expected {
+					t.Errorf("expected %q, got %q", tc.expected, stripped)
+				}
+			})
+		}
+	})
+
+	t.Run("multiple lines with empty line handling", func(t *testing.T) {
+		settings := types.Settings{
+			Lines: [][]types.WidgetItem{
+				{
+					{Type: "custom-text", Text: "Line 1"},
+				},
+				{},
+				{
+					{Type: "custom-text", Text: "Line 3"},
+				},
+			},
+		}
+		lines := RenderStatusLines(settings, types.RenderContext{})
+		if len(lines) != 3 {
+			t.Fatalf("expected 3 lines, got %d", len(lines))
+		}
+		if StripAnsi(lines[0]) != "Line 1" {
+			t.Errorf("expected line 1 to be 'Line 1', got %q", lines[0])
+		}
+		if lines[1] != "" {
+			t.Errorf("expected line 2 to be empty, got %q", lines[1])
+		}
+		if StripAnsi(lines[2]) != "Line 3" {
+			t.Errorf("expected line 3 to be 'Line 3', got %q", lines[2])
+		}
+	})
 }
 
 func TestRenderStatusLines_Powerline(t *testing.T) {
@@ -524,47 +462,31 @@ func TestRenderStatusLines_ColorLevels(t *testing.T) {
 		name       string
 		colorLevel int
 		powerline  bool
-		verify     func(t *testing.T, output string)
+		wantEscape string
 	}{
 		{
 			name:       "non-powerline ansi16",
 			colorLevel: 1,
 			powerline:  false,
-			verify: func(t *testing.T, output string) {
-				if !strings.Contains(output, "\x1b[31m") {
-					t.Errorf("expected ansi16 code \x1b[31m, got %q", output)
-				}
-			},
+			wantEscape: "\x1b[31m",
 		},
 		{
 			name:       "non-powerline ansi256",
 			colorLevel: 2,
 			powerline:  false,
-			verify: func(t *testing.T, output string) {
-				if !strings.Contains(output, "\x1b[38;5;160m") {
-					t.Errorf("expected ansi256 code \x1b[38;5;160m, got %q", output)
-				}
-			},
+			wantEscape: "\x1b[38;5;160m",
 		},
 		{
 			name:       "non-powerline truecolor",
 			colorLevel: 3,
 			powerline:  false,
-			verify: func(t *testing.T, output string) {
-				if !strings.Contains(output, "\x1b[38;2;204;0;0m") {
-					t.Errorf("expected truecolor code \x1b[38;2;204;0;0m, got %q", output)
-				}
-			},
+			wantEscape: "\x1b[38;2;204;0;0m",
 		},
 		{
 			name:       "powerline truecolor",
 			colorLevel: 3,
 			powerline:  true,
-			verify: func(t *testing.T, output string) {
-				if !strings.Contains(output, "\x1b[48;2;") {
-					t.Errorf("expected truecolor bg code \x1b[48;2;..., got %q", output)
-				}
-			},
+			wantEscape: "\x1b[48;2;",
 		},
 	}
 
@@ -589,7 +511,9 @@ func TestRenderStatusLines_ColorLevels(t *testing.T) {
 			if len(lines) != 1 {
 				t.Fatalf("expected 1 line, got %d", len(lines))
 			}
-			tt.verify(t, lines[0])
+			if !strings.Contains(lines[0], tt.wantEscape) {
+				t.Errorf("expected color escape code %q in output, got %q", tt.wantEscape, lines[0])
+			}
 		})
 	}
 }
@@ -963,91 +887,155 @@ func TestAdversarial_MinimalistAndRawModes_AllWidgets(t *testing.T) {
 		VCS: &types.VCSInfo{Branch: "feature-x"},
 	}
 
-	widgetTypes := []struct {
+	titledWidgets := []struct {
 		item         types.WidgetItem
 		expectedBody string
 		title        string
 	}{
-		{types.WidgetItem{Type: "model"}, "Claude 3.5 Sonnet", ""},
 		{types.WidgetItem{Type: "context-bar"}, "25.0%", "ctx"},
-		{types.WidgetItem{Type: "agent-state"}, "WORKING", ""},
 		{types.WidgetItem{Type: "artifacts"}, "3", "artifacts"},
 		{types.WidgetItem{Type: "subagents"}, "2", "subagents"},
 		{types.WidgetItem{Type: "tasks"}, "4", "tasks"},
 		{types.WidgetItem{Type: "sandbox"}, "on", "sandbox"},
 		{types.WidgetItem{Type: "quota", Key: "rpc"}, "20.00%", "rpc"},
 		{types.WidgetItem{Type: "quota-bar", Key: "rpc"}, "20.0%", "rpc"},
-		{types.WidgetItem{Type: "git-branch"}, "feature-x", ""},
-		{types.WidgetItem{Type: "custom-text", Text: "CustomStatic"}, "CustomStatic", ""},
 	}
 
-	for _, wt := range widgetTypes {
-		t.Run("widget_"+wt.item.Type+"_modes", func(t *testing.T) {
-			// Mode 1: Standard (title should be present if non-empty)
-			itemStd := wt.item
-			settingsStd := types.Settings{
-				General: types.GeneralConfig{Separator: " · "},
-				Lines: [][]types.WidgetItem{
-					{itemStd},
-				},
-			}
-			linesStd := RenderStatusLines(settingsStd, types.RenderContext{Data: statusData})
-			if len(linesStd) != 1 {
-				t.Fatalf("expected 1 line, got %d", len(linesStd))
-			}
-			strippedStd := StripAnsi(linesStd[0])
-			if !strings.Contains(strippedStd, wt.expectedBody) {
-				t.Errorf("standard mode expected body %q, got %q", wt.expectedBody, strippedStd)
-			}
-			if wt.title != "" && !strings.Contains(strippedStd, wt.title) {
-				t.Errorf("standard mode expected title %q, got %q", wt.title, strippedStd)
-			}
-
-			// Mode 2: Item Raw = true (title must be omitted)
-			itemRaw := wt.item
-			itemRaw.Raw = true
-			settingsRaw := types.Settings{
-				General: types.GeneralConfig{Separator: " · "},
-				Lines: [][]types.WidgetItem{
-					{itemRaw},
-				},
-			}
-			linesRaw := RenderStatusLines(settingsRaw, types.RenderContext{Data: statusData})
-			strippedRaw := StripAnsi(linesRaw[0])
-			if !strings.Contains(strippedRaw, wt.expectedBody) {
-				t.Errorf("raw mode expected body %q, got %q", wt.expectedBody, strippedRaw)
-			}
-			if wt.title != "" && strings.Contains(strippedRaw, wt.title+" ") {
-				t.Errorf("raw mode should omit title %q, got %q", wt.title, strippedRaw)
-			}
-
-			// Mode 3: Settings Minimalist = true (title must be omitted)
-			settingsMin := types.Settings{
-				General: types.GeneralConfig{Minimalist: true, Separator: " · "},
-				Lines: [][]types.WidgetItem{
-					{wt.item},
-				},
-			}
-			linesMin := RenderStatusLines(settingsMin, types.RenderContext{Data: statusData})
-			strippedMin := StripAnsi(linesMin[0])
-			if !strings.Contains(strippedMin, wt.expectedBody) {
-				t.Errorf("minimalist settings mode expected body %q, got %q", wt.expectedBody, strippedMin)
-			}
-			if wt.title != "" && strings.Contains(strippedMin, wt.title+" ") {
-				t.Errorf("minimalist settings mode should omit title %q, got %q", wt.title, strippedMin)
-			}
-
-			// Mode 4: Context Minimalist = true (title must be omitted)
-			linesCtxMin := RenderStatusLines(settingsStd, types.RenderContext{Data: statusData, Minimalist: true})
-			strippedCtxMin := StripAnsi(linesCtxMin[0])
-			if !strings.Contains(strippedCtxMin, wt.expectedBody) {
-				t.Errorf("minimalist context mode expected body %q, got %q", wt.expectedBody, strippedCtxMin)
-			}
-			if wt.title != "" && strings.Contains(strippedCtxMin, wt.title+" ") {
-				t.Errorf("minimalist context mode should omit title %q, got %q", wt.title, strippedCtxMin)
-			}
-		})
+	titlelessWidgets := []struct {
+		item         types.WidgetItem
+		expectedBody string
+	}{
+		{types.WidgetItem{Type: "model"}, "Claude 3.5 Sonnet"},
+		{types.WidgetItem{Type: "agent-state"}, "WORKING"},
+		{types.WidgetItem{Type: "git-branch"}, "feature-x"},
+		{types.WidgetItem{Type: "custom-text", Text: "CustomStatic"}, "CustomStatic"},
 	}
+
+	t.Run("titled widgets omit title in raw and minimalist modes", func(t *testing.T) {
+		for _, wt := range titledWidgets {
+			t.Run(wt.item.Type, func(t *testing.T) {
+				// Mode 1: Standard (title and body must be present)
+				settingsStd := types.Settings{
+					General: types.GeneralConfig{Separator: " · "},
+					Lines: [][]types.WidgetItem{
+						{wt.item},
+					},
+				}
+				linesStd := RenderStatusLines(settingsStd, types.RenderContext{Data: statusData})
+				if len(linesStd) != 1 {
+					t.Fatalf("expected 1 line, got %d", len(linesStd))
+				}
+				strippedStd := StripAnsi(linesStd[0])
+				if !strings.Contains(strippedStd, wt.expectedBody) {
+					t.Errorf("standard mode expected body %q, got %q", wt.expectedBody, strippedStd)
+				}
+				if !strings.Contains(strippedStd, wt.title) {
+					t.Errorf("standard mode expected title %q, got %q", wt.title, strippedStd)
+				}
+
+				// Mode 2: Item Raw = true (title must be omitted)
+				itemRaw := wt.item
+				itemRaw.Raw = true
+				settingsRaw := types.Settings{
+					General: types.GeneralConfig{Separator: " · "},
+					Lines: [][]types.WidgetItem{
+						{itemRaw},
+					},
+				}
+				linesRaw := RenderStatusLines(settingsRaw, types.RenderContext{Data: statusData})
+				strippedRaw := StripAnsi(linesRaw[0])
+				if !strings.Contains(strippedRaw, wt.expectedBody) {
+					t.Errorf("raw mode expected body %q, got %q", wt.expectedBody, strippedRaw)
+				}
+				if strings.Contains(strippedRaw, wt.title+" ") {
+					t.Errorf("raw mode should omit title %q, got %q", wt.title, strippedRaw)
+				}
+
+				// Mode 3: Settings Minimalist = true (title must be omitted)
+				settingsMin := types.Settings{
+					General: types.GeneralConfig{Minimalist: true, Separator: " · "},
+					Lines: [][]types.WidgetItem{
+						{wt.item},
+					},
+				}
+				linesMin := RenderStatusLines(settingsMin, types.RenderContext{Data: statusData})
+				strippedMin := StripAnsi(linesMin[0])
+				if !strings.Contains(strippedMin, wt.expectedBody) {
+					t.Errorf("minimalist settings mode expected body %q, got %q", wt.expectedBody, strippedMin)
+				}
+				if strings.Contains(strippedMin, wt.title+" ") {
+					t.Errorf("minimalist settings mode should omit title %q, got %q", wt.title, strippedMin)
+				}
+
+				// Mode 4: Context Minimalist = true (title must be omitted)
+				linesCtxMin := RenderStatusLines(settingsStd, types.RenderContext{Data: statusData, Minimalist: true})
+				strippedCtxMin := StripAnsi(linesCtxMin[0])
+				if !strings.Contains(strippedCtxMin, wt.expectedBody) {
+					t.Errorf("minimalist context mode expected body %q, got %q", wt.expectedBody, strippedCtxMin)
+				}
+				if strings.Contains(strippedCtxMin, wt.title+" ") {
+					t.Errorf("minimalist context mode should omit title %q, got %q", wt.title, strippedCtxMin)
+				}
+			})
+		}
+	})
+
+	t.Run("title-less widgets render body across all modes", func(t *testing.T) {
+		for _, wt := range titlelessWidgets {
+			t.Run(wt.item.Type, func(t *testing.T) {
+				// Mode 1: Standard
+				settingsStd := types.Settings{
+					General: types.GeneralConfig{Separator: " · "},
+					Lines: [][]types.WidgetItem{
+						{wt.item},
+					},
+				}
+				linesStd := RenderStatusLines(settingsStd, types.RenderContext{Data: statusData})
+				if len(linesStd) != 1 {
+					t.Fatalf("expected 1 line, got %d", len(linesStd))
+				}
+				strippedStd := StripAnsi(linesStd[0])
+				if !strings.Contains(strippedStd, wt.expectedBody) {
+					t.Errorf("standard mode expected body %q, got %q", wt.expectedBody, strippedStd)
+				}
+
+				// Mode 2: Item Raw = true
+				itemRaw := wt.item
+				itemRaw.Raw = true
+				settingsRaw := types.Settings{
+					General: types.GeneralConfig{Separator: " · "},
+					Lines: [][]types.WidgetItem{
+						{itemRaw},
+					},
+				}
+				linesRaw := RenderStatusLines(settingsRaw, types.RenderContext{Data: statusData})
+				strippedRaw := StripAnsi(linesRaw[0])
+				if !strings.Contains(strippedRaw, wt.expectedBody) {
+					t.Errorf("raw mode expected body %q, got %q", wt.expectedBody, strippedRaw)
+				}
+
+				// Mode 3: Settings Minimalist = true
+				settingsMin := types.Settings{
+					General: types.GeneralConfig{Minimalist: true, Separator: " · "},
+					Lines: [][]types.WidgetItem{
+						{wt.item},
+					},
+				}
+				linesMin := RenderStatusLines(settingsMin, types.RenderContext{Data: statusData})
+				strippedMin := StripAnsi(linesMin[0])
+				if !strings.Contains(strippedMin, wt.expectedBody) {
+					t.Errorf("minimalist settings mode expected body %q, got %q", wt.expectedBody, strippedMin)
+				}
+
+				// Mode 4: Context Minimalist = true
+				linesCtxMin := RenderStatusLines(settingsStd, types.RenderContext{Data: statusData, Minimalist: true})
+				strippedCtxMin := StripAnsi(linesCtxMin[0])
+				if !strings.Contains(strippedCtxMin, wt.expectedBody) {
+					t.Errorf("minimalist context mode expected body %q, got %q", wt.expectedBody, strippedCtxMin)
+				}
+			})
+		}
+	})
 }
 
 func TestAdversarial_AdjacentPowerlineElementsSameColor(t *testing.T) {

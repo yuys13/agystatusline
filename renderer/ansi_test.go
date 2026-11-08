@@ -187,16 +187,14 @@ func TestParseEscape_OSC8_TerminationAndEdgeCases(t *testing.T) {
 			if ok != tt.wantOk {
 				t.Fatalf("parseEscape(%q, 0) ok = %v; want %v", tt.input, ok, tt.wantOk)
 			}
-			if ok {
-				if res.isOsc8 != tt.wantIsOsc8 {
-					t.Errorf("isOsc8 = %v; want %v", res.isOsc8, tt.wantIsOsc8)
-				}
-				if res.isClose != tt.wantIsClose {
-					t.Errorf("isClose = %v; want %v", res.isClose, tt.wantIsClose)
-				}
-				if res.nextIndex != len(tt.input) {
-					t.Errorf("nextIndex = %d; want %d", res.nextIndex, len(tt.input))
-				}
+			if res.isOsc8 != tt.wantIsOsc8 {
+				t.Errorf("isOsc8 = %v; want %v", res.isOsc8, tt.wantIsOsc8)
+			}
+			if res.isClose != tt.wantIsClose {
+				t.Errorf("isClose = %v; want %v", res.isClose, tt.wantIsClose)
+			}
+			if res.nextIndex != len(tt.input) {
+				t.Errorf("nextIndex = %d; want %d", res.nextIndex, len(tt.input))
 			}
 		})
 	}

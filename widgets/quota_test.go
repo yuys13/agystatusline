@@ -521,232 +521,220 @@ func TestQuotaWidgets_ExtremeBoundaryValues(t *testing.T) {
 	hugeSeconds := 1e12
 	negSeconds := -999.0
 
-	tests := []struct {
-		name          string
-		widgetType    string
-		quotaInfo     types.QuotaInfo
-		expectNoPanic bool
-		verify        func(t *testing.T, title, body, color string)
-	}{
-		{
-			name:       "0.0 fraction (0% remaining)",
-			widgetType: "quota-5h",
-			quotaInfo:  types.QuotaInfo{RemainingFraction: &zeroFraction},
-			verify: func(t *testing.T, title, body, color string) {
-				if title != "Gemini 5h" || body != "0.00%" {
-					t.Errorf("Expected Gemini 5h and 0.00%%, got title=%q, body=%q", title, body)
-				}
-				if color != "brightWhite" {
-					t.Errorf("Expected brightWhite, got %q", color)
-				}
+	t.Run("PercentageBoundaries", func(t *testing.T) {
+		tests := []struct {
+			name           string
+			widgetType     string
+			quotaInfo      types.QuotaInfo
+			wantTitle      string
+			wantBodyPrefix string
+			wantColor      string
+		}{
+			{
+				name:           "0.0 fraction (0% remaining)",
+				widgetType:     "quota-5h",
+				quotaInfo:      types.QuotaInfo{RemainingFraction: &zeroFraction},
+				wantTitle:      "Gemini 5h",
+				wantBodyPrefix: "0.00%",
+				wantColor:      "brightWhite",
 			},
-		},
-		{
-			name:       "0.0 fraction on Quota Bar (0% remaining)",
-			widgetType: "quota-bar-5h",
-			quotaInfo:  types.QuotaInfo{RemainingFraction: &zeroFraction},
-			verify: func(t *testing.T, title, body, color string) {
-				if title != "Gemini 5h" || !strings.HasPrefix(body, "·········· 0.0%") {
-					t.Errorf("Expected empty bar and 0.0%%, got title=%q, body=%q", title, body)
-				}
-				if color != "brightRed" {
-					t.Errorf("Expected brightRed for 0%% bar, got %q", color)
-				}
+			{
+				name:           "0.0 fraction on Quota Bar (0% remaining)",
+				widgetType:     "quota-bar-5h",
+				quotaInfo:      types.QuotaInfo{RemainingFraction: &zeroFraction},
+				wantTitle:      "Gemini 5h",
+				wantBodyPrefix: "·········· 0.0%",
+				wantColor:      "brightRed",
 			},
-		},
-		{
-			name:       "1.0 fraction (100% remaining)",
-			widgetType: "quota-7d",
-			quotaInfo:  types.QuotaInfo{RemainingFraction: &oneFraction},
-			verify: func(t *testing.T, title, body, color string) {
-				if title != "Gemini 7d" || body != "100.00%" {
-					t.Errorf("Expected Gemini 7d and 100.00%%, got title=%q, body=%q", title, body)
-				}
-				if color != "brightWhite" {
-					t.Errorf("Expected brightWhite, got %q", color)
-				}
+			{
+				name:           "1.0 fraction (100% remaining)",
+				widgetType:     "quota-7d",
+				quotaInfo:      types.QuotaInfo{RemainingFraction: &oneFraction},
+				wantTitle:      "Gemini 7d",
+				wantBodyPrefix: "100.00%",
+				wantColor:      "brightWhite",
 			},
-		},
-		{
-			name:       "1.0 fraction (100% remaining) on Quota Argon",
-			widgetType: "quota-argon-7d",
-			quotaInfo:  types.QuotaInfo{RemainingFraction: &oneFraction},
-			verify: func(t *testing.T, title, body, color string) {
-				if title != "Argon 7d" || body != "100.00%" {
-					t.Errorf("Expected Argon 7d and 100.00%%, got title=%q, body=%q", title, body)
-				}
-				if color != "brightWhite" {
-					t.Errorf("Expected brightWhite, got %q", color)
-				}
+			{
+				name:           "1.0 fraction (100% remaining) on Quota Argon",
+				widgetType:     "quota-argon-7d",
+				quotaInfo:      types.QuotaInfo{RemainingFraction: &oneFraction},
+				wantTitle:      "Argon 7d",
+				wantBodyPrefix: "100.00%",
+				wantColor:      "brightWhite",
 			},
-		},
-		{
-			name:       "1.0 fraction on Quota Bar (100% remaining)",
-			widgetType: "quota-bar-7d",
-			quotaInfo:  types.QuotaInfo{RemainingFraction: &oneFraction},
-			verify: func(t *testing.T, title, body, color string) {
-				if title != "Gemini 7d" || !strings.HasPrefix(body, "██████████ 100.0%") {
-					t.Errorf("Expected full bar and 100.0%%, got title=%q, body=%q", title, body)
-				}
-				if color != "brightGreen" {
-					t.Errorf("Expected brightGreen for 100%% bar, got %q", color)
-				}
+			{
+				name:           "1.0 fraction on Quota Bar (100% remaining)",
+				widgetType:     "quota-bar-7d",
+				quotaInfo:      types.QuotaInfo{RemainingFraction: &oneFraction},
+				wantTitle:      "Gemini 7d",
+				wantBodyPrefix: "██████████ 100.0%",
+				wantColor:      "brightGreen",
 			},
-		},
-		{
-			name:       "1.0 fraction on Quota Bar Argon (100% remaining)",
-			widgetType: "quota-bar-argon-7d",
-			quotaInfo:  types.QuotaInfo{RemainingFraction: &oneFraction},
-			verify: func(t *testing.T, title, body, color string) {
-				if title != "Argon 7d" || !strings.HasPrefix(body, "██████████ 100.0%") {
-					t.Errorf("Expected full bar and 100.0%%, got title=%q, body=%q", title, body)
-				}
-				if color != "brightGreen" {
-					t.Errorf("Expected brightGreen for 100%% bar, got %q", color)
-				}
+			{
+				name:           "1.0 fraction on Quota Bar Argon (100% remaining)",
+				widgetType:     "quota-bar-argon-7d",
+				quotaInfo:      types.QuotaInfo{RemainingFraction: &oneFraction},
+				wantTitle:      "Argon 7d",
+				wantBodyPrefix: "██████████ 100.0%",
+				wantColor:      "brightGreen",
 			},
-		},
-		{
-			name:       "Negative fraction (-0.5) on Quota Bar",
-			widgetType: "quota-bar-3p-5h",
-			quotaInfo:  types.QuotaInfo{RemainingFraction: &negFraction},
-			verify: func(t *testing.T, title, body, color string) {
-				if title != "Claude 5h" || !strings.HasPrefix(body, "·········· -50.0%") {
-					t.Errorf("Expected clamped empty bar and -50.0%%, got title=%q, body=%q", title, body)
-				}
-				if color != "brightRed" {
-					t.Errorf("Expected brightRed for negative bar, got %q", color)
-				}
+			{
+				name:           "Negative fraction (-0.5) on Quota Bar",
+				widgetType:     "quota-bar-3p-5h",
+				quotaInfo:      types.QuotaInfo{RemainingFraction: &negFraction},
+				wantTitle:      "Claude 5h",
+				wantBodyPrefix: "·········· -50.0%",
+				wantColor:      "brightRed",
 			},
-		},
-		{
-			name:       "Over 100% fraction (1.5) on Quota Bar",
-			widgetType: "quota-bar-3p-7d",
-			quotaInfo:  types.QuotaInfo{RemainingFraction: &overOneFraction},
-			verify: func(t *testing.T, title, body, color string) {
-				if title != "Claude 7d" || !strings.HasPrefix(body, "██████████ 150.0%") {
-					t.Errorf("Expected clamped full bar and 150.0%%, got title=%q, body=%q", title, body)
-				}
-				if color != "brightGreen" {
-					t.Errorf("Expected brightGreen for over 100%% bar, got %q", color)
-				}
+			{
+				name:           "Over 100% fraction (1.5) on Quota Bar",
+				widgetType:     "quota-bar-3p-7d",
+				quotaInfo:      types.QuotaInfo{RemainingFraction: &overOneFraction},
+				wantTitle:      "Claude 7d",
+				wantBodyPrefix: "██████████ 150.0%",
+				wantColor:      "brightGreen",
 			},
-		},
-		{
-			name:       "Negative huge fraction (-100.0)",
-			widgetType: "quota-bar-5h",
-			quotaInfo:  types.QuotaInfo{RemainingFraction: &negHugeFraction},
-			verify: func(t *testing.T, title, body, color string) {
-				if title != "Gemini 5h" || !strings.HasPrefix(body, "·········· -10000.0%") {
-					t.Errorf("Expected clamped empty bar and -10000.0%%, got title=%q, body=%q", title, body)
-				}
+			{
+				name:           "Negative huge fraction (-100.0)",
+				widgetType:     "quota-bar-5h",
+				quotaInfo:      types.QuotaInfo{RemainingFraction: &negHugeFraction},
+				wantTitle:      "Gemini 5h",
+				wantBodyPrefix: "·········· -10000.0%",
+				wantColor:      "brightRed",
 			},
-		},
-		{
-			name:       "NaN fraction on Quota",
-			widgetType: "quota-5h",
-			quotaInfo:  types.QuotaInfo{RemainingFraction: &nanVal},
-			verify: func(t *testing.T, title, body, color string) {
-				if title != "Gemini 5h" || !strings.Contains(body, "NaN%") {
-					t.Errorf("Expected Gemini 5h and NaN%%, got title=%q, body=%q", title, body)
-				}
+			{
+				name:           "NaN fraction on Quota",
+				widgetType:     "quota-5h",
+				quotaInfo:      types.QuotaInfo{RemainingFraction: &nanVal},
+				wantTitle:      "Gemini 5h",
+				wantBodyPrefix: "NaN%",
+				wantColor:      "brightWhite",
 			},
-		},
-		{
-			name:       "NaN fraction on Quota Bar",
-			widgetType: "quota-bar-5h",
-			quotaInfo:  types.QuotaInfo{RemainingFraction: &nanVal},
-			verify: func(t *testing.T, title, body, color string) {
-				if title != "Gemini 5h" || !strings.Contains(body, "NaN%") {
-					t.Errorf("Expected Gemini 5h and NaN%%, got title=%q, body=%q", title, body)
-				}
-				if color != "brightRed" {
-					t.Errorf("Expected brightRed for NaN, got %q", color)
-				}
+			{
+				name:           "NaN fraction on Quota Bar",
+				widgetType:     "quota-bar-5h",
+				quotaInfo:      types.QuotaInfo{RemainingFraction: &nanVal},
+				wantTitle:      "Gemini 5h",
+				wantBodyPrefix: "·········· NaN%",
+				wantColor:      "brightRed",
 			},
-		},
-		{
-			name:       "+Inf and -Inf fraction",
-			widgetType: "quota-5h",
-			quotaInfo:  types.QuotaInfo{RemainingFraction: &infVal},
-			verify: func(t *testing.T, title, body, color string) {
-				if title != "Gemini 5h" || !strings.Contains(body, "+Inf%") {
-					t.Errorf("Expected +Inf%%, got body=%q", body)
-				}
+			{
+				name:           "+Inf fraction on Quota",
+				widgetType:     "quota-5h",
+				quotaInfo:      types.QuotaInfo{RemainingFraction: &infVal},
+				wantTitle:      "Gemini 5h",
+				wantBodyPrefix: "+Inf%",
+				wantColor:      "brightWhite",
 			},
-		},
-		{
-			name:       "Huge seconds and negative seconds",
-			widgetType: "quota-5h",
-			quotaInfo:  types.QuotaInfo{RemainingFraction: &oneFraction, ResetInSeconds: &hugeSeconds},
-			verify: func(t *testing.T, title, body, color string) {
-				if !strings.Contains(body, "d") {
-					t.Errorf("Expected days in huge reset, got body=%q", body)
-				}
+			{
+				name:           "-Inf fraction on Quota",
+				widgetType:     "quota-5h",
+				quotaInfo:      types.QuotaInfo{RemainingFraction: &negInfVal},
+				wantTitle:      "Gemini 5h",
+				wantBodyPrefix: "-Inf%",
+				wantColor:      "brightWhite",
 			},
-		},
-		{
-			name:       "Negative reset seconds (-999)",
-			widgetType: "quota-5h",
-			quotaInfo:  types.QuotaInfo{RemainingFraction: &oneFraction, ResetInSeconds: &negSeconds},
-			verify: func(t *testing.T, title, body, color string) {
-				if !strings.Contains(body, "(0s)") {
-					t.Errorf("Expected (0s) for negative reset seconds, got body=%q", body)
-				}
-			},
-		},
-		{
-			name:       "NaN reset seconds",
-			widgetType: "quota-5h",
-			quotaInfo:  types.QuotaInfo{RemainingFraction: &oneFraction, ResetInSeconds: &nanVal},
-			verify: func(t *testing.T, title, body, color string) {
-				if !strings.Contains(body, "(0s)") {
-					t.Errorf("Expected (0s) for NaN reset seconds, got body=%q", body)
-				}
-			},
-		},
-	}
+		}
 
-	_ = negInfVal
+		for _, tt := range tests {
+			t.Run(tt.name, func(t *testing.T) {
+				w := GetWidget(tt.widgetType)
+				if w == nil {
+					t.Fatalf("Widget %q not found", tt.widgetType)
+				}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			w := GetWidget(tt.widgetType)
-			if w == nil {
-				t.Fatalf("Widget %q not found", tt.widgetType)
-			}
+				key := "gemini-5h"
+				switch tt.widgetType {
+				case "quota-7d", "quota-bar-7d":
+					key = "gemini-weekly"
+				case "quota-argon-7d", "quota-bar-argon-7d":
+					key = "gemini-argon-wtu-weekly"
+				case "quota-3p-5h", "quota-bar-3p-5h":
+					key = "3p-5h"
+				case "quota-3p-7d", "quota-bar-3p-7d":
+					key = "3p-weekly"
+				}
 
-			key := "gemini-5h"
-			switch tt.widgetType {
-			case "quota-7d", "quota-bar-7d":
-				key = "gemini-weekly"
-			case "quota-argon-7d", "quota-bar-argon-7d":
-				key = "gemini-argon-wtu-weekly"
-			case "quota-3p-5h", "quota-bar-3p-5h":
-				key = "3p-5h"
-			case "quota-3p-7d", "quota-bar-3p-7d":
-				key = "3p-weekly"
-			}
-
-			ctx := types.RenderContext{
-				Data: types.StatusJSON{
-					Quota: map[string]types.QuotaInfo{
-						key: tt.quotaInfo,
+				ctx := types.RenderContext{
+					Data: types.StatusJSON{
+						Quota: map[string]types.QuotaInfo{
+							key: tt.quotaInfo,
+						},
 					},
-				},
-			}
+				}
 
-			item := types.WidgetItem{Type: tt.widgetType}
-			title, body, err := w.Render(item, ctx, settings)
-			if err != nil {
-				t.Fatalf("Unexpected render error: %v", err)
-			}
-			color := w.GetBodyColor(item, ctx)
-			if tt.verify != nil {
-				tt.verify(t, title, body, color)
-			}
-		})
-	}
+				item := types.WidgetItem{Type: tt.widgetType}
+				title, body, err := w.Render(item, ctx, settings)
+				if err != nil {
+					t.Fatalf("Unexpected render error: %v", err)
+				}
+				if title != tt.wantTitle {
+					t.Errorf("Expected title %q, got %q", tt.wantTitle, title)
+				}
+				if !strings.HasPrefix(body, tt.wantBodyPrefix) {
+					t.Errorf("Expected body prefix %q, got body %q", tt.wantBodyPrefix, body)
+				}
+				color := w.GetBodyColor(item, ctx)
+				if color != tt.wantColor {
+					t.Errorf("Expected color %q, got %q", tt.wantColor, color)
+				}
+			})
+		}
+	})
+
+	t.Run("ResetSecondsBoundaries", func(t *testing.T) {
+		tests := []struct {
+			name             string
+			widgetType       string
+			quotaInfo        types.QuotaInfo
+			wantBodyContains string
+		}{
+			{
+				name:             "Huge seconds",
+				widgetType:       "quota-5h",
+				quotaInfo:        types.QuotaInfo{RemainingFraction: &oneFraction, ResetInSeconds: &hugeSeconds},
+				wantBodyContains: "d",
+			},
+			{
+				name:             "Negative reset seconds (-999)",
+				widgetType:       "quota-5h",
+				quotaInfo:        types.QuotaInfo{RemainingFraction: &oneFraction, ResetInSeconds: &negSeconds},
+				wantBodyContains: "(0s)",
+			},
+			{
+				name:             "NaN reset seconds",
+				widgetType:       "quota-5h",
+				quotaInfo:        types.QuotaInfo{RemainingFraction: &oneFraction, ResetInSeconds: &nanVal},
+				wantBodyContains: "(0s)",
+			},
+		}
+
+		for _, tt := range tests {
+			t.Run(tt.name, func(t *testing.T) {
+				w := GetWidget(tt.widgetType)
+				if w == nil {
+					t.Fatalf("Widget %q not found", tt.widgetType)
+				}
+
+				ctx := types.RenderContext{
+					Data: types.StatusJSON{
+						Quota: map[string]types.QuotaInfo{
+							"gemini-5h": tt.quotaInfo,
+						},
+					},
+				}
+
+				item := types.WidgetItem{Type: tt.widgetType}
+				_, body, err := w.Render(item, ctx, settings)
+				if err != nil {
+					t.Fatalf("Unexpected render error: %v", err)
+				}
+				if !strings.Contains(body, tt.wantBodyContains) {
+					t.Errorf("Expected body to contain %q, got %q", tt.wantBodyContains, body)
+				}
+			})
+		}
+	})
 }
 
 func TestQuotaWidgets_CustomSettingsLabels(t *testing.T) {

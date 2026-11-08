@@ -27,89 +27,142 @@ func TestContextBarWidget(t *testing.T) {
 	pct65 := 65.0
 	pct95 := 95.0
 
-	tests := []struct {
-		name             string
-		item             types.WidgetItem
-		ctx              types.RenderContext
-		expectedTitle    string
-		bodyContainsText string
-		expectedBody     string
-		expectedColor    string
-	}{
-		{
-			name:          "Nil context window",
-			item:          types.WidgetItem{Type: "context-bar"},
-			ctx:           types.RenderContext{Data: types.StatusJSON{}},
-			expectedTitle: "ctx",
-			expectedBody:  "",
-			expectedColor: "brightWhite",
-		},
-		{
-			name:          "Nil context window with Raw=true",
-			item:          types.WidgetItem{Type: "context-bar", Raw: true},
-			ctx:           types.RenderContext{Data: types.StatusJSON{}},
-			expectedTitle: "",
-			expectedBody:  "",
-			expectedColor: "brightWhite",
-		},
-		{
-			name:             "50% usage",
-			item:             types.WidgetItem{Type: "context-bar"},
-			ctx:              types.RenderContext{Data: types.StatusJSON{ContextWindow: &types.ContextWindowInfo{UsedPercentage: &pct50}}},
-			expectedTitle:    "ctx",
-			bodyContainsText: "50.0%",
-			expectedColor:    "brightWhite",
-		},
-		{
-			name:             "50% usage with Raw=true",
-			item:             types.WidgetItem{Type: "context-bar", Raw: true},
-			ctx:              types.RenderContext{Data: types.StatusJSON{ContextWindow: &types.ContextWindowInfo{UsedPercentage: &pct50}}},
-			expectedTitle:    "",
-			bodyContainsText: "50.0%",
-			expectedColor:    "brightWhite",
-		},
-		{
-			name:             "65% usage (yellow warning)",
-			item:             types.WidgetItem{Type: "context-bar"},
-			ctx:              types.RenderContext{Data: types.StatusJSON{ContextWindow: &types.ContextWindowInfo{UsedPercentage: &pct65}}},
-			expectedTitle:    "ctx",
-			bodyContainsText: "65.0%",
-			expectedColor:    "brightYellow",
-		},
-		{
-			name:             "95% usage (red critical)",
-			item:             types.WidgetItem{Type: "context-bar"},
-			ctx:              types.RenderContext{Data: types.StatusJSON{ContextWindow: &types.ContextWindowInfo{UsedPercentage: &pct95}}},
-			expectedTitle:    "ctx",
-			bodyContainsText: "95.0%",
-			expectedColor:    "brightRed",
-		},
-	}
+	t.Run("Render_NilContext", func(t *testing.T) {
+		tests := []struct {
+			name      string
+			item      types.WidgetItem
+			ctx       types.RenderContext
+			wantTitle string
+			wantBody  string
+		}{
+			{
+				name:      "Nil context window",
+				item:      types.WidgetItem{Type: "context-bar"},
+				ctx:       types.RenderContext{Data: types.StatusJSON{}},
+				wantTitle: "ctx",
+				wantBody:  "",
+			},
+			{
+				name:      "Nil context window with Raw=true",
+				item:      types.WidgetItem{Type: "context-bar", Raw: true},
+				ctx:       types.RenderContext{Data: types.StatusJSON{}},
+				wantTitle: "",
+				wantBody:  "",
+			},
+		}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			title, body, err := w.Render(tt.item, tt.ctx, settings)
-			if err != nil {
-				t.Fatalf("Render error: %v", err)
-			}
-			if tt.expectedTitle != "" || title != "" {
-				if title != tt.expectedTitle {
-					t.Errorf("Expected title %q, got %q", tt.expectedTitle, title)
+		for _, tt := range tests {
+			t.Run(tt.name, func(t *testing.T) {
+				title, body, err := w.Render(tt.item, tt.ctx, settings)
+				if err != nil {
+					t.Fatalf("Render error: %v", err)
 				}
-			}
-			if tt.bodyContainsText != "" && !strings.Contains(body, tt.bodyContainsText) {
-				t.Errorf("Expected body to contain %q, got %q", tt.bodyContainsText, body)
-			}
-			if tt.expectedBody != "" && body != tt.expectedBody {
-				t.Errorf("Expected body %q, got %q", tt.expectedBody, body)
-			}
-			if tt.expectedColor != "" {
-				if color := w.GetBodyColor(tt.item, tt.ctx); color != tt.expectedColor {
-					t.Errorf("Expected color %q, got %q", tt.expectedColor, color)
+				if title != tt.wantTitle {
+					t.Errorf("Expected title %q, got %q", tt.wantTitle, title)
 				}
-			}
-		})
-	}
+				if body != tt.wantBody {
+					t.Errorf("Expected body %q, got %q", tt.wantBody, body)
+				}
+			})
+		}
+	})
+
+	t.Run("Render_ActiveUsage", func(t *testing.T) {
+		tests := []struct {
+			name             string
+			item             types.WidgetItem
+			ctx              types.RenderContext
+			wantTitle        string
+			wantBodyContains string
+		}{
+			{
+				name:             "50% usage",
+				item:             types.WidgetItem{Type: "context-bar"},
+				ctx:              types.RenderContext{Data: types.StatusJSON{ContextWindow: &types.ContextWindowInfo{UsedPercentage: &pct50}}},
+				wantTitle:        "ctx",
+				wantBodyContains: "50.0%",
+			},
+			{
+				name:             "50% usage with Raw=true",
+				item:             types.WidgetItem{Type: "context-bar", Raw: true},
+				ctx:              types.RenderContext{Data: types.StatusJSON{ContextWindow: &types.ContextWindowInfo{UsedPercentage: &pct50}}},
+				wantTitle:        "",
+				wantBodyContains: "50.0%",
+			},
+			{
+				name:             "65% usage (yellow warning)",
+				item:             types.WidgetItem{Type: "context-bar"},
+				ctx:              types.RenderContext{Data: types.StatusJSON{ContextWindow: &types.ContextWindowInfo{UsedPercentage: &pct65}}},
+				wantTitle:        "ctx",
+				wantBodyContains: "65.0%",
+			},
+			{
+				name:             "95% usage (red critical)",
+				item:             types.WidgetItem{Type: "context-bar"},
+				ctx:              types.RenderContext{Data: types.StatusJSON{ContextWindow: &types.ContextWindowInfo{UsedPercentage: &pct95}}},
+				wantTitle:        "ctx",
+				wantBodyContains: "95.0%",
+			},
+		}
+
+		for _, tt := range tests {
+			t.Run(tt.name, func(t *testing.T) {
+				title, body, err := w.Render(tt.item, tt.ctx, settings)
+				if err != nil {
+					t.Fatalf("Render error: %v", err)
+				}
+				if title != tt.wantTitle {
+					t.Errorf("Expected title %q, got %q", tt.wantTitle, title)
+				}
+				if !strings.Contains(body, tt.wantBodyContains) {
+					t.Errorf("Expected body to contain %q, got %q", tt.wantBodyContains, body)
+				}
+			})
+		}
+	})
+
+	t.Run("GetBodyColor", func(t *testing.T) {
+		tests := []struct {
+			name      string
+			item      types.WidgetItem
+			ctx       types.RenderContext
+			wantColor string
+		}{
+			{
+				name:      "Nil context window",
+				item:      types.WidgetItem{Type: "context-bar"},
+				ctx:       types.RenderContext{Data: types.StatusJSON{}},
+				wantColor: "brightWhite",
+			},
+			{
+				name:      "50% usage (normal)",
+				item:      types.WidgetItem{Type: "context-bar"},
+				ctx:       types.RenderContext{Data: types.StatusJSON{ContextWindow: &types.ContextWindowInfo{UsedPercentage: &pct50}}},
+				wantColor: "brightWhite",
+			},
+			{
+				name:      "65% usage (yellow warning)",
+				item:      types.WidgetItem{Type: "context-bar"},
+				ctx:       types.RenderContext{Data: types.StatusJSON{ContextWindow: &types.ContextWindowInfo{UsedPercentage: &pct65}}},
+				wantColor: "brightYellow",
+			},
+			{
+				name:      "95% usage (red critical)",
+				item:      types.WidgetItem{Type: "context-bar"},
+				ctx:       types.RenderContext{Data: types.StatusJSON{ContextWindow: &types.ContextWindowInfo{UsedPercentage: &pct95}}},
+				wantColor: "brightRed",
+			},
+		}
+
+		for _, tt := range tests {
+			t.Run(tt.name, func(t *testing.T) {
+				color := w.GetBodyColor(tt.item, tt.ctx)
+				if color != tt.wantColor {
+					t.Errorf("Expected color %q, got %q", tt.wantColor, color)
+				}
+			})
+		}
+	})
 }
 
 func TestContextBarWidget_Percentages(t *testing.T) {

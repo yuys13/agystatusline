@@ -9,408 +9,511 @@ import (
 )
 
 func TestGitProvider_GetBranch(t *testing.T) {
-	tests := []struct {
-		name       string
-		runner     func(cmd string, ctx CwdResolver, ttl int) (string, error)
-		wantBranch string
-		wantDirty  bool
-		wantErr    bool
-		wantErrIs  error
-	}{
-		{
-			name: "Clean branch",
-			runner: func(cmd string, ctx CwdResolver, ttl int) (string, error) {
-				switch cmd {
-				case "rev-parse --is-inside-work-tree":
-					return "true", nil
-				case "symbolic-ref --short HEAD":
-					return "main\n", nil
-				case "status --porcelain":
-					return "", nil
-				default:
-					return "", nil
-				}
+	t.Run("Success", func(t *testing.T) {
+		tests := []struct {
+			name       string
+			runner     func(cmd string, ctx CwdResolver, ttl int) (string, error)
+			wantBranch string
+			wantDirty  bool
+		}{
+			{
+				name: "Clean branch",
+				runner: func(cmd string, ctx CwdResolver, ttl int) (string, error) {
+					switch cmd {
+					case "rev-parse --is-inside-work-tree":
+						return "true", nil
+					case "symbolic-ref --short HEAD":
+						return "main\n", nil
+					case "status --porcelain":
+						return "", nil
+					default:
+						return "", nil
+					}
+				},
+				wantBranch: "main",
+				wantDirty:  false,
 			},
-			wantBranch: "main",
-			wantDirty:  false,
-			wantErr:    false,
-		},
-		{
-			name: "Dirty branch",
-			runner: func(cmd string, ctx CwdResolver, ttl int) (string, error) {
-				switch cmd {
-				case "rev-parse --is-inside-work-tree":
-					return "true", nil
-				case "symbolic-ref --short HEAD":
-					return "feature/test\n", nil
-				case "status --porcelain":
-					return " M file.go\n", nil
-				default:
-					return "", nil
-				}
+			{
+				name: "Dirty branch",
+				runner: func(cmd string, ctx CwdResolver, ttl int) (string, error) {
+					switch cmd {
+					case "rev-parse --is-inside-work-tree":
+						return "true", nil
+					case "symbolic-ref --short HEAD":
+						return "feature/test\n", nil
+					case "status --porcelain":
+						return " M file.go\n", nil
+					default:
+						return "", nil
+					}
+				},
+				wantBranch: "feature/test",
+				wantDirty:  true,
 			},
-			wantBranch: "feature/test",
-			wantDirty:  true,
-			wantErr:    false,
-		},
-		{
-			name: "Not a git repository",
-			runner: func(cmd string, ctx CwdResolver, ttl int) (string, error) {
-				return "", errors.New("fatal: not a git repository")
+			{
+				name: "Detached HEAD with exact tag match (clean)",
+				runner: func(cmd string, ctx CwdResolver, ttl int) (string, error) {
+					switch cmd {
+					case "rev-parse --is-inside-work-tree":
+						return "true", nil
+					case "symbolic-ref --short HEAD":
+						return "", errors.New("fatal: ref HEAD is not a symbolic ref")
+					case "describe --tags --exact-match":
+						return "v1.2.0\n", nil
+					case "status --porcelain":
+						return "", nil
+					default:
+						return "", nil
+					}
+				},
+				wantBranch: "(v1.2.0)",
+				wantDirty:  false,
 			},
-			wantBranch: "",
-			wantDirty:  false,
-			wantErr:    true,
-			wantErrIs:  types.ErrNotGitRepository,
-		},
-		{
-			name: "Detached HEAD with exact tag match (clean)",
-			runner: func(cmd string, ctx CwdResolver, ttl int) (string, error) {
-				switch cmd {
-				case "rev-parse --is-inside-work-tree":
-					return "true", nil
-				case "symbolic-ref --short HEAD":
-					return "", errors.New("fatal: ref HEAD is not a symbolic ref")
-				case "describe --tags --exact-match":
-					return "v1.2.0\n", nil
-				case "status --porcelain":
-					return "", nil
-				default:
-					return "", nil
-				}
+			{
+				name: "Detached HEAD with exact tag match (dirty)",
+				runner: func(cmd string, ctx CwdResolver, ttl int) (string, error) {
+					switch cmd {
+					case "rev-parse --is-inside-work-tree":
+						return "true", nil
+					case "symbolic-ref --short HEAD":
+						return "", errors.New("fatal: ref HEAD is not a symbolic ref")
+					case "describe --tags --exact-match":
+						return "v1.2.0\n", nil
+					case "status --porcelain":
+						return " M main.go\n", nil
+					default:
+						return "", nil
+					}
+				},
+				wantBranch: "(v1.2.0)",
+				wantDirty:  true,
 			},
-			wantBranch: "(v1.2.0)",
-			wantDirty:  false,
-			wantErr:    false,
-		},
-		{
-			name: "Detached HEAD with exact tag match (dirty)",
-			runner: func(cmd string, ctx CwdResolver, ttl int) (string, error) {
-				switch cmd {
-				case "rev-parse --is-inside-work-tree":
-					return "true", nil
-				case "symbolic-ref --short HEAD":
-					return "", errors.New("fatal: ref HEAD is not a symbolic ref")
-				case "describe --tags --exact-match":
-					return "v1.2.0\n", nil
-				case "status --porcelain":
-					return " M main.go\n", nil
-				default:
-					return "", nil
-				}
+			{
+				name: "Detached HEAD without tag match, fallback to short commit SHA (clean)",
+				runner: func(cmd string, ctx CwdResolver, ttl int) (string, error) {
+					switch cmd {
+					case "rev-parse --is-inside-work-tree":
+						return "true", nil
+					case "symbolic-ref --short HEAD":
+						return "", errors.New("fatal: ref HEAD is not a symbolic ref")
+					case "describe --tags --exact-match":
+						return "", errors.New("fatal: No names found, cannot describe anything.")
+					case "rev-parse --short HEAD":
+						return "1a2b3c4\n", nil
+					case "status --porcelain":
+						return "", nil
+					default:
+						return "", nil
+					}
+				},
+				wantBranch: "(1a2b3c4)",
+				wantDirty:  false,
 			},
-			wantBranch: "(v1.2.0)",
-			wantDirty:  true,
-			wantErr:    false,
-		},
-		{
-			name: "Detached HEAD without tag match, fallback to short commit SHA (clean)",
-			runner: func(cmd string, ctx CwdResolver, ttl int) (string, error) {
-				switch cmd {
-				case "rev-parse --is-inside-work-tree":
-					return "true", nil
-				case "symbolic-ref --short HEAD":
-					return "", errors.New("fatal: ref HEAD is not a symbolic ref")
-				case "describe --tags --exact-match":
-					return "", errors.New("fatal: No names found, cannot describe anything.")
-				case "rev-parse --short HEAD":
-					return "1a2b3c4\n", nil
-				case "status --porcelain":
-					return "", nil
-				default:
-					return "", nil
-				}
+			{
+				name: "Detached HEAD without tag match, fallback to short commit SHA (dirty)",
+				runner: func(cmd string, ctx CwdResolver, ttl int) (string, error) {
+					switch cmd {
+					case "rev-parse --is-inside-work-tree":
+						return "true", nil
+					case "symbolic-ref --short HEAD":
+						return "", errors.New("fatal: ref HEAD is not a symbolic ref")
+					case "describe --tags --exact-match":
+						return "", errors.New("fatal: No names found, cannot describe anything.")
+					case "rev-parse --short HEAD":
+						return "1a2b3c4\n", nil
+					case "status --porcelain":
+						return "?? newfile.txt\n", nil
+					default:
+						return "", nil
+					}
+				},
+				wantBranch: "(1a2b3c4)",
+				wantDirty:  true,
 			},
-			wantBranch: "(1a2b3c4)",
-			wantDirty:  false,
-			wantErr:    false,
-		},
-		{
-			name: "Detached HEAD without tag match, fallback to short commit SHA (dirty)",
-			runner: func(cmd string, ctx CwdResolver, ttl int) (string, error) {
-				switch cmd {
-				case "rev-parse --is-inside-work-tree":
-					return "true", nil
-				case "symbolic-ref --short HEAD":
-					return "", errors.New("fatal: ref HEAD is not a symbolic ref")
-				case "describe --tags --exact-match":
-					return "", errors.New("fatal: No names found, cannot describe anything.")
-				case "rev-parse --short HEAD":
-					return "1a2b3c4\n", nil
-				case "status --porcelain":
-					return "?? newfile.txt\n", nil
-				default:
-					return "", nil
-				}
-			},
-			wantBranch: "(1a2b3c4)",
-			wantDirty:  true,
-			wantErr:    false,
-		},
-		{
-			name: "Detached HEAD where both tag and rev-parse fail",
-			runner: func(cmd string, ctx CwdResolver, ttl int) (string, error) {
-				switch cmd {
-				case "rev-parse --is-inside-work-tree":
-					return "true", nil
-				case "symbolic-ref --short HEAD":
-					return "", errors.New("fatal: ref HEAD is not a symbolic ref")
-				case "describe --tags --exact-match":
-					return "", errors.New("fatal: No names found")
-				case "rev-parse --short HEAD":
-					return "", errors.New("fatal: Needed a single revision")
-				default:
-					return "", nil
-				}
-			},
-			wantBranch: "",
-			wantDirty:  false,
-			wantErr:    true,
-		},
-		{
-			name: "Detached HEAD where rev-parse returns empty string with nil error",
-			runner: func(cmd string, ctx CwdResolver, ttl int) (string, error) {
-				switch cmd {
-				case "rev-parse --is-inside-work-tree":
-					return "true", nil
-				case "symbolic-ref --short HEAD":
-					return "", nil
-				case "describe --tags --exact-match":
-					return "", errors.New("fatal: No names found")
-				case "rev-parse --short HEAD":
-					return "   ", nil
-				default:
-					return "", nil
-				}
-			},
-			wantBranch: "",
-			wantDirty:  false,
-			wantErr:    true,
-		},
-	}
+		}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			oldRunner := runGitCommand
-			defer func() { runGitCommand = oldRunner }()
-			runGitCommand = tt.runner
+		for _, tt := range tests {
+			t.Run(tt.name, func(t *testing.T) {
+				oldRunner := runGitCommand
+				defer func() { runGitCommand = oldRunner }()
+				runGitCommand = tt.runner
 
-			p := NewGitProvider("/mock/dir", 5)
+				p := NewGitProvider("/mock/dir", 5)
 
-			branch, dirty, err := p.GetBranch()
-			if (err != nil) != tt.wantErr {
-				t.Fatalf("GetBranch() error = %v, wantErr %v", err, tt.wantErr)
+				branch, dirty, err := p.GetBranch()
+				if err != nil {
+					t.Fatalf("unexpected error: %v", err)
+				}
+				if branch != tt.wantBranch {
+					t.Errorf("GetBranch() branch = %q, want %q", branch, tt.wantBranch)
+				}
+				if dirty != tt.wantDirty {
+					t.Errorf("GetBranch() dirty = %v, want %v", dirty, tt.wantDirty)
+				}
+			})
+		}
+	})
+
+	t.Run("Errors", func(t *testing.T) {
+		errNeededRev := errors.New("fatal: Needed a single revision")
+
+		tests := []struct {
+			name      string
+			runner    func(cmd string, ctx CwdResolver, ttl int) (string, error)
+			wantErrIs error
+		}{
+			{
+				name: "Not a git repository",
+				runner: func(cmd string, ctx CwdResolver, ttl int) (string, error) {
+					return "", errors.New("fatal: not a git repository")
+				},
+				wantErrIs: types.ErrNotGitRepository,
+			},
+			{
+				name: "Detached HEAD where both tag and rev-parse fail",
+				runner: func(cmd string, ctx CwdResolver, ttl int) (string, error) {
+					switch cmd {
+					case "rev-parse --is-inside-work-tree":
+						return "true", nil
+					case "symbolic-ref --short HEAD":
+						return "", errors.New("fatal: ref HEAD is not a symbolic ref")
+					case "describe --tags --exact-match":
+						return "", errors.New("fatal: No names found")
+					case "rev-parse --short HEAD":
+						return "", errNeededRev
+					default:
+						return "", nil
+					}
+				},
+				wantErrIs: errNeededRev,
+			},
+		}
+
+		for _, tt := range tests {
+			t.Run(tt.name, func(t *testing.T) {
+				oldRunner := runGitCommand
+				defer func() { runGitCommand = oldRunner }()
+				runGitCommand = tt.runner
+
+				p := NewGitProvider("/mock/dir", 5)
+
+				branch, dirty, err := p.GetBranch()
+				if err == nil {
+					t.Fatalf("expected error, got nil")
+				}
+				if !errors.Is(err, tt.wantErrIs) {
+					t.Errorf("GetBranch() error = %v, wantErrIs %v", err, tt.wantErrIs)
+				}
+				if branch != "" {
+					t.Errorf("expected empty branch, got %q", branch)
+				}
+				if dirty {
+					t.Errorf("expected dirty=false, got true")
+				}
+			})
+		}
+	})
+
+	t.Run("Errors_UndeterminedBranchFallback", func(t *testing.T) {
+		oldRunner := runGitCommand
+		defer func() { runGitCommand = oldRunner }()
+		runGitCommand = func(cmd string, ctx CwdResolver, ttl int) (string, error) {
+			switch cmd {
+			case "rev-parse --is-inside-work-tree":
+				return "true", nil
+			case "symbolic-ref --short HEAD":
+				return "", nil
+			case "describe --tags --exact-match":
+				return "", errors.New("fatal: No names found")
+			case "rev-parse --short HEAD":
+				return "   ", nil
+			default:
+				return "", nil
 			}
-			if tt.wantErrIs != nil && !errors.Is(err, tt.wantErrIs) {
-				t.Errorf("GetBranch() error = %v, wantErrIs %v", err, tt.wantErrIs)
-			}
-			if branch != tt.wantBranch {
-				t.Errorf("GetBranch() branch = %q, want %q", branch, tt.wantBranch)
-			}
-			if dirty != tt.wantDirty {
-				t.Errorf("GetBranch() dirty = %v, want %v", dirty, tt.wantDirty)
-			}
-		})
-	}
+		}
+
+		p := NewGitProvider("/mock/dir", 5)
+		branch, dirty, err := p.GetBranch()
+		if err == nil {
+			t.Fatalf("expected error, got nil")
+		}
+		if branch != "" {
+			t.Errorf("expected empty branch, got %q", branch)
+		}
+		if dirty {
+			t.Errorf("expected dirty=false, got true")
+		}
+		wantMsg := "could not determine git branch or detached HEAD commit"
+		if err.Error() != wantMsg {
+			t.Errorf("expected error message %q, got %q", wantMsg, err.Error())
+		}
+	})
 }
 
 func TestGitProvider_GetChanges(t *testing.T) {
-	tests := []struct {
-		name           string
-		runner         func(cmd string, ctx CwdResolver, ttl int) (string, error)
-		wantInsertions int
-		wantDeletions  int
-		wantErr        bool
-		wantErrIs      error
-	}{
-		{
-			name: "With unstaged and staged changes",
-			runner: func(cmd string, ctx CwdResolver, ttl int) (string, error) {
-				switch cmd {
-				case "rev-parse --is-inside-work-tree":
-					return "true", nil
-				case "diff --shortstat":
-					return " 1 file changed, 10 insertions(+), 2 deletions(-)", nil
-				case "diff --cached --shortstat":
-					return " 2 files changed, 5 insertions(+), 3 deletions(-)", nil
-				default:
-					return "", nil
+	t.Run("Success", func(t *testing.T) {
+		tests := []struct {
+			name           string
+			runner         func(cmd string, ctx CwdResolver, ttl int) (string, error)
+			wantInsertions int
+			wantDeletions  int
+		}{
+			{
+				name: "With unstaged and staged changes",
+				runner: func(cmd string, ctx CwdResolver, ttl int) (string, error) {
+					switch cmd {
+					case "rev-parse --is-inside-work-tree":
+						return "true", nil
+					case "diff --shortstat":
+						return " 1 file changed, 10 insertions(+), 2 deletions(-)", nil
+					case "diff --cached --shortstat":
+						return " 2 files changed, 5 insertions(+), 3 deletions(-)", nil
+					default:
+						return "", nil
+					}
+				},
+				wantInsertions: 15,
+				wantDeletions:  5,
+			},
+		}
+
+		for _, tt := range tests {
+			t.Run(tt.name, func(t *testing.T) {
+				oldRunner := runGitCommand
+				defer func() { runGitCommand = oldRunner }()
+				runGitCommand = tt.runner
+
+				p := NewGitProvider("/mock/dir", 5)
+
+				changes, err := p.GetChanges()
+				if err != nil {
+					t.Fatalf("unexpected error: %v", err)
 				}
+				if changes.Insertions != tt.wantInsertions {
+					t.Errorf("GetChanges() insertions = %d, want %d", changes.Insertions, tt.wantInsertions)
+				}
+				if changes.Deletions != tt.wantDeletions {
+					t.Errorf("GetChanges() deletions = %d, want %d", changes.Deletions, tt.wantDeletions)
+				}
+			})
+		}
+	})
+
+	t.Run("Errors", func(t *testing.T) {
+		tests := []struct {
+			name      string
+			runner    func(cmd string, ctx CwdResolver, ttl int) (string, error)
+			wantErrIs error
+		}{
+			{
+				name: "Not a git repository",
+				runner: func(cmd string, ctx CwdResolver, ttl int) (string, error) {
+					return "", errors.New("not git")
+				},
+				wantErrIs: types.ErrNotGitRepository,
 			},
-			wantInsertions: 15,
-			wantDeletions:  5,
-			wantErr:        false,
-		},
-		{
-			name: "Not a git repository",
-			runner: func(cmd string, ctx CwdResolver, ttl int) (string, error) {
-				return "", errors.New("not git")
-			},
-			wantInsertions: 0,
-			wantDeletions:  0,
-			wantErr:        true,
-			wantErrIs:      types.ErrNotGitRepository,
-		},
-	}
+		}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			oldRunner := runGitCommand
-			defer func() { runGitCommand = oldRunner }()
-			runGitCommand = tt.runner
+		for _, tt := range tests {
+			t.Run(tt.name, func(t *testing.T) {
+				oldRunner := runGitCommand
+				defer func() { runGitCommand = oldRunner }()
+				runGitCommand = tt.runner
 
-			p := NewGitProvider("/mock/dir", 5)
+				p := NewGitProvider("/mock/dir", 5)
 
-			changes, err := p.GetChanges()
-			if (err != nil) != tt.wantErr {
-				t.Fatalf("GetChanges() error = %v, wantErr %v", err, tt.wantErr)
-			}
-			if tt.wantErrIs != nil && !errors.Is(err, tt.wantErrIs) {
-				t.Errorf("GetChanges() error = %v, wantErrIs %v", err, tt.wantErrIs)
-			}
-			if changes.Insertions != tt.wantInsertions {
-				t.Errorf("GetChanges() insertions = %d, want %d", changes.Insertions, tt.wantInsertions)
-			}
-			if changes.Deletions != tt.wantDeletions {
-				t.Errorf("GetChanges() deletions = %d, want %d", changes.Deletions, tt.wantDeletions)
-			}
-		})
-	}
+				changes, err := p.GetChanges()
+				if err == nil {
+					t.Fatalf("expected error, got nil")
+				}
+				if !errors.Is(err, tt.wantErrIs) {
+					t.Errorf("GetChanges() error = %v, wantErrIs %v", err, tt.wantErrIs)
+				}
+				if changes.Insertions != 0 || changes.Deletions != 0 {
+					t.Errorf("expected 0 insertions and deletions, got %v", changes)
+				}
+			})
+		}
+	})
 }
 
 func TestGitProvider_GetAheadBehind(t *testing.T) {
-	tests := []struct {
-		name       string
-		runner     func(cmd string, ctx CwdResolver, ttl int) (string, error)
-		wantAhead  int
-		wantBehind int
-		wantErr    bool
-		wantErrIs  error
-	}{
-		{
-			name: "Ahead and behind",
-			runner: func(cmd string, ctx CwdResolver, ttl int) (string, error) {
-				switch cmd {
-				case "rev-parse --is-inside-work-tree":
-					return "true", nil
-				case "rev-list --left-right --count HEAD...@{upstream}":
-					return "3\t2\n", nil
-				default:
-					return "", nil
+	t.Run("Success", func(t *testing.T) {
+		tests := []struct {
+			name       string
+			runner     func(cmd string, ctx CwdResolver, ttl int) (string, error)
+			wantAhead  int
+			wantBehind int
+		}{
+			{
+				name: "Ahead and behind",
+				runner: func(cmd string, ctx CwdResolver, ttl int) (string, error) {
+					switch cmd {
+					case "rev-parse --is-inside-work-tree":
+						return "true", nil
+					case "rev-list --left-right --count HEAD...@{upstream}":
+						return "3\t2\n", nil
+					default:
+						return "", nil
+					}
+				},
+				wantAhead:  3,
+				wantBehind: 2,
+			},
+		}
+
+		for _, tt := range tests {
+			t.Run(tt.name, func(t *testing.T) {
+				oldRunner := runGitCommand
+				defer func() { runGitCommand = oldRunner }()
+				runGitCommand = tt.runner
+
+				p := NewGitProvider("/mock/dir", 5)
+
+				ab, err := p.GetAheadBehind()
+				if err != nil {
+					t.Fatalf("unexpected error: %v", err)
 				}
-			},
-			wantAhead:  3,
-			wantBehind: 2,
-			wantErr:    false,
-		},
-		{
-			name: "Not a git repository",
-			runner: func(cmd string, ctx CwdResolver, ttl int) (string, error) {
-				return "", errors.New("fatal: not a git repository")
-			},
-			wantAhead:  0,
-			wantBehind: 0,
-			wantErr:    true,
-			wantErrIs:  types.ErrNotGitRepository,
-		},
-		{
-			name: "No upstream configured",
-			runner: func(cmd string, ctx CwdResolver, ttl int) (string, error) {
-				switch cmd {
-				case "rev-parse --is-inside-work-tree":
-					return "true", nil
-				case "rev-list --left-right --count HEAD...@{upstream}":
-					return "", errors.New("fatal: no upstream configured")
-				default:
-					return "", nil
+				if ab.Ahead != tt.wantAhead {
+					t.Errorf("GetAheadBehind() ahead = %d, want %d", ab.Ahead, tt.wantAhead)
 				}
+				if ab.Behind != tt.wantBehind {
+					t.Errorf("GetAheadBehind() behind = %d, want %d", ab.Behind, tt.wantBehind)
+				}
+			})
+		}
+	})
+
+	t.Run("Errors", func(t *testing.T) {
+		tests := []struct {
+			name      string
+			runner    func(cmd string, ctx CwdResolver, ttl int) (string, error)
+			wantErrIs error
+		}{
+			{
+				name: "Not a git repository",
+				runner: func(cmd string, ctx CwdResolver, ttl int) (string, error) {
+					return "", errors.New("fatal: not a git repository")
+				},
+				wantErrIs: types.ErrNotGitRepository,
 			},
-			wantAhead:  0,
-			wantBehind: 0,
-			wantErr:    true,
-			wantErrIs:  types.ErrNoUpstream,
-		},
-	}
+			{
+				name: "No upstream configured",
+				runner: func(cmd string, ctx CwdResolver, ttl int) (string, error) {
+					switch cmd {
+					case "rev-parse --is-inside-work-tree":
+						return "true", nil
+					case "rev-list --left-right --count HEAD...@{upstream}":
+						return "", errors.New("fatal: no upstream configured")
+					default:
+						return "", nil
+					}
+				},
+				wantErrIs: types.ErrNoUpstream,
+			},
+		}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			oldRunner := runGitCommand
-			defer func() { runGitCommand = oldRunner }()
-			runGitCommand = tt.runner
+		for _, tt := range tests {
+			t.Run(tt.name, func(t *testing.T) {
+				oldRunner := runGitCommand
+				defer func() { runGitCommand = oldRunner }()
+				runGitCommand = tt.runner
 
-			p := NewGitProvider("/mock/dir", 5)
+				p := NewGitProvider("/mock/dir", 5)
 
-			ab, err := p.GetAheadBehind()
-			if (err != nil) != tt.wantErr {
-				t.Fatalf("GetAheadBehind() error = %v, wantErr %v", err, tt.wantErr)
-			}
-			if tt.wantErrIs != nil && !errors.Is(err, tt.wantErrIs) {
-				t.Errorf("GetAheadBehind() error = %v, wantErrIs %v", err, tt.wantErrIs)
-			}
-			if ab.Ahead != tt.wantAhead {
-				t.Errorf("GetAheadBehind() ahead = %d, want %d", ab.Ahead, tt.wantAhead)
-			}
-			if ab.Behind != tt.wantBehind {
-				t.Errorf("GetAheadBehind() behind = %d, want %d", ab.Behind, tt.wantBehind)
-			}
-		})
-	}
+				ab, err := p.GetAheadBehind()
+				if err == nil {
+					t.Fatalf("expected error, got nil")
+				}
+				if !errors.Is(err, tt.wantErrIs) {
+					t.Errorf("GetAheadBehind() error = %v, wantErrIs %v", err, tt.wantErrIs)
+				}
+				if ab.Ahead != 0 || ab.Behind != 0 {
+					t.Errorf("expected 0 ahead and behind, got %v", ab)
+				}
+			})
+		}
+	})
 }
 
 func TestGitProvider_GetRepoName(t *testing.T) {
-	tests := []struct {
-		name      string
-		runner    func(cmd string, ctx CwdResolver, ttl int) (string, error)
-		wantRepo  string
-		wantErr   bool
-		wantErrIs error
-	}{
-		{
-			name: "Valid repo name",
-			runner: func(cmd string, ctx CwdResolver, ttl int) (string, error) {
-				switch cmd {
-				case "rev-parse --is-inside-work-tree":
-					return "true", nil
-				case "rev-parse --show-toplevel":
-					return "/path/to/my-repo\n", nil
-				default:
-					return "", nil
+	t.Run("Success", func(t *testing.T) {
+		tests := []struct {
+			name     string
+			runner   func(cmd string, ctx CwdResolver, ttl int) (string, error)
+			wantRepo string
+		}{
+			{
+				name: "Valid repo name",
+				runner: func(cmd string, ctx CwdResolver, ttl int) (string, error) {
+					switch cmd {
+					case "rev-parse --is-inside-work-tree":
+						return "true", nil
+					case "rev-parse --show-toplevel":
+						return "/path/to/my-repo\n", nil
+					default:
+						return "", nil
+					}
+				},
+				wantRepo: "my-repo",
+			},
+		}
+
+		for _, tt := range tests {
+			t.Run(tt.name, func(t *testing.T) {
+				oldRunner := runGitCommand
+				defer func() { runGitCommand = oldRunner }()
+				runGitCommand = tt.runner
+
+				p := NewGitProvider("/mock/dir", 5)
+
+				repo, err := p.GetRepoName()
+				if err != nil {
+					t.Fatalf("unexpected error: %v", err)
 				}
+				if repo != tt.wantRepo {
+					t.Errorf("GetRepoName() repo = %q, want %q", repo, tt.wantRepo)
+				}
+			})
+		}
+	})
+
+	t.Run("Errors", func(t *testing.T) {
+		tests := []struct {
+			name      string
+			runner    func(cmd string, ctx CwdResolver, ttl int) (string, error)
+			wantErrIs error
+		}{
+			{
+				name: "Not a git repo",
+				runner: func(cmd string, ctx CwdResolver, ttl int) (string, error) {
+					return "", errors.New("not git")
+				},
+				wantErrIs: types.ErrNotGitRepository,
 			},
-			wantRepo: "my-repo",
-			wantErr:  false,
-		},
-		{
-			name: "Not a git repo",
-			runner: func(cmd string, ctx CwdResolver, ttl int) (string, error) {
-				return "", errors.New("not git")
-			},
-			wantRepo:  "",
-			wantErr:   true,
-			wantErrIs: types.ErrNotGitRepository,
-		},
-	}
+		}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			oldRunner := runGitCommand
-			defer func() { runGitCommand = oldRunner }()
-			runGitCommand = tt.runner
+		for _, tt := range tests {
+			t.Run(tt.name, func(t *testing.T) {
+				oldRunner := runGitCommand
+				defer func() { runGitCommand = oldRunner }()
+				runGitCommand = tt.runner
 
-			p := NewGitProvider("/mock/dir", 5)
+				p := NewGitProvider("/mock/dir", 5)
 
-			repo, err := p.GetRepoName()
-			if (err != nil) != tt.wantErr {
-				t.Fatalf("GetRepoName() error = %v, wantErr %v", err, tt.wantErr)
-			}
-			if tt.wantErrIs != nil && !errors.Is(err, tt.wantErrIs) {
-				t.Errorf("GetRepoName() error = %v, wantErrIs %v", err, tt.wantErrIs)
-			}
-			if repo != tt.wantRepo {
-				t.Errorf("GetRepoName() repo = %q, want %q", repo, tt.wantRepo)
-			}
-		})
-	}
+				repo, err := p.GetRepoName()
+				if err == nil {
+					t.Fatalf("expected error, got nil")
+				}
+				if !errors.Is(err, tt.wantErrIs) {
+					t.Errorf("GetRepoName() error = %v, wantErrIs %v", err, tt.wantErrIs)
+				}
+				if repo != "" {
+					t.Errorf("expected empty repo, got %q", repo)
+				}
+			})
+		}
+	})
 }
 
 func TestGitProvider_IntraPassMemoization(t *testing.T) {
@@ -718,66 +821,75 @@ func TestParseShortStat(t *testing.T) {
 }
 
 func TestParseAheadBehind(t *testing.T) {
-	tests := []struct {
-		name           string
-		input          string
-		expectedAhead  int
-		expectedBehind int
-		expectErr      bool
-	}{
-		{
-			name:           "Valid tab-separated count",
-			input:          "2\t1\n",
-			expectedAhead:  2,
-			expectedBehind: 1,
-			expectErr:      false,
-		},
-		{
-			name:           "Valid space-separated count",
-			input:          "0 4",
-			expectedAhead:  0,
-			expectedBehind: 4,
-			expectErr:      false,
-		},
-		{
-			name:           "Both zero",
-			input:          "0\t0",
-			expectedAhead:  0,
-			expectedBehind: 0,
-			expectErr:      false,
-		},
-		{
-			name:           "Empty string",
-			input:          "",
-			expectedAhead:  0,
-			expectedBehind: 0,
-			expectErr:      true,
-		},
-		{
-			name:           "Single number only",
-			input:          "2",
-			expectedAhead:  0,
-			expectedBehind: 0,
-			expectErr:      true,
-		},
-		{
-			name:           "Non-numeric tokens",
-			input:          "foo bar",
-			expectedAhead:  0,
-			expectedBehind: 0,
-			expectErr:      true,
-		},
-	}
+	t.Run("Success", func(t *testing.T) {
+		tests := []struct {
+			name           string
+			input          string
+			expectedAhead  int
+			expectedBehind int
+		}{
+			{
+				name:           "Valid tab-separated count",
+				input:          "2\t1\n",
+				expectedAhead:  2,
+				expectedBehind: 1,
+			},
+			{
+				name:           "Valid space-separated count",
+				input:          "0 4",
+				expectedAhead:  0,
+				expectedBehind: 4,
+			},
+			{
+				name:           "Both zero",
+				input:          "0\t0",
+				expectedAhead:  0,
+				expectedBehind: 0,
+			},
+		}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			ahead, behind, err := parseAheadBehind(tt.input)
-			if (err != nil) != tt.expectErr {
-				t.Fatalf("For %q expected err=%v, got err=%v", tt.input, tt.expectErr, err)
-			}
-			if ahead != tt.expectedAhead || behind != tt.expectedBehind {
-				t.Errorf("For %q expected (%d, %d), got (%d, %d)", tt.input, tt.expectedAhead, tt.expectedBehind, ahead, behind)
-			}
-		})
-	}
+		for _, tt := range tests {
+			t.Run(tt.name, func(t *testing.T) {
+				ahead, behind, err := parseAheadBehind(tt.input)
+				if err != nil {
+					t.Fatalf("For %q unexpected error: %v", tt.input, err)
+				}
+				if ahead != tt.expectedAhead || behind != tt.expectedBehind {
+					t.Errorf("For %q expected (%d, %d), got (%d, %d)", tt.input, tt.expectedAhead, tt.expectedBehind, ahead, behind)
+				}
+			})
+		}
+	})
+
+	t.Run("Errors", func(t *testing.T) {
+		tests := []struct {
+			name  string
+			input string
+		}{
+			{
+				name:  "Empty string",
+				input: "",
+			},
+			{
+				name:  "Single number only",
+				input: "2",
+			},
+			{
+				name:  "Non-numeric tokens",
+				input: "foo bar",
+			},
+		}
+
+		for _, tt := range tests {
+			t.Run(tt.name, func(t *testing.T) {
+				ahead, behind, err := parseAheadBehind(tt.input)
+				if err == nil {
+					t.Fatalf("For %q expected error, got nil", tt.input)
+				}
+				if ahead != 0 || behind != 0 {
+					t.Errorf("For %q expected (0, 0), got (%d, %d)", tt.input, ahead, behind)
+				}
+			})
+		}
+	})
 }
