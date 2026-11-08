@@ -197,16 +197,17 @@ func TestE2E_Tier4_AdversarialGiantTelemetry(t *testing.T) {
 	}
 }
 
-// TestE2E_Tier4_AdversarialNarrowTerminalAndNegativeWidth tests resilient clipping at narrow widths.
-func TestE2E_Tier4_AdversarialNarrowTerminalAndNegativeWidth(t *testing.T) {
+// TestE2E_Tier4_NarrowTerminalAndNegativeWidth tests resilient clipping at narrow widths.
+func TestE2E_Tier4_NarrowTerminalAndNegativeWidth(t *testing.T) {
 	tests := []struct {
-		name  string
-		width int
+		name         string
+		width        int
+		wantContains string
 	}{
-		{"Zero width", 0},
-		{"Negative width", -10},
-		{"Narrow 5 chars", 5},
-		{"Narrow 15 chars", 15},
+		{"Zero width fallback to full line", 0, "Gemini 3.5 Pro"},
+		{"Negative width fallback to full line", -10, "Gemini 3.5 Pro"},
+		{"Narrow 5 chars truncated with ellipsis", 5, "● ..."},
+		{"Narrow 15 chars truncated with ellipsis", 15, "● READY"},
 	}
 
 	for _, tt := range tests {
@@ -215,12 +216,6 @@ func TestE2E_Tier4_AdversarialNarrowTerminalAndNegativeWidth(t *testing.T) {
 				"model": {"display_name": "Gemini 3.5 Pro"},
 				"terminal_width": %d
 			}`, tt.width)
-			if tt.width <= 0 {
-				payload = `{
-					"model": {"display_name": "Gemini 3.5 Pro"},
-					"terminal_width": 0
-				}`
-			}
 
 			tempDir := t.TempDir()
 			cfg := types.DefaultSettings()
@@ -230,7 +225,9 @@ func TestE2E_Tier4_AdversarialNarrowTerminalAndNegativeWidth(t *testing.T) {
 			if exitCode != 0 {
 				t.Fatalf("Expected exit code 0, got %d (stderr: %q)", exitCode, stderr)
 			}
-			_ = stdout
+			if !strings.Contains(stdout, tt.wantContains) {
+				t.Errorf("Expected stdout to contain %q, got %q", tt.wantContains, stdout)
+			}
 		})
 	}
 }
