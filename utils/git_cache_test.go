@@ -867,3 +867,448 @@ func TestGitCache_FuzzGenerator(t *testing.T) {
 		}
 	}
 }
+
+func TestIsCacheEntryFresh_TTL(t *testing.T) {
+	now := int64(100000)
+	tests := []struct {
+		name      string
+		createdAt int64
+		ttlMs     int64
+		wantFresh bool
+	}{
+		{
+			name:      "positive TTL within duration is fresh",
+			createdAt: 98000, // age 2000ms
+			ttlMs:     5000,
+			wantFresh: true,
+		},
+		{
+			name:      "positive TTL exactly at boundary is fresh",
+			createdAt: 95000, // age 5000ms
+			ttlMs:     5000,
+			wantFresh: true,
+		},
+		{
+			name:      "positive TTL expired is not fresh",
+			createdAt: 94000, // age 6000ms
+			ttlMs:     5000,
+			wantFresh: false,
+		},
+		{
+			name:      "zero TTL is never fresh (caching disabled)",
+			createdAt: now,
+			ttlMs:     0,
+			wantFresh: false,
+		},
+		{
+			name:      "negative TTL is never fresh",
+			createdAt: now,
+			ttlMs:     -1000,
+			wantFresh: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			entry := GitCacheEntryInternal{
+				CreatedAt: tt.createdAt,
+			}
+			got := isCacheEntryFresh(entry, nil, tt.ttlMs, now)
+			if got != tt.wantFresh {
+				t.Errorf("isCacheEntryFresh(createdAt=%d, ttlMs=%d, now=%d) = %v, want %v",
+					tt.createdAt, tt.ttlMs, now, got, tt.wantFresh)
+			}
+		})
+	}
+}
+
+func TestGetCacheEntry_TTLZeroAndNegative(t *testing.T) {
+	tempDir := t.TempDir()
+	SetCacheDir(tempDir)
+	ClearGitCache()
+
+	now := time.Now().UnixNano() / int64(time.Millisecond)
+	SetCacheEntry(tempDir, "status", "clean", now, 5)
+
+	tests := []struct {
+		name       string
+		ttlSeconds int
+		wantHit    bool
+	}{
+		{
+			name:       "ttl 0 disables cache hit",
+			ttlSeconds: 0,
+			wantHit:    false,
+		},
+		{
+			name:       "negative ttl disables cache hit",
+			ttlSeconds: -1,
+			wantHit:    false,
+		},
+		{
+			name:       "positive ttl returns cache hit",
+			ttlSeconds: 5,
+			wantHit:    true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, hit := GetCacheEntry(tempDir, "status", tt.ttlSeconds)
+			if hit != tt.wantHit {
+				t.Errorf("GetCacheEntry(ttlSeconds=%d) hit = %v, want %v", tt.ttlSeconds, hit, tt.wantHit)
+			}
+		})
+	}
+}
+
+func TestRunGit_TTLZero_AlwaysExecutes(t *testing.T) {
+	tempDir := t.TempDir()
+	SetCacheDir(tempDir)
+	ClearGitCache()
+
+	ctx := RenderContextDummy{
+		CWD:                tempDir,
+		GitCacheTTLSeconds: 0,
+	}
+
+	callCount := 0
+	mockExec := func(args []string, cwd string) (string, error) {
+		callCount++
+		return fmt.Sprintf("output-%d", callCount), nil
+	}
+
+	out1, err := RunGit("status", ctx, 0, mockExec)
+	if err != nil {
+		t.Fatalf("RunGit call 1 failed: %v", err)
+	}
+	if out1 != "output-1" {
+		t.Errorf("RunGit call 1 = %q, want %q", out1, "output-1")
+	}
+
+	out2, err := RunGit("status", ctx, 0, mockExec)
+	if err != nil {
+		t.Fatalf("RunGit call 2 failed: %v", err)
+	}
+	if out2 != "output-2" {
+		t.Errorf("RunGit call 2 = %q, want %q (cache was erroneously hit with ttl=0)", out2, "output-2")
+	}
+
+	if callCount != 2 {
+		t.Errorf("mockExec called %d times, want 2 (ttl=0 should never cache)", callCount)
+	}
+}
+
+func TestGetHeadMtimeMs(t *testing.T) {
+	tests := []struct {
+		name  string
+		setup func(t *testing.T, dir string) (gitDir string, wantMtime int64)
+	}{
+		{
+			name: "non-existent gitDir returns 0",
+			setup: func(t *testing.T, dir string) (string, int64) {
+				return filepath.Join(dir, "nonexistent"), 0
+			},
+		},
+		{
+			name: "detached HEAD returns HEAD mtime",
+			setup: func(t *testing.T, dir string) (string, int64) {
+				gitDir := filepath.Join(dir, ".git")
+				if err := os.MkdirAll(gitDir, 0755); err != nil {
+					t.Fatalf("failed to create gitDir: %v", err)
+				}
+				headPath := filepath.Join(gitDir, "HEAD")
+				if err := os.WriteFile(headPath, []byte("0123456789abcdef\n"), 0644); err != nil {
+					t.Fatalf("failed to write HEAD: %v", err)
+				}
+				mtime := time.Now().Add(-10 * time.Minute).Truncate(time.Second)
+				if err := os.Chtimes(headPath, mtime, mtime); err != nil {
+					t.Fatalf("failed to chtimes HEAD: %v", err)
+				}
+				return gitDir, mtime.UnixNano() / int64(time.Millisecond)
+			},
+		},
+		{
+			name: "symbolic ref with newer branch ref file returns branch ref mtime",
+			setup: func(t *testing.T, dir string) (string, int64) {
+				gitDir := filepath.Join(dir, ".git")
+				headsDir := filepath.Join(gitDir, "refs", "heads")
+				if err := os.MkdirAll(headsDir, 0755); err != nil {
+					t.Fatalf("failed to create headsDir: %v", err)
+				}
+				headPath := filepath.Join(gitDir, "HEAD")
+				if err := os.WriteFile(headPath, []byte("ref: refs/heads/main\n"), 0644); err != nil {
+					t.Fatalf("failed to write HEAD: %v", err)
+				}
+				oldTime := time.Now().Add(-30 * time.Minute).Truncate(time.Second)
+				if err := os.Chtimes(headPath, oldTime, oldTime); err != nil {
+					t.Fatalf("failed to chtimes HEAD: %v", err)
+				}
+				branchPath := filepath.Join(headsDir, "main")
+				if err := os.WriteFile(branchPath, []byte("1111222233334444\n"), 0644); err != nil {
+					t.Fatalf("failed to write branch ref: %v", err)
+				}
+				newTime := time.Now().Add(-5 * time.Minute).Truncate(time.Second)
+				if err := os.Chtimes(branchPath, newTime, newTime); err != nil {
+					t.Fatalf("failed to chtimes branch ref: %v", err)
+				}
+				return gitDir, newTime.UnixNano() / int64(time.Millisecond)
+			},
+		},
+		{
+			name: "symbolic ref where HEAD is newer returns HEAD mtime",
+			setup: func(t *testing.T, dir string) (string, int64) {
+				gitDir := filepath.Join(dir, ".git")
+				headsDir := filepath.Join(gitDir, "refs", "heads")
+				if err := os.MkdirAll(headsDir, 0755); err != nil {
+					t.Fatalf("failed to create headsDir: %v", err)
+				}
+				branchPath := filepath.Join(headsDir, "main")
+				if err := os.WriteFile(branchPath, []byte("1111222233334444\n"), 0644); err != nil {
+					t.Fatalf("failed to write branch ref: %v", err)
+				}
+				oldTime := time.Now().Add(-30 * time.Minute).Truncate(time.Second)
+				if err := os.Chtimes(branchPath, oldTime, oldTime); err != nil {
+					t.Fatalf("failed to chtimes branch ref: %v", err)
+				}
+				headPath := filepath.Join(gitDir, "HEAD")
+				if err := os.WriteFile(headPath, []byte("ref: refs/heads/main\n"), 0644); err != nil {
+					t.Fatalf("failed to write HEAD: %v", err)
+				}
+				newTime := time.Now().Add(-5 * time.Minute).Truncate(time.Second)
+				if err := os.Chtimes(headPath, newTime, newTime); err != nil {
+					t.Fatalf("failed to chtimes HEAD: %v", err)
+				}
+				return gitDir, newTime.UnixNano() / int64(time.Millisecond)
+			},
+		},
+		{
+			name: "packed-refs with newer mtime returns packed-refs mtime",
+			setup: func(t *testing.T, dir string) (string, int64) {
+				gitDir := filepath.Join(dir, ".git")
+				if err := os.MkdirAll(gitDir, 0755); err != nil {
+					t.Fatalf("failed to create gitDir: %v", err)
+				}
+				headPath := filepath.Join(gitDir, "HEAD")
+				if err := os.WriteFile(headPath, []byte("ref: refs/heads/main\n"), 0644); err != nil {
+					t.Fatalf("failed to write HEAD: %v", err)
+				}
+				oldTime := time.Now().Add(-20 * time.Minute).Truncate(time.Second)
+				if err := os.Chtimes(headPath, oldTime, oldTime); err != nil {
+					t.Fatalf("failed to chtimes HEAD: %v", err)
+				}
+				packedPath := filepath.Join(gitDir, "packed-refs")
+				if err := os.WriteFile(packedPath, []byte("# pack-refs\n"), 0644); err != nil {
+					t.Fatalf("failed to write packed-refs: %v", err)
+				}
+				newTime := time.Now().Add(-2 * time.Minute).Truncate(time.Second)
+				if err := os.Chtimes(packedPath, newTime, newTime); err != nil {
+					t.Fatalf("failed to chtimes packed-refs: %v", err)
+				}
+				return gitDir, newTime.UnixNano() / int64(time.Millisecond)
+			},
+		},
+		{
+			name: "linked worktree with commondir resolves common refs and packed-refs",
+			setup: func(t *testing.T, dir string) (string, int64) {
+				mainGitDir := filepath.Join(dir, "main", ".git")
+				mainHeadsDir := filepath.Join(mainGitDir, "refs", "heads")
+				if err := os.MkdirAll(mainHeadsDir, 0755); err != nil {
+					t.Fatalf("failed to create mainHeadsDir: %v", err)
+				}
+				wtGitDir := filepath.Join(mainGitDir, "worktrees", "wt1")
+				if err := os.MkdirAll(wtGitDir, 0755); err != nil {
+					t.Fatalf("failed to create wtGitDir: %v", err)
+				}
+				commondirFile := filepath.Join(wtGitDir, "commondir")
+				if err := os.WriteFile(commondirFile, []byte("../..\n"), 0644); err != nil {
+					t.Fatalf("failed to write commondir: %v", err)
+				}
+				wtHeadPath := filepath.Join(wtGitDir, "HEAD")
+				if err := os.WriteFile(wtHeadPath, []byte("ref: refs/heads/feature-wt\n"), 0644); err != nil {
+					t.Fatalf("failed to write wt HEAD: %v", err)
+				}
+				oldTime := time.Now().Add(-25 * time.Minute).Truncate(time.Second)
+				if err := os.Chtimes(wtHeadPath, oldTime, oldTime); err != nil {
+					t.Fatalf("failed to chtimes wt HEAD: %v", err)
+				}
+				branchPath := filepath.Join(mainHeadsDir, "feature-wt")
+				if err := os.WriteFile(branchPath, []byte("wt_sha_123456\n"), 0644); err != nil {
+					t.Fatalf("failed to write wt branch ref: %v", err)
+				}
+				newTime := time.Now().Add(-3 * time.Minute).Truncate(time.Second)
+				if err := os.Chtimes(branchPath, newTime, newTime); err != nil {
+					t.Fatalf("failed to chtimes wt branch ref: %v", err)
+				}
+				return wtGitDir, newTime.UnixNano() / int64(time.Millisecond)
+			},
+		},
+		{
+			name: "malicious symbolic ref with directory traversal is ignored",
+			setup: func(t *testing.T, dir string) (string, int64) {
+				gitDir := filepath.Join(dir, ".git")
+				if err := os.MkdirAll(gitDir, 0755); err != nil {
+					t.Fatalf("failed to create gitDir: %v", err)
+				}
+				headPath := filepath.Join(gitDir, "HEAD")
+				if err := os.WriteFile(headPath, []byte("ref: ../../../etc/passwd\n"), 0644); err != nil {
+					t.Fatalf("failed to write HEAD: %v", err)
+				}
+				headTime := time.Now().Add(-15 * time.Minute).Truncate(time.Second)
+				if err := os.Chtimes(headPath, headTime, headTime); err != nil {
+					t.Fatalf("failed to chtimes HEAD: %v", err)
+				}
+				return gitDir, headTime.UnixNano() / int64(time.Millisecond)
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tempDir := t.TempDir()
+			gitDir, wantMtime := tt.setup(t, tempDir)
+			got := getHeadMtimeMs(gitDir)
+			if got != wantMtime {
+				t.Errorf("getHeadMtimeMs(%q) = %d, want %d", gitDir, got, wantMtime)
+			}
+		})
+	}
+}
+
+func TestGitCache_InvalidationOnRefUpdates(t *testing.T) {
+	tests := []struct {
+		name      string
+		setupRepo func(t *testing.T, gitDir string) (pathToTouch string)
+	}{
+		{
+			name: "invalidation on branch ref update",
+			setupRepo: func(t *testing.T, gitDir string) string {
+				headsDir := filepath.Join(gitDir, "refs", "heads")
+				if err := os.MkdirAll(headsDir, 0755); err != nil {
+					t.Fatalf("failed to create headsDir: %v", err)
+				}
+				if err := os.WriteFile(filepath.Join(gitDir, "HEAD"), []byte("ref: refs/heads/feature\n"), 0644); err != nil {
+					t.Fatalf("failed to write HEAD: %v", err)
+				}
+				branchPath := filepath.Join(headsDir, "feature")
+				if err := os.WriteFile(branchPath, []byte("sha1\n"), 0644); err != nil {
+					t.Fatalf("failed to write branch ref: %v", err)
+				}
+				return branchPath
+			},
+		},
+		{
+			name: "invalidation on packed-refs update",
+			setupRepo: func(t *testing.T, gitDir string) string {
+				if err := os.WriteFile(filepath.Join(gitDir, "HEAD"), []byte("ref: refs/heads/main\n"), 0644); err != nil {
+					t.Fatalf("failed to write HEAD: %v", err)
+				}
+				packedPath := filepath.Join(gitDir, "packed-refs")
+				if err := os.WriteFile(packedPath, []byte("# pack-refs\n"), 0644); err != nil {
+					t.Fatalf("failed to write packed-refs: %v", err)
+				}
+				return packedPath
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tempDir := t.TempDir()
+			SetCacheDir(tempDir)
+			ClearGitCache()
+
+			gitDir := filepath.Join(tempDir, ".git")
+			if err := os.MkdirAll(gitDir, 0755); err != nil {
+				t.Fatalf("failed to create gitDir: %v", err)
+			}
+			if err := os.WriteFile(filepath.Join(gitDir, "index"), []byte("index_1\n"), 0644); err != nil {
+				t.Fatalf("failed to write index: %v", err)
+			}
+
+			pathToTouch := tt.setupRepo(t, gitDir)
+
+			now := time.Now().UnixNano() / int64(time.Millisecond)
+			SetCacheEntry(tempDir, "status", "cached_status", now, 10)
+
+			// Verify initial cache hit
+			out, hit := GetCacheEntry(tempDir, "status", 10)
+			if !hit || out != "cached_status" {
+				t.Fatalf("Initial GetCacheEntry failed: hit=%v, out=%q", hit, out)
+			}
+
+			// Simulate file update
+			newTime := time.Now().Add(2 * time.Hour)
+			if err := os.Chtimes(pathToTouch, newTime, newTime); err != nil {
+				t.Fatalf("failed to chtimes %s: %v", pathToTouch, err)
+			}
+
+			// Cache must be invalidated
+			_, hitAfterUpdate := GetCacheEntry(tempDir, "status", 10)
+			if hitAfterUpdate {
+				t.Errorf("Expected cache miss after touching %s, but cache hit", pathToTouch)
+			}
+		})
+	}
+}
+
+func TestSetCacheEntry_TTLZeroAndNegative_NoDiskWrite(t *testing.T) {
+	tests := []struct {
+		name       string
+		ttlSeconds int
+	}{
+		{
+			name:       "ttl 0 does not write disk cache or memory cache",
+			ttlSeconds: 0,
+		},
+		{
+			name:       "negative ttl does not write disk cache or memory cache",
+			ttlSeconds: -1,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tempDir := t.TempDir()
+			cacheRootDir := filepath.Join(tempDir, "cache_root")
+			SetCacheDir(cacheRootDir)
+			ClearGitCache()
+
+			gitDir := filepath.Join(tempDir, ".git")
+			if err := os.MkdirAll(gitDir, 0755); err != nil {
+				t.Fatalf("failed to create gitDir: %v", err)
+			}
+			if err := os.WriteFile(filepath.Join(gitDir, "HEAD"), []byte("ref: refs/heads/main\n"), 0644); err != nil {
+				t.Fatalf("failed to write HEAD: %v", err)
+			}
+
+			now := time.Now().UnixNano() / int64(time.Millisecond)
+			SetCacheEntry(tempDir, "status", "clean", now, tt.ttlSeconds)
+
+			// 1. Verify entry was not written to cache by querying with a positive TTL (60s).
+			// If SetCacheEntry had erroneously written to memory or disk, a positive TTL query would hit.
+			_, hit := GetCacheEntry(tempDir, "status", 60)
+			if hit {
+				t.Errorf("GetCacheEntry with positive TTL returned hit=true after SetCacheEntry with ttlSeconds=%d", tt.ttlSeconds)
+			}
+
+			// 2. Directly verify in-memory cache map does not contain the key
+			gitCacheMutex.Lock()
+			memKey := fmt.Sprintf("status|%s", tempDir)
+			_, inMem := gitCommandCache[memKey]
+			gitCacheMutex.Unlock()
+			if inMem {
+				t.Errorf("In-memory gitCommandCache contains entry for key %q after SetCacheEntry with ttlSeconds=%d", memKey, tt.ttlSeconds)
+			}
+
+			// 3. Verify no cache file was created on disk
+			meta, err := getGitRepoMetadata(tempDir)
+			if err != nil {
+				t.Fatalf("getGitRepoMetadata failed: %v", err)
+			}
+			if _, statErr := os.Stat(meta.CachePath); !os.IsNotExist(statErr) {
+				t.Errorf("Cache file %s exists on disk, but should not have been written for ttlSeconds=%d", meta.CachePath, tt.ttlSeconds)
+			}
+		})
+	}
+}
