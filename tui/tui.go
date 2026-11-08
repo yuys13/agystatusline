@@ -30,6 +30,9 @@ type Model struct {
 	selectedLine    int
 	itemIndex       int
 	moveMode        bool
+	separators      []choiceItem
+	startCaps       []choiceItem
+	endCaps         []choiceItem
 }
 
 var themesList = []string{"nord", "nord-aurora", "monokai", "solarized", "minimal", "dracula", "catppuccin", "gruvbox", "onedark", "tokyonight"}
@@ -43,10 +46,12 @@ var colorLevelsList = []struct {
 	{name: "Truecolor (24-bit)", value: 3},
 }
 
-var separatorsList = []struct {
+type choiceItem struct {
 	name  string
 	value string
-}{
+}
+
+var defaultSeparators = []choiceItem{
 	{name: "None", value: ""},
 	{name: "Arrow (\uE0B0)", value: "\uE0B0"},
 	{name: "Round (\uE0B4)", value: "\uE0B4"},
@@ -55,10 +60,7 @@ var separatorsList = []struct {
 	{name: "Slanted (\uE0C8)", value: "\uE0C8"},
 }
 
-var startCapsList = []struct {
-	name  string
-	value string
-}{
+var defaultStartCaps = []choiceItem{
 	{name: "None", value: ""},
 	{name: "Triangle (\uE0B2)", value: "\uE0B2"},
 	{name: "Round (\uE0B6)", value: "\uE0B6"},
@@ -69,10 +71,7 @@ var startCapsList = []struct {
 	{name: "Slanted (\uE0CA)", value: "\uE0CA "},
 }
 
-var endCapsList = []struct {
-	name  string
-	value string
-}{
+var defaultEndCaps = []choiceItem{
 	{name: "None", value: ""},
 	{name: "Triangle (\uE0B0)", value: "\uE0B0"},
 	{name: "Round (\uE0B4)", value: "\uE0B4"},
@@ -132,52 +131,49 @@ func NewModel(settings types.Settings, configPath string, loadError ...string) M
 		}
 	}
 
+	separators := make([]choiceItem, len(defaultSeparators))
+	copy(separators, defaultSeparators)
 	initialSeparatorIndex := -1
 	currentSep := settings.Powerline.Separator
-	for i, s := range separatorsList {
+	for i, s := range separators {
 		if strings.TrimRight(s.value, " ") == strings.TrimRight(currentSep, " ") {
 			initialSeparatorIndex = i
 			break
 		}
 	}
 	if initialSeparatorIndex == -1 {
-		separatorsList = append(separatorsList, struct {
-			name  string
-			value string
-		}{name: fmt.Sprintf("Custom (%s)", currentSep), value: currentSep})
-		initialSeparatorIndex = len(separatorsList) - 1
+		separators = append(separators, choiceItem{name: fmt.Sprintf("Custom (%s)", currentSep), value: currentSep})
+		initialSeparatorIndex = len(separators) - 1
 	}
 
+	startCaps := make([]choiceItem, len(defaultStartCaps))
+	copy(startCaps, defaultStartCaps)
 	initialStartCapIndex := -1
 	currentStartCap := settings.Powerline.StartCaps
-	for i, s := range startCapsList {
+	for i, s := range startCaps {
 		if s.value == currentStartCap {
 			initialStartCapIndex = i
 			break
 		}
 	}
 	if initialStartCapIndex == -1 {
-		startCapsList = append(startCapsList, struct {
-			name  string
-			value string
-		}{name: fmt.Sprintf("Custom (%s)", currentStartCap), value: currentStartCap})
-		initialStartCapIndex = len(startCapsList) - 1
+		startCaps = append(startCaps, choiceItem{name: fmt.Sprintf("Custom (%s)", currentStartCap), value: currentStartCap})
+		initialStartCapIndex = len(startCaps) - 1
 	}
 
+	endCaps := make([]choiceItem, len(defaultEndCaps))
+	copy(endCaps, defaultEndCaps)
 	initialEndCapIndex := -1
 	currentEndCap := settings.Powerline.EndCaps
-	for i, s := range endCapsList {
+	for i, s := range endCaps {
 		if s.value == currentEndCap {
 			initialEndCapIndex = i
 			break
 		}
 	}
 	if initialEndCapIndex == -1 {
-		endCapsList = append(endCapsList, struct {
-			name  string
-			value string
-		}{name: fmt.Sprintf("Custom (%s)", currentEndCap), value: currentEndCap})
-		initialEndCapIndex = len(endCapsList) - 1
+		endCaps = append(endCaps, choiceItem{name: fmt.Sprintf("Custom (%s)", currentEndCap), value: currentEndCap})
+		initialEndCapIndex = len(endCaps) - 1
 	}
 
 	initialColorLevelIndex := 0 // default to ANSI 16
@@ -206,6 +202,9 @@ func NewModel(settings types.Settings, configPath string, loadError ...string) M
 		startCapIndex:   initialStartCapIndex,
 		endCapIndex:     initialEndCapIndex,
 		colorLevelIndex: initialColorLevelIndex,
+		separators:      separators,
+		startCaps:       startCaps,
+		endCaps:         endCaps,
 	}
 }
 
@@ -589,13 +588,13 @@ func (m Model) updateSelectSeparator(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		}
 
 	case "down", "j":
-		if m.cursor < len(separatorsList)-1 {
+		if m.cursor < len(m.separators)-1 {
 			m.cursor++
 		}
 
 	case "enter", "\n":
 		m.separatorIndex = m.cursor
-		m.settings.Powerline.Separator = separatorsList[m.separatorIndex].value
+		m.settings.Powerline.Separator = m.separators[m.separatorIndex].value
 		m.activeMenu = "powerline"
 		m.cursor = 2
 
@@ -614,13 +613,13 @@ func (m Model) updateSelectStartCap(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		}
 
 	case "down", "j":
-		if m.cursor < len(startCapsList)-1 {
+		if m.cursor < len(m.startCaps)-1 {
 			m.cursor++
 		}
 
 	case "enter", "\n":
 		m.startCapIndex = m.cursor
-		m.settings.Powerline.StartCaps = startCapsList[m.startCapIndex].value
+		m.settings.Powerline.StartCaps = m.startCaps[m.startCapIndex].value
 		m.activeMenu = "powerline"
 		m.cursor = 3
 
@@ -639,13 +638,13 @@ func (m Model) updateSelectEndCap(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		}
 
 	case "down", "j":
-		if m.cursor < len(endCapsList)-1 {
+		if m.cursor < len(m.endCaps)-1 {
 			m.cursor++
 		}
 
 	case "enter", "\n":
 		m.endCapIndex = m.cursor
-		m.settings.Powerline.EndCaps = endCapsList[m.endCapIndex].value
+		m.settings.Powerline.EndCaps = m.endCaps[m.endCapIndex].value
 		m.activeMenu = "powerline"
 		m.cursor = 4
 
@@ -709,16 +708,16 @@ func (m Model) View() string {
 			previewSettings.Powerline.Theme = themesList[m.cursor]
 		}
 	case "select_separator":
-		if m.cursor >= 0 && m.cursor < len(separatorsList) {
-			previewSettings.Powerline.Separator = separatorsList[m.cursor].value
+		if m.cursor >= 0 && m.cursor < len(m.separators) {
+			previewSettings.Powerline.Separator = m.separators[m.cursor].value
 		}
 	case "select_start_cap":
-		if m.cursor >= 0 && m.cursor < len(startCapsList) {
-			previewSettings.Powerline.StartCaps = startCapsList[m.cursor].value
+		if m.cursor >= 0 && m.cursor < len(m.startCaps) {
+			previewSettings.Powerline.StartCaps = m.startCaps[m.cursor].value
 		}
 	case "select_end_cap":
-		if m.cursor >= 0 && m.cursor < len(endCapsList) {
-			previewSettings.Powerline.EndCaps = endCapsList[m.cursor].value
+		if m.cursor >= 0 && m.cursor < len(m.endCaps) {
+			previewSettings.Powerline.EndCaps = m.endCaps[m.cursor].value
 		}
 	case "select_color_level":
 		if m.cursor >= 0 && m.cursor < len(colorLevelsList) {
@@ -846,9 +845,9 @@ func (m Model) viewPowerline(s *stringsBuilder) {
 	menuItems := []string{
 		fmt.Sprintf("Toggle Powerline Mode       [%t]", m.settings.Powerline.Enabled),
 		fmt.Sprintf("Select Powerline Theme      [%s]", m.settings.Powerline.Theme),
-		fmt.Sprintf("Select Powerline Separator  [%s]", separatorsList[m.separatorIndex].name),
-		fmt.Sprintf("Select Powerline Start Cap  [%s]", startCapsList[m.startCapIndex].name),
-		fmt.Sprintf("Select Powerline End Cap    [%s]", endCapsList[m.endCapIndex].name),
+		fmt.Sprintf("Select Powerline Separator  [%s]", m.separators[m.separatorIndex].name),
+		fmt.Sprintf("Select Powerline Start Cap  [%s]", m.startCaps[m.startCapIndex].name),
+		fmt.Sprintf("Select Powerline End Cap    [%s]", m.endCaps[m.endCapIndex].name),
 		"Back to Main Menu",
 	}
 
@@ -974,7 +973,7 @@ func (m Model) viewSelectSeparator(s *stringsBuilder) {
 	s.WriteString(lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("39")).Render("Select Powerline Separator"))
 	s.WriteString("\n\n")
 
-	for i, sep := range separatorsList {
+	for i, sep := range m.separators {
 		cursorStr := " "
 		style := lipgloss.NewStyle()
 		if m.cursor == i {
@@ -996,7 +995,7 @@ func (m Model) viewSelectStartCap(s *stringsBuilder) {
 	s.WriteString(lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("39")).Render("Select Powerline Start Cap"))
 	s.WriteString("\n\n")
 
-	for i, capVal := range startCapsList {
+	for i, capVal := range m.startCaps {
 		cursorStr := " "
 		style := lipgloss.NewStyle()
 		if m.cursor == i {
@@ -1018,7 +1017,7 @@ func (m Model) viewSelectEndCap(s *stringsBuilder) {
 	s.WriteString(lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("39")).Render("Select Powerline End Cap"))
 	s.WriteString("\n\n")
 
-	for i, capVal := range endCapsList {
+	for i, capVal := range m.endCaps {
 		cursorStr := " "
 		style := lipgloss.NewStyle()
 		if m.cursor == i {

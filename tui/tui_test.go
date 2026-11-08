@@ -4,6 +4,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"testing"
 
 	tea "github.com/charmbracelet/bubbletea"
@@ -561,10 +562,10 @@ func TestTUI_PowerlineSeparator_IndexInitialization(t *testing.T) {
 			settings := tt.setupSettings()
 			m := NewModel(settings, "/tmp/settings.toml")
 
-			if m.separatorIndex < 0 || m.separatorIndex >= len(separatorsList) {
-				t.Fatalf("Expected valid separatorIndex [0, %d), got %d", len(separatorsList), m.separatorIndex)
+			if m.separatorIndex < 0 || m.separatorIndex >= len(m.separators) {
+				t.Fatalf("Expected valid separatorIndex [0, %d), got %d", len(m.separators), m.separatorIndex)
 			}
-			gotSep := separatorsList[m.separatorIndex]
+			gotSep := m.separators[m.separatorIndex]
 			if gotSep.name != tt.wantSepName {
 				t.Errorf("Expected separator name %q, got %q", tt.wantSepName, gotSep.name)
 			}
@@ -1188,7 +1189,7 @@ func TestTUI_WidgetSliceCorruption(t *testing.T) {
 }
 
 func TestTUI_NoASCIIInSeparators(t *testing.T) {
-	for _, sep := range separatorsList {
+	for _, sep := range defaultSeparators {
 		if strings.ContainsAny(sep.value, "/|") {
 			t.Errorf("Separator %q contains forbidden ASCII characters: %q", sep.name, sep.value)
 		}
@@ -1208,13 +1209,13 @@ func TestTUI_SeparatorsList_Presets(t *testing.T) {
 		{name: "Slanted (\uE0C8)", value: "\uE0C8"},
 	}
 
-	if len(separatorsList) < len(expected) {
-		t.Fatalf("Expected at least %d preset separators, got %d", len(expected), len(separatorsList))
+	if len(defaultSeparators) != len(expected) {
+		t.Fatalf("Expected exactly %d preset separators, got %d", len(expected), len(defaultSeparators))
 	}
 
 	for i, want := range expected {
 		t.Run(want.name, func(t *testing.T) {
-			got := separatorsList[i]
+			got := defaultSeparators[i]
 			if got.name != want.name {
 				t.Errorf("Expected preset name %q, got %q", want.name, got.name)
 			}
@@ -1822,10 +1823,10 @@ func TestTUI_SelectSubmenus_BoundariesAndNoneCaps(t *testing.T) {
 		if updatedModel.(Model).cursor != 1 {
 			t.Errorf("Expected select_separator cursor to move to 1 on Down, got %d", updatedModel.(Model).cursor)
 		}
-		m.cursor = len(separatorsList) - 1
+		m.cursor = len(m.separators) - 1
 		updatedModel, _ = m.Update(tea.KeyMsg{Type: tea.KeyDown})
-		if updatedModel.(Model).cursor != len(separatorsList)-1 {
-			t.Errorf("Expected select_separator cursor to stay %d on Down at bottom", len(separatorsList)-1)
+		if updatedModel.(Model).cursor != len(m.separators)-1 {
+			t.Errorf("Expected select_separator cursor to stay %d on Down at bottom", len(m.separators)-1)
 		}
 	})
 
@@ -1841,10 +1842,10 @@ func TestTUI_SelectSubmenus_BoundariesAndNoneCaps(t *testing.T) {
 		if updatedModel.(Model).cursor != 1 {
 			t.Errorf("Expected select_start_cap cursor to move to 1 on Down, got %d", updatedModel.(Model).cursor)
 		}
-		m.cursor = len(startCapsList) - 1
+		m.cursor = len(m.startCaps) - 1
 		updatedModel, _ = m.Update(tea.KeyMsg{Type: tea.KeyDown})
-		if updatedModel.(Model).cursor != len(startCapsList)-1 {
-			t.Errorf("Expected select_start_cap cursor to stay %d on Down at bottom", len(startCapsList)-1)
+		if updatedModel.(Model).cursor != len(m.startCaps)-1 {
+			t.Errorf("Expected select_start_cap cursor to stay %d on Down at bottom", len(m.startCaps)-1)
 		}
 
 		// Test "None" cap selection (cursor = 0, value == "")
@@ -1873,10 +1874,10 @@ func TestTUI_SelectSubmenus_BoundariesAndNoneCaps(t *testing.T) {
 		if updatedModel.(Model).cursor != 1 {
 			t.Errorf("Expected select_end_cap cursor to move to 1 on Down, got %d", updatedModel.(Model).cursor)
 		}
-		m.cursor = len(endCapsList) - 1
+		m.cursor = len(m.endCaps) - 1
 		updatedModel, _ = m.Update(tea.KeyMsg{Type: tea.KeyDown})
-		if updatedModel.(Model).cursor != len(endCapsList)-1 {
-			t.Errorf("Expected select_end_cap cursor to stay %d on Down at bottom", len(endCapsList)-1)
+		if updatedModel.(Model).cursor != len(m.endCaps)-1 {
+			t.Errorf("Expected select_end_cap cursor to stay %d on Down at bottom", len(m.endCaps)-1)
 		}
 
 		// Test "None" cap selection (cursor = 0, value == "")
@@ -1914,17 +1915,46 @@ func TestTUI_SelectSubmenus_BoundariesAndNoneCaps(t *testing.T) {
 }
 
 func TestTUI_CustomCaps_Initialization(t *testing.T) {
-	settings := types.DefaultSettings()
-	settings.Powerline.StartCaps = "[CUSTOM_START]"
-	settings.Powerline.EndCaps = "[CUSTOM_END]"
-
-	m := NewModel(settings, "/tmp/settings.toml")
-
-	if m.startCapIndex == -1 || startCapsList[m.startCapIndex].value != "[CUSTOM_START]" {
-		t.Errorf("Expected custom start cap to be initialized and appended to startCapsList")
+	tests := []struct {
+		name         string
+		startCap     string
+		endCap       string
+		wantStartVal string
+		wantEndVal   string
+	}{
+		{
+			name:         "custom start and end caps initialized in model slices",
+			startCap:     "[CUSTOM_START]",
+			endCap:       "[CUSTOM_END]",
+			wantStartVal: "[CUSTOM_START]",
+			wantEndVal:   "[CUSTOM_END]",
+		},
 	}
-	if m.endCapIndex == -1 || endCapsList[m.endCapIndex].value != "[CUSTOM_END]" {
-		t.Errorf("Expected custom end cap to be initialized and appended to endCapsList")
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			settings := types.DefaultSettings()
+			settings.Powerline.StartCaps = tt.startCap
+			settings.Powerline.EndCaps = tt.endCap
+
+			m := NewModel(settings, "/tmp/settings.toml")
+
+			if m.startCapIndex < 0 || m.startCapIndex >= len(m.startCaps) {
+				t.Fatalf("Expected valid startCapIndex [0, %d), got %d", len(m.startCaps), m.startCapIndex)
+			}
+			gotStart := m.startCaps[m.startCapIndex].value
+			if gotStart != tt.wantStartVal {
+				t.Errorf("Expected custom start cap %q, got %q", tt.wantStartVal, gotStart)
+			}
+
+			if m.endCapIndex < 0 || m.endCapIndex >= len(m.endCaps) {
+				t.Fatalf("Expected valid endCapIndex [0, %d), got %d", len(m.endCaps), m.endCapIndex)
+			}
+			gotEnd := m.endCaps[m.endCapIndex].value
+			if gotEnd != tt.wantEndVal {
+				t.Errorf("Expected custom end cap %q, got %q", tt.wantEndVal, gotEnd)
+			}
+		})
 	}
 }
 
@@ -2166,5 +2196,159 @@ func TestTUI_CorruptedConfigPrompt(t *testing.T) {
 				t.Errorf("Expected saved %v, got %v", tt.wantSaved, got.saved)
 			}
 		})
+	}
+}
+
+func TestNewModel_PresetsImmutability(t *testing.T) {
+	tests := []struct {
+		name       string
+		customSep  string
+		customCap  string
+		wantSepLen int
+		wantCapLen int
+	}{
+		{
+			name:       "first custom config does not mutate presets",
+			customSep:  "[CUSTOM_SEP_1]",
+			customCap:  "[CUSTOM_CAP_1]",
+			wantSepLen: 6,
+			wantCapLen: 8,
+		},
+		{
+			name:       "second distinct custom config does not accumulate in presets",
+			customSep:  "[CUSTOM_SEP_2]",
+			customCap:  "[CUSTOM_CAP_2]",
+			wantSepLen: 6,
+			wantCapLen: 8,
+		},
+		{
+			name:       "third distinct custom config keeps presets pristine",
+			customSep:  "[CUSTOM_SEP_3]",
+			customCap:  "[CUSTOM_CAP_3]",
+			wantSepLen: 6,
+			wantCapLen: 8,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			s := types.DefaultSettings()
+			s.Powerline.Separator = tt.customSep
+			s.Powerline.StartCaps = tt.customCap
+			s.Powerline.EndCaps = tt.customCap
+			_ = NewModel(s, "/tmp/settings.toml")
+
+			gotSepLen := len(defaultSeparators)
+			if gotSepLen != tt.wantSepLen {
+				t.Errorf("defaultSeparators length: got %d, want %d", gotSepLen, tt.wantSepLen)
+			}
+
+			gotStartLen := len(defaultStartCaps)
+			if gotStartLen != tt.wantCapLen {
+				t.Errorf("defaultStartCaps length: got %d, want %d", gotStartLen, tt.wantCapLen)
+			}
+
+			gotEndLen := len(defaultEndCaps)
+			if gotEndLen != tt.wantCapLen {
+				t.Errorf("defaultEndCaps length: got %d, want %d", gotEndLen, tt.wantCapLen)
+			}
+		})
+	}
+}
+
+func TestNewModel_ModelInstanceIsolation(t *testing.T) {
+	tests := []struct {
+		name         string
+		customSep    string
+		wantSepCount int
+		wantSepName  string
+		wantSepValue string
+	}{
+		{
+			name:         "model A with custom separator star",
+			customSep:    "★",
+			wantSepCount: 7, // 6 presets + 1 custom
+			wantSepName:  "Custom (★)",
+			wantSepValue: "★",
+		},
+		{
+			name:         "model B with custom separator diamond",
+			customSep:    "♦",
+			wantSepCount: 7, // 6 presets + 1 custom (not 8)
+			wantSepName:  "Custom (♦)",
+			wantSepValue: "♦",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			s := types.DefaultSettings()
+			s.Powerline.Separator = tt.customSep
+			m := NewModel(s, "/tmp/settings.toml")
+
+			gotCount := len(m.separators)
+			if gotCount != tt.wantSepCount {
+				t.Errorf("model separators length: got %d, want %d", gotCount, tt.wantSepCount)
+			}
+
+			gotName := m.separators[m.separatorIndex].name
+			if gotName != tt.wantSepName {
+				t.Errorf("model separator name: got %q, want %q", gotName, tt.wantSepName)
+			}
+
+			gotValue := m.separators[m.separatorIndex].value
+			if gotValue != tt.wantSepValue {
+				t.Errorf("model separator value: got %q, want %q", gotValue, tt.wantSepValue)
+			}
+		})
+	}
+}
+
+func TestNewModel_ConcurrentSafety(t *testing.T) {
+	tests := []struct {
+		name          string
+		wantSeparator string
+		wantStartCap  string
+		wantEndCap    string
+	}{
+		{name: "routine 0", wantSeparator: "SEP_0", wantStartCap: "START_0", wantEndCap: "END_0"},
+		{name: "routine 1", wantSeparator: "SEP_1", wantStartCap: "START_1", wantEndCap: "END_1"},
+		{name: "routine 2", wantSeparator: "SEP_2", wantStartCap: "START_2", wantEndCap: "END_2"},
+		{name: "routine 3", wantSeparator: "SEP_3", wantStartCap: "START_3", wantEndCap: "END_3"},
+		{name: "routine 4", wantSeparator: "SEP_4", wantStartCap: "START_4", wantEndCap: "END_4"},
+		{name: "routine 5", wantSeparator: "SEP_5", wantStartCap: "START_5", wantEndCap: "END_5"},
+		{name: "routine 6", wantSeparator: "SEP_6", wantStartCap: "START_6", wantEndCap: "END_6"},
+		{name: "routine 7", wantSeparator: "SEP_7", wantStartCap: "START_7", wantEndCap: "END_7"},
+	}
+
+	results := make([]Model, len(tests))
+	var wg sync.WaitGroup
+	for i, tt := range tests {
+		wg.Add(1)
+		go func(idx int, sep, start, end string) {
+			defer wg.Done()
+			s := types.DefaultSettings()
+			s.Powerline.Separator = sep
+			s.Powerline.StartCaps = start
+			s.Powerline.EndCaps = end
+			results[idx] = NewModel(s, "/tmp/settings.toml")
+		}(i, tt.wantSeparator, tt.wantStartCap, tt.wantEndCap)
+	}
+	wg.Wait()
+
+	for i, tt := range tests {
+		m := results[i]
+		gotSep := m.separators[m.separatorIndex].value
+		if gotSep != tt.wantSeparator {
+			t.Errorf("[%s] separator value: got %q, want %q", tt.name, gotSep, tt.wantSeparator)
+		}
+		gotStart := m.startCaps[m.startCapIndex].value
+		if gotStart != tt.wantStartCap {
+			t.Errorf("[%s] startCap value: got %q, want %q", tt.name, gotStart, tt.wantStartCap)
+		}
+		gotEnd := m.endCaps[m.endCapIndex].value
+		if gotEnd != tt.wantEndCap {
+			t.Errorf("[%s] endCap value: got %q, want %q", tt.name, gotEnd, tt.wantEndCap)
+		}
 	}
 }
