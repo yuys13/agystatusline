@@ -1211,7 +1211,7 @@ func TestStatusJSON_AntigravityAndClaudeCode_Payloads(t *testing.T) {
 	})
 }
 
-func TestWidgetItem_EdgeCases_Adversarial(t *testing.T) {
+func TestWidgetItem_UnmarshalText_ShorthandParameters(t *testing.T) {
 	tests := []struct {
 		name     string
 		input    string
