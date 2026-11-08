@@ -1405,49 +1405,71 @@ func TestTUI_InitAndMainChoices(t *testing.T) {
 	})
 }
 
-func TestTUI_UpdateMain_BoundaryAndEdgeCases(t *testing.T) {
+func TestTUI_UpdateMain_CursorNavigation(t *testing.T) {
+	settings := types.DefaultSettings()
+
+	tests := []struct {
+		name        string
+		initialCur  int
+		key         tea.KeyMsg
+		expectedCur int
+	}{
+		{
+			name:        "Up key at upper bound (cursor 0)",
+			initialCur:  0,
+			key:         tea.KeyMsg{Type: tea.KeyUp},
+			expectedCur: 0,
+		},
+		{
+			name:        "k key at upper bound (cursor 0)",
+			initialCur:  0,
+			key:         tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("k")},
+			expectedCur: 0,
+		},
+		{
+			name:        "Down key at lower bound (cursor 4)",
+			initialCur:  4,
+			key:         tea.KeyMsg{Type: tea.KeyDown},
+			expectedCur: 4,
+		},
+		{
+			name:        "j key at lower bound (cursor 4)",
+			initialCur:  4,
+			key:         tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("j")},
+			expectedCur: 4,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			m := NewModel(settings, "/tmp/settings.toml")
+			m.cursor = tt.initialCur
+			updatedModel, _ := m.Update(tt.key)
+			mResult := updatedModel.(Model)
+			if mResult.cursor != tt.expectedCur {
+				t.Errorf("Expected cursor %d, got %d", tt.expectedCur, mResult.cursor)
+			}
+		})
+	}
+}
+
+func TestTUI_UpdateMain_SubmenuNavigation(t *testing.T) {
 	settings := types.DefaultSettings()
 	m := NewModel(settings, "/tmp/settings.toml")
-
-	// 1. Up key at cursor == 0 (upper boundary limit)
-	m.cursor = 0
-	updatedModel, _ := m.Update(tea.KeyMsg{Type: tea.KeyUp})
-	mResult := updatedModel.(Model)
-	if mResult.cursor != 0 {
-		t.Errorf("Expected cursor to remain 0 when pressing Up at upper bound, got %d", mResult.cursor)
-	}
-
-	updatedModel, _ = m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("k")})
-	mResult = updatedModel.(Model)
-	if mResult.cursor != 0 {
-		t.Errorf("Expected cursor to remain 0 when pressing 'k' at upper bound, got %d", mResult.cursor)
-	}
-
-	// 2. Down key at cursor == 4 (lower boundary limit, maxItems - 1)
-	m.cursor = 4
-	updatedModel, _ = m.Update(tea.KeyMsg{Type: tea.KeyDown})
-	mResult = updatedModel.(Model)
-	if mResult.cursor != 4 {
-		t.Errorf("Expected cursor to remain 4 when pressing Down at lower bound, got %d", mResult.cursor)
-	}
-
-	updatedModel, _ = m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("j")})
-	mResult = updatedModel.(Model)
-	if mResult.cursor != 4 {
-		t.Errorf("Expected cursor to remain 4 when pressing 'j' at lower bound, got %d", mResult.cursor)
-	}
-
-	// 3. Item 1 Enter: Navigate to Powerline Submenu
 	m.cursor = 1
-	updatedModel, _ = m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("\n")})
+
+	updatedModel, _ := m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("\n")})
 	mSubmenu := updatedModel.(Model)
 	if mSubmenu.activeMenu != "powerline" {
 		t.Errorf("Expected activeMenu to be 'powerline', got %q", mSubmenu.activeMenu)
 	}
+}
 
-	// 4. Item 3 Enter: Save & Exit with save error
+func TestTUI_UpdateMain_SaveFailure(t *testing.T) {
+	settings := types.DefaultSettings()
+	m := NewModel(settings, "/tmp/settings.toml")
 	m.cursor = 3
-	// Set invalid configPath where parent directory is a regular file
+
 	tempDir := t.TempDir()
 	invalidFile := filepath.Join(tempDir, "invalid_parent_file")
 	if err := os.WriteFile(invalidFile, []byte("data"), 0644); err != nil {
@@ -1466,18 +1488,25 @@ func TestTUI_UpdateMain_BoundaryAndEdgeCases(t *testing.T) {
 	if quitCmd == nil {
 		t.Errorf("Expected Quit command when Save & Exit fails")
 	}
+}
 
-	// 5. Non-KeyMsg message handling in Update
+func TestTUI_UpdateMain_NonKeyMessages(t *testing.T) {
+	settings := types.DefaultSettings()
+	m := NewModel(settings, "/tmp/settings.toml")
+
 	_, cmd := m.Update(tea.WindowSizeMsg{Width: 100, Height: 30})
 	if cmd != nil {
 		t.Errorf("Expected nil command for non-KeyMsg input, got %v", cmd)
 	}
+}
 
-	// 6. Unknown activeMenu handling in Update
-	mUnknown := m
-	mUnknown.activeMenu = "unknown_menu_type"
-	updatedModel, cmd = mUnknown.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("a")})
-	mResult = updatedModel.(Model)
+func TestTUI_UpdateMain_UnknownMenu(t *testing.T) {
+	settings := types.DefaultSettings()
+	m := NewModel(settings, "/tmp/settings.toml")
+	m.activeMenu = "unknown_menu_type"
+
+	updatedModel, cmd := m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("a")})
+	mResult := updatedModel.(Model)
 	if mResult.activeMenu != "unknown_menu_type" {
 		t.Errorf("Expected activeMenu to remain 'unknown_menu_type', got %q", mResult.activeMenu)
 	}
