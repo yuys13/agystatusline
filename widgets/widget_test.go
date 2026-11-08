@@ -214,7 +214,7 @@ func TestWidgets_ConcurrentRenderStress(t *testing.T) {
 	}
 }
 
-func TestAdversarialStressAllWidgets_ExtremeEdgeCases(t *testing.T) {
+func TestWidgets_Render_ExtremeTelemetry(t *testing.T) {
 	RegisterAll()
 	settings := types.DefaultSettings()
 
@@ -223,7 +223,6 @@ func TestAdversarialStressAllWidgets_ExtremeEdgeCases(t *testing.T) {
 		"tasks", "sandbox", "quota", "quota-bar", "git-branch", "git-repo", "git-changes", "git-ahead-behind", "custom-text",
 	}
 
-	// 1. Extreme numeric and pointer fixtures
 	hugeInt := 1<<31 - 1
 	minInt := -1 << 31
 	negInt := -9999
@@ -235,19 +234,6 @@ func TestAdversarialStressAllWidgets_ExtremeEdgeCases(t *testing.T) {
 	boolTrue := true
 	boolFalse := false
 
-	// Unicode and boundary strings
-	unicodeStrings := []string{
-		"日本語ブランチ_テスト",
-		"🚀✨🎉🔥🤖",
-		"العربية",
-		"مرحبا",
-		"Mixed_English_日本語_🌟",
-		strings.Repeat("A", 10000),
-		"\x1b[31;1mANSI_INJECTION\x1b[0m",
-		"\x00\x01\x02\r\n\t",
-	}
-
-	// 2. Telemetry contexts covering extreme variations
 	testContexts := []struct {
 		name string
 		ctx  types.RenderContext
@@ -355,7 +341,6 @@ func TestAdversarialStressAllWidgets_ExtremeEdgeCases(t *testing.T) {
 		},
 	}
 
-	// 3. Run all widgets against all test contexts
 	for _, tc := range testContexts {
 		t.Run(tc.name, func(t *testing.T) {
 			for _, wName := range widgetsList {
@@ -365,7 +350,6 @@ func TestAdversarialStressAllWidgets_ExtremeEdgeCases(t *testing.T) {
 						t.Fatalf("Widget %s not registered", wName)
 					}
 
-					// Test normal mode
 					itemNormal := types.WidgetItem{
 						Type:   wName,
 						Key:    "gemini-5h",
@@ -376,15 +360,18 @@ func TestAdversarialStressAllWidgets_ExtremeEdgeCases(t *testing.T) {
 					if err != nil {
 						t.Errorf("Widget %s Render returned error: %v", wName, err)
 					}
-					_ = title
-					_ = body
+					if strings.Contains(title, "\x1b[") {
+						t.Errorf("Widget %s Render returned ANSI escape in title: %q", wName, title)
+					}
+					if strings.Contains(body, "\x1b[") {
+						t.Errorf("Widget %s Render returned ANSI escape in body: %q", wName, body)
+					}
 
 					color := w.GetBodyColor(itemNormal, tc.ctx)
 					if color == "" {
 						t.Errorf("Widget %s GetBodyColor returned empty color", wName)
 					}
 
-					// Test raw mode
 					itemRaw := types.WidgetItem{
 						Type: wName,
 						Key:  "gemini-5h",
@@ -397,21 +384,74 @@ func TestAdversarialStressAllWidgets_ExtremeEdgeCases(t *testing.T) {
 					if rawTitle != "" {
 						t.Errorf("Widget %s with Raw=true expected empty title, got %q", wName, rawTitle)
 					}
-					_ = rawBody
+					if strings.Contains(rawBody, "\x1b[") {
+						t.Errorf("Widget %s with Raw=true returned ANSI escape in body: %q", wName, rawBody)
+					}
 				})
 			}
 		})
 	}
+}
 
-	// 4. Test Unicode and symbol stress
-	for _, uStr := range unicodeStrings {
-		t.Run("UnicodeString_"+uStr[:min(len(uStr), 10)], func(t *testing.T) {
+func TestWidgets_Render_UnicodeAndSymbols(t *testing.T) {
+	RegisterAll()
+	settings := types.DefaultSettings()
+
+	tests := []struct {
+		name        string
+		input       string
+		expectedGit string
+	}{
+		{
+			name:        "Japanese branch and text",
+			input:       "日本語ブランチ_テスト",
+			expectedGit: "🌿 日本語ブランチ_テスト*",
+		},
+		{
+			name:        "Emojis",
+			input:       "🚀✨🎉🔥🤖",
+			expectedGit: "🌿 🚀✨🎉🔥🤖*",
+		},
+		{
+			name:        "Arabic text",
+			input:       "العربية",
+			expectedGit: "🌿 العربية*",
+		},
+		{
+			name:        "Greeting in Arabic",
+			input:       "مرحبا",
+			expectedGit: "🌿 مرحبا*",
+		},
+		{
+			name:        "Mixed English and Japanese with symbols",
+			input:       "Mixed_English_日本語_🌟",
+			expectedGit: "🌿 Mixed_English_日本語_🌟*",
+		},
+		{
+			name:        "Long string",
+			input:       strings.Repeat("A", 1000),
+			expectedGit: "🌿 " + strings.Repeat("A", 1000) + "*",
+		},
+		{
+			name:        "ANSI escape sequence in string",
+			input:       "\x1b[31;1mANSI_INJECTION\x1b[0m",
+			expectedGit: "🌿 \x1b[31;1mANSI_INJECTION\x1b[0m*",
+		},
+		{
+			name:        "Control characters",
+			input:       "\x00\x01\x02\r\n\t",
+			expectedGit: "🌿 \x00\x01\x02\r\n\t*",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
 			customWidget := GetWidget("custom-text")
-			title, body, err := customWidget.Render(types.WidgetItem{Type: "custom-text", Text: uStr}, types.RenderContext{}, settings)
+			title, body, err := customWidget.Render(types.WidgetItem{Type: "custom-text", Text: tt.input}, types.RenderContext{}, settings)
 			if err != nil {
 				t.Fatalf("custom-text error on unicode string: %v", err)
 			}
-			if title != "" || body != uStr {
+			if title != "" || body != tt.input {
 				t.Errorf("Expected exact unicode echo in body, got body=%q title=%q", body, title)
 			}
 
@@ -419,32 +459,24 @@ func TestAdversarialStressAllWidgets_ExtremeEdgeCases(t *testing.T) {
 			dirty := true
 			ctx := types.RenderContext{
 				Data: types.StatusJSON{
-					VCS: &types.VCSInfo{Branch: uStr, Dirty: &dirty},
+					VCS: &types.VCSInfo{Branch: tt.input, Dirty: &dirty},
 				},
 			}
 			_, gitBody, err := gitBranchWidget.Render(types.WidgetItem{Type: "git-branch", Symbol: "🌿 "}, ctx, settings)
 			if err != nil {
 				t.Fatalf("git-branch error on unicode branch: %v", err)
 			}
-			expectedGit := "🌿 " + uStr + "*"
-			if gitBody != expectedGit {
-				t.Errorf("Expected gitBody=%q, got %q", expectedGit, gitBody)
+			if gitBody != tt.expectedGit {
+				t.Errorf("Expected gitBody=%q, got %q", tt.expectedGit, gitBody)
 			}
 		})
 	}
+}
 
-	// 5. Test Quota and Quota-Bar with unexpected / missing keys
-	unexpectedKeys := []string{
-		"",
-		"unknown-quota-key",
-		"gemini-5h/non-existent",
-		"クォータキー",
-		"!@#$%^&*()_+",
-		"3p-custom-limit",
-	}
+func TestQuota_Render_MissingKeys(t *testing.T) {
+	RegisterAll()
+	settings := types.DefaultSettings()
 
-	quotaW := GetWidget("quota")
-	quotaBarW := GetWidget("quota-bar")
 	remVal := 0.75
 	resetSecs := 3600.0
 	quotaCtx := types.RenderContext{
@@ -455,24 +487,41 @@ func TestAdversarialStressAllWidgets_ExtremeEdgeCases(t *testing.T) {
 		},
 	}
 
-	for _, key := range unexpectedKeys {
-		t.Run("QuotaKey_"+key, func(t *testing.T) {
-			item := types.WidgetItem{Type: "quota", Key: key}
+	tests := []struct {
+		name string
+		key  string
+	}{
+		{"Empty key", ""},
+		{"Unknown key", "unknown-quota-key"},
+		{"Key with slash", "gemini-5h/non-existent"},
+		{"Unicode key", "クォータキー"},
+		{"Special characters key", "!@#$%^&*()_+"},
+		{"Custom limit key", "3p-custom-limit"},
+	}
+
+	quotaW := GetWidget("quota")
+	quotaBarW := GetWidget("quota-bar")
+
+	for _, tt := range tests {
+		t.Run("quota_"+tt.name, func(t *testing.T) {
+			item := types.WidgetItem{Type: "quota", Key: tt.key}
 			title, body, err := quotaW.Render(item, quotaCtx, settings)
 			if err != nil {
-				t.Errorf("quota render error on key %q: %v", key, err)
+				t.Errorf("quota render error on key %q: %v", tt.key, err)
 			}
 			if title != "" || body != "" {
-				t.Errorf("Expected empty quota output for missing key %q, got title=%q body=%q", key, title, body)
+				t.Errorf("Expected empty quota output for missing key %q, got title=%q body=%q", tt.key, title, body)
 			}
+		})
 
-			itemBar := types.WidgetItem{Type: "quota-bar", Key: key}
+		t.Run("quota-bar_"+tt.name, func(t *testing.T) {
+			itemBar := types.WidgetItem{Type: "quota-bar", Key: tt.key}
 			barTitle, barBody, err := quotaBarW.Render(itemBar, quotaCtx, settings)
 			if err != nil {
-				t.Errorf("quota-bar render error on key %q: %v", key, err)
+				t.Errorf("quota-bar render error on key %q: %v", tt.key, err)
 			}
 			if barTitle != "" || barBody != "" {
-				t.Errorf("Expected empty quota-bar output for missing key %q, got title=%q body=%q", key, barTitle, barBody)
+				t.Errorf("Expected empty quota-bar output for missing key %q, got title=%q body=%q", tt.key, barTitle, barBody)
 			}
 		})
 	}
