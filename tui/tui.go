@@ -738,14 +738,8 @@ func (m Model) View() string {
 			copy(newWidgets[insertIndex+1:], widgets[insertIndex:])
 
 			// We need to create a copy of Lines slice to prevent modifying the shared layout
-			newLines := make([][]types.WidgetItem, len(previewSettings.Lines))
-			for i, line := range previewSettings.Lines {
-				if i == m.selectedLine {
-					newLines[i] = newWidgets
-				} else {
-					newLines[i] = line
-				}
-			}
+			newLines := slices.Clone(previewSettings.Lines)
+			newLines[m.selectedLine] = newWidgets
 			previewSettings.Lines = newLines
 		}
 	}
