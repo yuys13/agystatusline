@@ -53,7 +53,19 @@
           packages.default = pkgs.buildGoModule {
             pname = "agystatusline";
             version = "0.1.0";
-            src = ./.;
+            src =
+              let
+                fs = pkgs.lib.fileset;
+              in
+              fs.toSource {
+                root = ./.;
+                fileset = fs.unions [
+                  ./go.mod
+                  ./go.sum
+                  ./tests/data
+                  (fs.fileFilter (file: file.hasExt "go") ./.)
+                ];
+              };
 
             nativeCheckInputs = [ pkgs.gitMinimal ];
 

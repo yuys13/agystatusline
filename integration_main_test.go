@@ -320,11 +320,11 @@ func TestRunMain_LoadSettingsFailureInPipedMode(t *testing.T) {
 	}
 }
 
-// IT-14: Tier 4 test_data.json Pipeline E2E simulation via runMain
+// IT-14: Tier 4 tests/data/payload_sample.json Pipeline E2E simulation via runMain
 func TestRunMain_TestDataJsonPipeline(t *testing.T) {
-	testDataBytes, err := os.ReadFile("test_data.json")
+	testDataBytes, err := os.ReadFile(filepath.Join("tests", "data", "payload_sample.json"))
 	if err != nil {
-		t.Fatalf("Failed to read test_data.json: %v", err)
+		t.Fatalf("Failed to read tests/data/payload_sample.json: %v", err)
 	}
 
 	tempDir := t.TempDir()
@@ -345,7 +345,7 @@ func TestRunMain_TestDataJsonPipeline(t *testing.T) {
 
 	code := runMain([]string{"agystatusline", "--config", configPath}, stdin, &stdout, &stderr, notTerminal)
 	if code != 0 {
-		t.Fatalf("Expected exit code 0 for test_data.json pipeline, got %d (stderr: %q)", code, stderr.String())
+		t.Fatalf("Expected exit code 0 for tests/data/payload_sample.json pipeline, got %d (stderr: %q)", code, stderr.String())
 	}
 
 	out := stdout.String()
@@ -362,11 +362,11 @@ func TestRunMain_TestDataJsonPipeline(t *testing.T) {
 	}
 }
 
-// IT-15: Tier 4 Binary Execution E2E test (cat test_data.json | ./agystatusline simulation)
+// IT-15: Tier 4 Binary Execution E2E test (cat tests/data/payload_sample.json | ./agystatusline simulation)
 func TestBinaryExec_TestDataJsonPipeline(t *testing.T) {
-	testDataBytes, err := os.ReadFile("test_data.json")
+	testDataBytes, err := os.ReadFile(filepath.Join("tests", "data", "payload_sample.json"))
 	if err != nil {
-		t.Fatalf("Failed to read test_data.json: %v", err)
+		t.Fatalf("Failed to read tests/data/payload_sample.json: %v", err)
 	}
 
 	binDir := t.TempDir()

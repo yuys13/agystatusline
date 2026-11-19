@@ -113,14 +113,14 @@ func TestIntegration_TUIPowerlinePreviewAndColorLevel(t *testing.T) {
 	}
 }
 
-// TestIntegration_TUITier4TestDataSimulation tests E2E rendering with full test_data.json telemetry simulation.
+// TestIntegration_TUITier4TestDataSimulation tests E2E rendering with full tests/data/payload_sample.json telemetry simulation.
 func TestIntegration_TUITier4TestDataSimulation(t *testing.T) {
 	widgets.RegisterAll()
 
 	tempDir := t.TempDir()
 	configPath := filepath.Join(tempDir, "sim_settings.toml")
 
-	// Construct full spec telemetry matching test_data.json
+	// Construct full spec telemetry matching tests/data/payload_sample.json
 	trueVal := true
 	sizeVal := 2000000.0
 	inTokensVal := 14200.0
