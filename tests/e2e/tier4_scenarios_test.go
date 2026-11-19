@@ -10,12 +10,12 @@ import (
 	"github.com/yuys13/agystatusline/types"
 )
 
-// TestE2E_Tier4_TestDataJsonPipeline simulates shell pipeline execution: cat test_data.json | ./agystatusline
+// TestE2E_Tier4_TestDataJsonPipeline simulates shell pipeline execution: cat tests/data/payload_sample.json | ./agystatusline
 func TestE2E_Tier4_TestDataJsonPipeline(t *testing.T) {
-	testDataPath := filepath.Join(projectRoot, "test_data.json")
+	testDataPath := filepath.Join(projectRoot, "tests", "data", "payload_sample.json")
 	data, err := os.ReadFile(testDataPath)
 	if err != nil {
-		t.Fatalf("Failed to read test_data.json: %v", err)
+		t.Fatalf("Failed to read tests/data/payload_sample.json: %v", err)
 	}
 
 	tempDir := t.TempDir()
@@ -23,7 +23,7 @@ func TestE2E_Tier4_TestDataJsonPipeline(t *testing.T) {
 
 	stdout, stderr, exitCode := runCLI(t, string(data), "--config", configPath)
 	if exitCode != 0 {
-		t.Fatalf("Expected exit code 0 for test_data.json pipeline, got %d (stderr: %q)", exitCode, stderr)
+		t.Fatalf("Expected exit code 0 for tests/data/payload_sample.json pipeline, got %d (stderr: %q)", exitCode, stderr)
 	}
 
 	plain := stripANSI(stdout)

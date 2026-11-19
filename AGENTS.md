@@ -6,7 +6,7 @@ This file guides AI agents and developers on how to work with the `agystatusline
 
 - **Run all unit tests**: `go test -race -shuffle=on ./...`
 - **Build the executable binary**: `go build -o agystatusline`
-- **Run local manual integration tests**: `cat test_data.json | ./agystatusline`
+- **Run local manual integration tests**: `cat tests/data/payload_sample.json | ./agystatusline`
 - **Run interactive configuration menu (TUI)**: `./agystatusline` (without piping data)
 - **Format codebase**: `go fmt ./...`
 - **Fix deprecated APIs**: `go fix ./...`
