@@ -3,6 +3,7 @@ package utils
 import (
 	"crypto/rand"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"math"
 	"os"
@@ -1310,5 +1311,203 @@ func TestSetCacheEntry_TTLZeroAndNegative_NoDiskWrite(t *testing.T) {
 				t.Errorf("Cache file %s exists on disk, but should not have been written for ttlSeconds=%d", meta.CachePath, tt.ttlSeconds)
 			}
 		})
+	}
+}
+
+func TestNonGitCache_PersistsAcrossClearGitCache(t *testing.T) {
+	tempDir := t.TempDir()
+	cacheRootDir := filepath.Join(tempDir, "cache_root")
+	nonGitDir := filepath.Join(tempDir, "non_git_dir")
+	if err := os.MkdirAll(nonGitDir, 0755); err != nil {
+		t.Fatalf("failed to create nonGitDir: %v", err)
+	}
+
+	SetCacheDir(cacheRootDir)
+	ClearGitCache()
+
+	ctx := RenderContextDummy{
+		CWD:                nonGitDir,
+		GitCacheTTLSeconds: 10,
+	}
+
+	execCount := 0
+	mockExec := func(args []string, cwd string) (string, error) {
+		execCount++
+		return "", errors.New("not a git repository")
+	}
+
+	// First call misses cache and executes git command
+	_, err := RunGit("rev-parse --is-inside-work-tree", ctx, ctx.GitCacheTTLSeconds, mockExec)
+	if err == nil {
+		t.Fatalf("expected error on first RunGit call in non-git dir, got nil")
+	}
+	if execCount != 1 {
+		t.Fatalf("expected execCount = 1, got %d", execCount)
+	}
+
+	// Persistent non-git cache file must exist
+	if _, statErr := os.Stat(getNonGitCachePath()); statErr != nil {
+		t.Fatalf("expected non-git cache file to exist at %s: %v", getNonGitCachePath(), statErr)
+	}
+
+	// Simulate a fresh process by clearing in-memory cache
+	ClearGitCache()
+
+	// Second call should hit persistent negative cache without invoking mockExec
+	out, err := RunGit("rev-parse --is-inside-work-tree", ctx, ctx.GitCacheTTLSeconds, mockExec)
+	if err != nil {
+		t.Fatalf("expected nil error on negative cache hit, got %v", err)
+	}
+	if out != "" {
+		t.Errorf("expected empty output on negative cache hit, got %q", out)
+	}
+	if execCount != 1 {
+		t.Errorf("expected execCount to remain 1 on persistent negative cache hit, got %d", execCount)
+	}
+}
+
+func TestNonGitCache_ExpiresAfterTTL(t *testing.T) {
+	tempDir := t.TempDir()
+	cacheRootDir := filepath.Join(tempDir, "cache_root")
+	nonGitDir := filepath.Join(tempDir, "non_git_dir")
+	if err := os.MkdirAll(nonGitDir, 0755); err != nil {
+		t.Fatalf("failed to create nonGitDir: %v", err)
+	}
+
+	SetCacheDir(cacheRootDir)
+	ClearGitCache()
+
+	expiredTimestamp := time.Now().UnixNano()/int64(time.Millisecond) - 10000 // 10s ago
+	SetCacheEntry(nonGitDir, "rev-parse --is-inside-work-tree", "", expiredTimestamp, 5)
+
+	_, hit := GetCacheEntry(nonGitDir, "rev-parse --is-inside-work-tree", 5)
+	if hit {
+		t.Errorf("expected cache miss after TTL expiration, but got hit")
+	}
+
+	ClearGitCache()
+	_, hitFromDisk := GetCacheEntry(nonGitDir, "rev-parse --is-inside-work-tree", 5)
+	if hitFromDisk {
+		t.Errorf("expected disk cache miss after TTL expiration, but got hit")
+	}
+}
+
+func TestNonGitCache_InvalidatedWhenGitDirCreated(t *testing.T) {
+	tempDir := t.TempDir()
+	cacheRootDir := filepath.Join(tempDir, "cache_root")
+	targetDir := filepath.Join(tempDir, "repo_later")
+	if err := os.MkdirAll(targetDir, 0755); err != nil {
+		t.Fatalf("failed to create targetDir: %v", err)
+	}
+
+	SetCacheDir(cacheRootDir)
+	ClearGitCache()
+
+	now := time.Now().UnixNano() / int64(time.Millisecond)
+	SetCacheEntry(targetDir, "rev-parse --is-inside-work-tree", "", now, 60)
+
+	// Confirm negative cache hits initially
+	if _, hit := GetCacheEntry(targetDir, "rev-parse --is-inside-work-tree", 60); !hit {
+		t.Fatalf("expected initial negative cache hit")
+	}
+
+	// Simulate `git init` by creating .git directory
+	if err := os.MkdirAll(filepath.Join(targetDir, ".git"), 0755); err != nil {
+		t.Fatalf("failed to create .git dir: %v", err)
+	}
+
+	// Negative cache must be invalidated immediately (both in-memory and persistent)
+	if _, hit := GetCacheEntry(targetDir, "rev-parse --is-inside-work-tree", 60); hit {
+		t.Errorf("expected negative cache miss after .git creation (in-memory), but got hit")
+	}
+
+	ClearGitCache()
+	if _, hit := GetCacheEntry(targetDir, "rev-parse --is-inside-work-tree", 60); hit {
+		t.Errorf("expected negative cache miss after .git creation (persistent), but got hit")
+	}
+}
+
+func TestNonGitCache_TTLZeroAndNegative_NoDiskWrite(t *testing.T) {
+	tests := []struct {
+		name       string
+		ttlSeconds int
+	}{
+		{name: "ttl 0 does not write non-git cache", ttlSeconds: 0},
+		{name: "negative ttl does not write non-git cache", ttlSeconds: -1},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tempDir := t.TempDir()
+			cacheRootDir := filepath.Join(tempDir, "cache_root")
+			nonGitDir := filepath.Join(tempDir, "non_git_dir")
+			if err := os.MkdirAll(nonGitDir, 0755); err != nil {
+				t.Fatalf("failed to create nonGitDir: %v", err)
+			}
+
+			SetCacheDir(cacheRootDir)
+			ClearGitCache()
+
+			now := time.Now().UnixNano() / int64(time.Millisecond)
+			SetCacheEntry(nonGitDir, "rev-parse --is-inside-work-tree", "", now, tt.ttlSeconds)
+
+			if _, hit := GetCacheEntry(nonGitDir, "rev-parse --is-inside-work-tree", 60); hit {
+				t.Errorf("expected cache miss with positive TTL after SetCacheEntry with ttlSeconds=%d", tt.ttlSeconds)
+			}
+
+			if _, statErr := os.Stat(getNonGitCachePath()); !os.IsNotExist(statErr) {
+				t.Errorf("expected non-git cache file not to exist for ttlSeconds=%d", tt.ttlSeconds)
+			}
+		})
+	}
+}
+
+func TestNonGitCache_EvictionCapsEntries(t *testing.T) {
+	tempDir := t.TempDir()
+	cacheRootDir := filepath.Join(tempDir, "cache_root")
+	SetCacheDir(cacheRootDir)
+	ClearGitCache()
+
+	now := time.Now().UnixNano() / int64(time.Millisecond)
+
+	// Pre-populate persistent cache with an expired entry and maxNonGitCacheEntries fresh entries
+	initialEntries := make(map[string]NonGitCacheEntryInternal, maxNonGitCacheEntries+1)
+	expiredDir := filepath.Join(tempDir, "expired_dir")
+	initialEntries[expiredDir] = NonGitCacheEntryInternal{CreatedAt: now - 100000}
+
+	oldestDir := filepath.Join(tempDir, "fresh_dir_0")
+	for i := range maxNonGitCacheEntries {
+		dir := filepath.Join(tempDir, fmt.Sprintf("fresh_dir_%d", i))
+		initialEntries[dir] = NonGitCacheEntryInternal{CreatedAt: now - int64(maxNonGitCacheEntries-i)*10}
+	}
+
+	writePersistentNonGitCache(getNonGitCachePath(), &PersistentNonGitCacheInternal{
+		Version: NonGitCacheSchemaVersion,
+		Entries: initialEntries,
+	})
+
+	// Trigger SetCacheEntry for one more non-git directory
+	newDir := filepath.Join(tempDir, "new_non_git_dir")
+	if err := os.MkdirAll(newDir, 0755); err != nil {
+		t.Fatalf("failed to create newDir: %v", err)
+	}
+	SetCacheEntry(newDir, "rev-parse --is-inside-work-tree", "", now, 60)
+
+	pCache, err := readPersistentNonGitCache(getNonGitCachePath())
+	if err != nil {
+		t.Fatalf("failed to read persistent non-git cache: %v", err)
+	}
+
+	if len(pCache.Entries) > maxNonGitCacheEntries {
+		t.Errorf("expected at most %d entries, got %d", maxNonGitCacheEntries, len(pCache.Entries))
+	}
+	if _, exists := pCache.Entries[expiredDir]; exists {
+		t.Errorf("expected expired entry %q to be pruned", expiredDir)
+	}
+	if _, exists := pCache.Entries[oldestDir]; exists {
+		t.Errorf("expected oldest entry %q to be evicted", oldestDir)
+	}
+	if _, exists := pCache.Entries[newDir]; !exists {
+		t.Errorf("expected new entry %q to be present", newDir)
 	}
 }

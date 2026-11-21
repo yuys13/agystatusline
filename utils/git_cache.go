@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"sync"
 	"time"
@@ -38,12 +39,26 @@ type PersistentGitCacheInternal struct {
 	Entries map[string]GitCacheEntryInternal `json:"entries"`
 }
 
-const GitCacheSchemaVersion = 1
+type NonGitCacheEntryInternal struct {
+	CreatedAt int64 `json:"createdAt"`
+}
+
+type PersistentNonGitCacheInternal struct {
+	Version int                                 `json:"version"`
+	Entries map[string]NonGitCacheEntryInternal `json:"entries"`
+}
+
+const (
+	GitCacheSchemaVersion    = 1
+	NonGitCacheSchemaVersion = 1
+	maxNonGitCacheEntries    = 256
+)
 
 var (
 	cacheDir        = ""
 	cacheDirMutex   sync.RWMutex
 	gitCommandCache = make(map[string]GitCacheEntryInternal)
+	nonGitCache     = make(map[string]NonGitCacheEntryInternal)
 	gitCacheMutex   sync.Mutex
 )
 
@@ -69,6 +84,10 @@ func getRepoCachePath(gitDir string) string {
 	hash.Write([]byte(gitDir))
 	repoHash := hex.EncodeToString(hash.Sum(nil))[:16]
 	return filepath.Join(getCacheDir(), "git-cache", fmt.Sprintf("git-%s.json", repoHash))
+}
+
+func getNonGitCachePath() string {
+	return filepath.Join(getCacheDir(), "git-cache", "non-git-cache.json")
 }
 
 func getMtimeMs(filePath string) int64 {
@@ -231,9 +250,9 @@ func readPersistentCache(cachePath string) (cache *PersistentGitCacheInternal, e
 	return &res, nil
 }
 
-func writePersistentCache(cachePath string, cache *PersistentGitCacheInternal) {
-	cacheDir := filepath.Dir(cachePath)
-	err := os.MkdirAll(cacheDir, 0755)
+func writeJSONAtomic(cachePath string, payload any) {
+	dir := filepath.Dir(cachePath)
+	err := os.MkdirAll(dir, 0755)
 	if err != nil {
 		return
 	}
@@ -253,7 +272,7 @@ func writePersistentCache(cachePath string, cache *PersistentGitCacheInternal) {
 
 	encoder := json.NewEncoder(file)
 	encoder.SetIndent("", "  ")
-	if err := encoder.Encode(cache); err != nil {
+	if err := encoder.Encode(payload); err != nil {
 		return
 	}
 	if err := file.Close(); err != nil {
@@ -262,6 +281,92 @@ func writePersistentCache(cachePath string, cache *PersistentGitCacheInternal) {
 
 	if err := os.Rename(tempPath, cachePath); err == nil {
 		success = true
+	}
+}
+
+func writePersistentCache(cachePath string, cache *PersistentGitCacheInternal) {
+	writeJSONAtomic(cachePath, cache)
+}
+
+func readPersistentNonGitCache(cachePath string) (cache *PersistentNonGitCacheInternal, err error) {
+	file, err := os.Open(cachePath)
+	if err != nil {
+		return nil, err
+	}
+	defer func() {
+		if cErr := file.Close(); cErr != nil && err == nil {
+			err = cErr
+		}
+	}()
+
+	var res PersistentNonGitCacheInternal
+	decoder := json.NewDecoder(file)
+	if err = decoder.Decode(&res); err != nil {
+		return nil, err
+	}
+
+	if res.Version != NonGitCacheSchemaVersion {
+		return nil, errors.New("invalid non-git cache version")
+	}
+	if res.Entries == nil {
+		res.Entries = make(map[string]NonGitCacheEntryInternal)
+	}
+
+	return &res, nil
+}
+
+func writePersistentNonGitCache(cachePath string, cache *PersistentNonGitCacheInternal) {
+	writeJSONAtomic(cachePath, cache)
+}
+
+func isNonGitEntryFresh(normalizedDir string, entry NonGitCacheEntryInternal, ttlMs int64, now int64) bool {
+	if ttlMs <= 0 || now-entry.CreatedAt > ttlMs {
+		return false
+	}
+	// Invalidate immediately if a .git directory/file appears (e.g., git init).
+	if _, err := os.Stat(filepath.Join(normalizedDir, ".git")); err == nil {
+		return false
+	}
+	return true
+}
+
+func pruneAndCapNonGitEntries(entries map[string]NonGitCacheEntryInternal, ttlMs int64, now int64) {
+	for k, e := range entries {
+		if now-e.CreatedAt > ttlMs {
+			delete(entries, k)
+		}
+	}
+	if len(entries) <= maxNonGitCacheEntries {
+		return
+	}
+
+	type kv struct {
+		key       string
+		createdAt int64
+	}
+	items := make([]kv, 0, len(entries))
+	for k, e := range entries {
+		items = append(items, kv{key: k, createdAt: e.CreatedAt})
+	}
+	slices.SortFunc(items, func(a, b kv) int {
+		if a.createdAt < b.createdAt {
+			return -1
+		}
+		if a.createdAt > b.createdAt {
+			return 1
+		}
+		if a.key < b.key {
+			return -1
+		}
+		if a.key > b.key {
+			return 1
+		}
+		return 0
+	})
+
+	excess := len(entries) - maxNonGitCacheEntries
+	for i := range excess {
+		delete(entries, items[i].key)
 	}
 }
 
@@ -301,9 +406,26 @@ func GetCacheEntry(cwd string, command string, ttlSeconds int) (string, bool) {
 	gitCacheMutex.Lock()
 	defer gitCacheMutex.Unlock()
 
-	metadata, err := getGitRepoMetadata(cwd)
 	now := time.Now().UnixNano() / int64(time.Millisecond)
 	ttlMs := int64(ttlSeconds) * 1000
+
+	if normalizedDir, normErr := normalizeDirectory(cwd); normErr == nil {
+		if entry, exists := nonGitCache[normalizedDir]; exists {
+			if isNonGitEntryFresh(normalizedDir, entry, ttlMs, now) {
+				return "", true
+			}
+			delete(nonGitCache, normalizedDir)
+		} else if pCache, pErr := readPersistentNonGitCache(getNonGitCachePath()); pErr == nil && pCache != nil {
+			if entry, exists := pCache.Entries[normalizedDir]; exists {
+				if isNonGitEntryFresh(normalizedDir, entry, ttlMs, now) {
+					nonGitCache[normalizedDir] = entry
+					return "", true
+				}
+			}
+		}
+	}
+
+	metadata, err := getGitRepoMetadata(cwd)
 
 	memoryKey := fmt.Sprintf("%s|%s", command, cwd)
 	if entry, exists := gitCommandCache[memoryKey]; exists {
@@ -363,9 +485,12 @@ func SetCacheEntry(cwd string, command string, output string, timestampMS int64,
 	}
 
 	memoryKey := fmt.Sprintf("%s|%s", command, cwd)
-	gitCommandCache[memoryKey] = entry
 
 	if err == nil && metadata != nil {
+		gitCommandCache[memoryKey] = entry
+		if normalizedDir, normErr := normalizeDirectory(cwd); normErr == nil {
+			delete(nonGitCache, normalizedDir)
+		}
 		pCache, _ := readPersistentCache(metadata.CachePath)
 		if pCache == nil || pCache.CWD != cwd {
 			pCache = &PersistentGitCacheInternal{
@@ -376,6 +501,25 @@ func SetCacheEntry(cwd string, command string, output string, timestampMS int64,
 		}
 		pCache.Entries[command] = entry
 		writePersistentCache(metadata.CachePath, pCache)
+	} else if output == "" {
+		if normalizedDir, normErr := normalizeDirectory(cwd); normErr == nil {
+			nonGitEntry := NonGitCacheEntryInternal{CreatedAt: timestampMS}
+			nonGitCache[normalizedDir] = nonGitEntry
+
+			nonGitPath := getNonGitCachePath()
+			pCache, _ := readPersistentNonGitCache(nonGitPath)
+			if pCache == nil {
+				pCache = &PersistentNonGitCacheInternal{
+					Version: NonGitCacheSchemaVersion,
+					Entries: make(map[string]NonGitCacheEntryInternal),
+				}
+			}
+			pCache.Entries[normalizedDir] = nonGitEntry
+			pruneAndCapNonGitEntries(pCache.Entries, int64(ttlSeconds)*1000, timestampMS)
+			writePersistentNonGitCache(nonGitPath, pCache)
+		}
+	} else {
+		gitCommandCache[memoryKey] = entry
 	}
 }
 
@@ -384,6 +528,7 @@ func ClearGitCache() {
 	gitCacheMutex.Lock()
 	defer gitCacheMutex.Unlock()
 	gitCommandCache = make(map[string]GitCacheEntryInternal)
+	nonGitCache = make(map[string]NonGitCacheEntryInternal)
 }
 
 // RunGit runs a git command and caches the result.
