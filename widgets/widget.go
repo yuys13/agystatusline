@@ -2,9 +2,11 @@ package widgets
 
 import (
 	"bytes"
+	"context"
 	"os"
 	"os/exec"
 	"sync"
+	"time"
 
 	"github.com/yuys13/agystatusline/types"
 	"github.com/yuys13/agystatusline/utils"
@@ -39,11 +41,21 @@ func GetWidget(name string) Widget {
 	return registry[name]
 }
 
+var gitExecTimeout = 2 * time.Second
+
 // runGitExec runs a real git command on the OS.
 func runGitExec(args []string, cwd string) (string, error) {
-	cmd := exec.Command("git", args...)
+	ctx, cancel := context.WithTimeout(context.Background(), gitExecTimeout)
+	defer cancel()
+
+	cmd := exec.CommandContext(ctx, "git", args...)
 	cmd.Dir = cwd
-	cmd.Env = append(os.Environ(), "GIT_OPTIONAL_LOCKS=0")
+	cmd.WaitDelay = 200 * time.Millisecond
+	cmd.Env = append(os.Environ(),
+		"GIT_OPTIONAL_LOCKS=0",
+		"GIT_TERMINAL_PROMPT=0",
+		"LC_ALL=C",
+	)
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr
