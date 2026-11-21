@@ -686,7 +686,7 @@ func (m Model) View() string {
 		return "\x1b[0mChanges discarded. Exiting...\n"
 	}
 
-	var s stringsBuilder
+	var s strings.Builder
 
 	if m.activeMenu == "corrupted_config" {
 		m.viewCorruptedConfig(&s)
@@ -778,10 +778,10 @@ func (m Model) View() string {
 	return s.String()
 }
 
-func (m Model) viewCorruptedConfig(s *stringsBuilder) {
+func (m Model) viewCorruptedConfig(s *strings.Builder) {
 	s.WriteString(lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("196")).Render("⚠️  Configuration File Corrupted"))
 	s.WriteString("\n\n")
-	s.WriteString(fmt.Sprintf("Failed to parse configuration file (%s): %s\n", m.configPath, m.loadError))
+	fmt.Fprintf(s, "Failed to parse configuration file (%s): %s\n", m.configPath, m.loadError)
 	s.WriteString("Would you like to load default settings or exit?\n\n")
 
 	menuItems := []string{
@@ -796,13 +796,13 @@ func (m Model) viewCorruptedConfig(s *stringsBuilder) {
 			cursorStr = ">"
 			style = style.Bold(true).Foreground(lipgloss.Color("226"))
 		}
-		s.WriteString(fmt.Sprintf("%s %s\n", cursorStr, style.Render(item)))
+		fmt.Fprintf(s, "%s %s\n", cursorStr, style.Render(item))
 	}
 
 	s.WriteString("\n(Use arrows/jk to navigate, Enter to select, q/Esc to quit)\n")
 }
 
-func (m Model) viewMain(s *stringsBuilder) {
+func (m Model) viewMain(s *strings.Builder) {
 	s.WriteString(lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("39")).Render("agystatusline Configuration Menu"))
 	s.WriteString("\n\n")
 
@@ -824,13 +824,13 @@ func (m Model) viewMain(s *stringsBuilder) {
 		if item == "💾 Save & Exit" {
 			s.WriteString("\n")
 		}
-		s.WriteString(fmt.Sprintf("%s %s\n", cursorStr, style.Render(item)))
+		fmt.Fprintf(s, "%s %s\n", cursorStr, style.Render(item))
 	}
 
 	s.WriteString("\n(Use arrows/jk to navigate, Enter to select, q to quit)\n")
 }
 
-func (m Model) viewPowerline(s *stringsBuilder) {
+func (m Model) viewPowerline(s *strings.Builder) {
 	s.WriteString(lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("39")).Render("Powerline Settings"))
 	s.WriteString("\n\n")
 
@@ -853,13 +853,13 @@ func (m Model) viewPowerline(s *stringsBuilder) {
 		if item == "Back to Main Menu" {
 			s.WriteString("\n")
 		}
-		s.WriteString(fmt.Sprintf("%s %s\n", cursorStr, style.Render(item)))
+		fmt.Fprintf(s, "%s %s\n", cursorStr, style.Render(item))
 	}
 
 	s.WriteString("\n(Use arrows/jk to navigate, Enter to toggle/select, Esc to go back)\n")
 }
 
-func (m Model) viewLines(s *stringsBuilder) {
+func (m Model) viewLines(s *strings.Builder) {
 	s.WriteString(lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("39")).Render("Select Line to Edit Items"))
 	s.WriteString("\n\n")
 
@@ -885,13 +885,13 @@ func (m Model) viewLines(s *stringsBuilder) {
 			}
 		}
 
-		s.WriteString(fmt.Sprintf("%s Line %d: %s\n", cursorStr, i+1, style.Render(widgetStr)))
+		fmt.Fprintf(s, "%s Line %d: %s\n", cursorStr, i+1, style.Render(widgetStr))
 	}
 
 	s.WriteString("\n(a: add line, d: delete line, m: toggle move mode, Enter: edit widgets, Esc: back)\n")
 }
 
-func (m Model) viewItems(s *stringsBuilder) {
+func (m Model) viewItems(s *strings.Builder) {
 	s.WriteString(lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("39")).Render(fmt.Sprintf("Editing Line %d Items", m.selectedLine+1)))
 	s.WriteString("\n\n")
 
@@ -916,14 +916,14 @@ func (m Model) viewItems(s *stringsBuilder) {
 			if w.Color != "" {
 				detailStr += fmt.Sprintf(" (color: %s)", w.Color)
 			}
-			s.WriteString(fmt.Sprintf("%s %s\n", cursorStr, style.Render(detailStr)))
+			fmt.Fprintf(s, "%s %s\n", cursorStr, style.Render(detailStr))
 		}
 	}
 
 	s.WriteString("\n(a: add widget, d: delete widget, m: toggle move mode, Esc: back)\n")
 }
 
-func (m Model) viewAddWidget(s *stringsBuilder) {
+func (m Model) viewAddWidget(s *strings.Builder) {
 	s.WriteString(lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("39")).Render("Select Widget Type to Add"))
 	s.WriteString("\n\n")
 
@@ -934,13 +934,13 @@ func (m Model) viewAddWidget(s *stringsBuilder) {
 			cursorStr = ">"
 			style = style.Bold(true).Foreground(lipgloss.Color("226"))
 		}
-		s.WriteString(fmt.Sprintf("%s %s\n", cursorStr, style.Render(t.name)))
+		fmt.Fprintf(s, "%s %s\n", cursorStr, style.Render(t.name))
 	}
 
 	s.WriteString("\n(Use arrows/jk to navigate, Enter to add, Esc: cancel)\n")
 }
 
-func (m Model) viewSelectTheme(s *stringsBuilder) {
+func (m Model) viewSelectTheme(s *strings.Builder) {
 	s.WriteString(lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("39")).Render("Select Powerline Theme"))
 	s.WriteString("\n\n")
 
@@ -955,13 +955,13 @@ func (m Model) viewSelectTheme(s *stringsBuilder) {
 		if t == m.settings.Powerline.Theme {
 			themeStr += " (active)"
 		}
-		s.WriteString(fmt.Sprintf("%s %s\n", cursorStr, style.Render(themeStr)))
+		fmt.Fprintf(s, "%s %s\n", cursorStr, style.Render(themeStr))
 	}
 
 	s.WriteString("\n(Use arrows/jk to navigate, Enter to select, Esc: cancel)\n")
 }
 
-func (m Model) viewSelectSeparator(s *stringsBuilder) {
+func (m Model) viewSelectSeparator(s *strings.Builder) {
 	s.WriteString(lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("39")).Render("Select Powerline Separator"))
 	s.WriteString("\n\n")
 
@@ -977,13 +977,13 @@ func (m Model) viewSelectSeparator(s *stringsBuilder) {
 		if sep.value == currentSep {
 			sepStr += " (active)"
 		}
-		s.WriteString(fmt.Sprintf("%s %s\n", cursorStr, style.Render(sepStr)))
+		fmt.Fprintf(s, "%s %s\n", cursorStr, style.Render(sepStr))
 	}
 
 	s.WriteString("\n(Use arrows/jk to navigate, Enter to select, Esc: cancel)\n")
 }
 
-func (m Model) viewSelectStartCap(s *stringsBuilder) {
+func (m Model) viewSelectStartCap(s *strings.Builder) {
 	s.WriteString(lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("39")).Render("Select Powerline Start Cap"))
 	s.WriteString("\n\n")
 
@@ -999,13 +999,13 @@ func (m Model) viewSelectStartCap(s *stringsBuilder) {
 		if capVal.value == currentCap {
 			capStr += " (active)"
 		}
-		s.WriteString(fmt.Sprintf("%s %s\n", cursorStr, style.Render(capStr)))
+		fmt.Fprintf(s, "%s %s\n", cursorStr, style.Render(capStr))
 	}
 
 	s.WriteString("\n(Use arrows/jk to navigate, Enter to select, Esc: cancel)\n")
 }
 
-func (m Model) viewSelectEndCap(s *stringsBuilder) {
+func (m Model) viewSelectEndCap(s *strings.Builder) {
 	s.WriteString(lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("39")).Render("Select Powerline End Cap"))
 	s.WriteString("\n\n")
 
@@ -1021,13 +1021,13 @@ func (m Model) viewSelectEndCap(s *stringsBuilder) {
 		if capVal.value == currentCap {
 			capStr += " (active)"
 		}
-		s.WriteString(fmt.Sprintf("%s %s\n", cursorStr, style.Render(capStr)))
+		fmt.Fprintf(s, "%s %s\n", cursorStr, style.Render(capStr))
 	}
 
 	s.WriteString("\n(Use arrows/jk to navigate, Enter to select, Esc: cancel)\n")
 }
 
-func (m Model) viewSelectColorLevel(s *stringsBuilder) {
+func (m Model) viewSelectColorLevel(s *strings.Builder) {
 	s.WriteString(lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("39")).Render("Select Color Level"))
 	s.WriteString("\n\n")
 
@@ -1042,22 +1042,10 @@ func (m Model) viewSelectColorLevel(s *stringsBuilder) {
 		if cl.value == m.settings.General.ColorLevel {
 			clStr += " (active)"
 		}
-		s.WriteString(fmt.Sprintf("%s %s\n", cursorStr, style.Render(clStr)))
+		fmt.Fprintf(s, "%s %s\n", cursorStr, style.Render(clStr))
 	}
 
 	s.WriteString("\n(Use arrows/jk to navigate, Enter to select, Esc: cancel)\n")
-}
-
-type stringsBuilder struct {
-	str string
-}
-
-func (sb *stringsBuilder) WriteString(s string) {
-	sb.str += s
-}
-
-func (sb *stringsBuilder) String() string {
-	return sb.str
 }
 
 func saveSettings(path string, settings types.Settings) error {
