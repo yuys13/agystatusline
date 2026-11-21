@@ -45,6 +45,54 @@ func TestRunGitExec(t *testing.T) {
 	}
 }
 
+func TestRunGitExec_LocaleC(t *testing.T) {
+	_, err := exec.LookPath("git")
+	if err != nil {
+		t.Skip("git binary not found in PATH, skipping runGitExec test")
+	}
+
+	tempDir := t.TempDir()
+	if _, err := runGitExec([]string{"init"}, tempDir); err != nil {
+		t.Fatalf("runGitExec init failed: %v", err)
+	}
+
+	t.Setenv("LC_ALL", "ja_JP.UTF-8")
+	t.Setenv("LANG", "ja_JP.UTF-8")
+
+	out, err := runGitExec([]string{"status"}, tempDir)
+	if err != nil {
+		t.Fatalf("runGitExec status failed: %v", err)
+	}
+	if !strings.Contains(out, "No commits yet") && !strings.Contains(out, "Initial commit") {
+		t.Errorf("Expected English git status output under LC_ALL=C override, got %q", out)
+	}
+}
+
+func TestRunGitExec_Timeout(t *testing.T) {
+	_, err := exec.LookPath("git")
+	if err != nil {
+		t.Skip("git binary not found in PATH, skipping runGitExec test")
+	}
+
+	tempDir := t.TempDir()
+	origTimeout := gitExecTimeout
+	gitExecTimeout = 50 * time.Millisecond
+	defer func() {
+		gitExecTimeout = origTimeout
+	}()
+
+	start := time.Now()
+	_, err = runGitExec([]string{"-c", "alias.hang=!sleep 2", "hang"}, tempDir)
+	elapsed := time.Since(start)
+
+	if err == nil {
+		t.Fatalf("Expected timeout error, got nil")
+	}
+	if elapsed >= 1*time.Second {
+		t.Errorf("Expected command to abort quickly on timeout, took %v", elapsed)
+	}
+}
+
 func TestGetWidget(t *testing.T) {
 	RegisterAll()
 
