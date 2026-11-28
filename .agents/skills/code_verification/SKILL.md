@@ -5,17 +5,20 @@ description: Guidelines for code formatting, linting, and local quality verifica
 
 # Code Formatting & Verification Guidelines
 
-Before staging and committing changes, always ensure code formatting, static analysis, and local build/test checks are completely satisfied:
+Before staging and committing changes, run only the checks scoped to the modified files. Chain commands with `&&` in a single shell invocation and avoid verbose flags (such as `go test -v`) unless diagnosing a failure, to minimize turn count and output token usage.
 
-## 1. Formatting (Mandatory Pre-Commit Step)
+## 1. Scope by Change Type
 
-- **Nix Projects (`flake.nix` present)**: ALWAYS run `nix fmt` before committing or running verification checks. This formats Go source files, Nix files (`.nix`), and YAML configurations (`.yml`/`.yaml`) via `treefmt`.
-- **Go Projects (non-Nix)**: Run `go fmt ./...`.
-- Always ensure all formatted changes are staged (`git add`) as part of the commit.
+- **Docs / Config only (`.md`, `.yml`, `.yaml`, etc.)**:
+  - Run `nix fmt` (when `flake.nix` is present).
+- **Go code changes (before each commit)**:
+  - Run in a single chained command:
+    `nix fmt && go test -race -shuffle=on ./... && golangci-lint run`
+  - Without Nix (no `flake.nix` or `nix` unavailable), use `go fmt ./...` instead of `nix fmt`.
+  - If `go` or `golangci-lint` is not on `PATH`, run them via `nix develop --command ...`.
+- **Nix / dependency changes (`flake.nix`, `go.mod`, `go.sum`) or before opening a PR**:
+  - Also run `nix flake check --no-build --all-systems` (matching CI) to verify Nix evaluation, `treefmt` checks, and cross-platform definitions without duplicating Go builds/tests.
 
-## 2. Verification & Testing
+## 2. Notes
 
-- Run `go test -race -shuffle=on ./...` to ensure all unit tests pass locally.
-- Run `golangci-lint run` (or `nix develop --command golangci-lint run`) to verify static code analysis.
-- Run `nix flake check --all-systems` to verify Nix build rules, treefmt checks, and cross-platform compatibility.
-- Ensure `go build -o agystatusline` builds successfully without warnings or errors.
+- Always stage any formatting changes produced by `nix fmt` / `go fmt` (`git add`) before committing.

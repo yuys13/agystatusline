@@ -14,7 +14,7 @@ When tasked with implementing features, follow this strict 5-step loop for every
 1. **Red**: Write unit tests covering the expected requirements before writing any production code. Run tests to verify failure (compilation or test failure).
 2. **Green**: Write the minimum necessary production code to make the tests pass.
 3. **Refactor**: Clean up both the production code and the test code for readability and design without breaking functionality.
-4. **Verify**: Before committing, refer to the [code_verification](../code_verification/SKILL.md) skill to run required formatting (`nix fmt`), linting (`golangci-lint`), tests, and build checks.
+4. **Verify**: Before committing, refer to the [code_verification](../code_verification/SKILL.md) skill to run the scoped formatting, test, and lint checks.
 5. **Commit**: Git commit immediately after verification passes. Refer to the [git_commit](../git_commit/SKILL.md) skill for details on staging files and writing commit messages.
 
 ## Best Practices for Writing Go Unit Tests
