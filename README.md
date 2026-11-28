@@ -74,6 +74,11 @@ To use or modify a custom configuration file, pass the `--config` flag:
 agystatusline --config /path/to/custom-settings.toml
 ```
 
+### Reference Documentation
+
+- [Supported Widgets](docs/widgets.md): Full list of supported widgets, defaults, example outputs, and dynamic color rules.
+- [Configuration Reference](docs/configuration.md): Complete `settings.toml` schema, section options, and widget item syntax.
+
 ## Payload Persistence (Dump)
 
 If you want other desktop tools, status bars (e.g. Quickshell, Waybar), or monitoring scripts to read Antigravity's live quota, context metrics, and session telemetry, `agystatusline` can persist the raw JSON payload streamed on `stdin` directly to a file:

@@ -11,16 +11,15 @@ This file guides AI agents and developers on how to work with the `agystatusline
 - **Format codebase**: `go fmt ./...`
 - **Fix deprecated APIs**: `go fix ./...`
 
-## TDD & Commit Guidelines
+## Workflow & Guardrails
 
-Refer to the [tdd](.agents/skills/tdd/SKILL.md), [git_commit](.agents/skills/git_commit/SKILL.md), [code_verification](.agents/skills/code_verification/SKILL.md), and [github_pr_workflow](.agents/skills/github_pr_workflow/SKILL.md) skills for detailed guidelines on Test-Driven Development, formatting, verification, commit messages, and PR workflows.
-
-- **TDD Workflow**: Strictly follow the Red -> Green -> Refactor -> Verify -> Commit loop.
-- **Standard Test File Organization**: Follow standard Go conventions (`foo.go` -> `foo_test.go`). Do not create arbitrary custom test files (e.g., `stress_*.go`, `adversarial_*.go`) just for grouping test cases.
-- **Test Quality Principles**: Always use table-driven tests (`tests := []struct{...}`) for parameterized scenarios, restrict each test/subtest to a single concern, and ensure all tests strictly assert expected outputs (no dummy tests). If conditional branching (`if`) is needed in a test runner to decide whether to assert something or switch assertions, split the test cases instead of branching. All test assertions within a table must execute unconditionally without optional skips or callback closures (`verify func`).
-- **Code Verification**: Before committing or finishing any code modifications, always view and execute the checks in [code_verification](.agents/skills/code_verification/SKILL.md) (`nix fmt`, `go test -race`, `golangci-lint`, and `nix flake check --no-build` when applicable).
-- **Commit Messages**: Use Conventional Commits and explain **why** a change was made rather than "what" was changed.
-- **Placeholder Domains in Tests & Docs**: Always use RFC-compliant reserved domains (such as `example.com`, `example.org`, or `example.net` according to RFC 2606) for test cases, sample codes, and documentation instead of arbitrary real-world domains.
+- **Skills**: Follow [.agents/skills/tdd/SKILL.md](.agents/skills/tdd/SKILL.md), [.agents/skills/code_verification/SKILL.md](.agents/skills/code_verification/SKILL.md), [.agents/skills/git_commit/SKILL.md](.agents/skills/git_commit/SKILL.md), [.agents/skills/github_pr_workflow/SKILL.md](.agents/skills/github_pr_workflow/SKILL.md), and [.agents/skills/ansi_aware_string_manipulation/SKILL.md](.agents/skills/ansi_aware_string_manipulation/SKILL.md).
+- **Placeholder Domains in Tests & Docs**: Follow RFC 2606 / RFC 6761 instead of arbitrary real-world domains. Use `example.com`, `example.org`, `example.net`, or `.example` strictly for documentation, sample data, and offline/mocked test fixtures—never make live network requests to them in tests. Use local mocks (`httptest` / `localhost`) for live test requests, `.test` for local test environments, and `.invalid` for guaranteed-invalid domains.
+- **UI/UX & Rendering Invariants**:
+  - **TUI Live Preview**: Rendered at the very top of the menu layout without border styling to mimic the real terminal display, with dedicated submenus for multi-line editing, Powerline themes, and separators.
+  - **Color & Caps**: Supports ANSI 16, ANSI 256, and Truecolor (`color_level` 1–3) plus custom `StartCaps` and `EndCaps`.
+  - **Padding & Separator Alignment**: Non-ASCII separators automatically append a half-width space for visual alignment. Keep separator-level space padding minimal; widgets manage their own leading/trailing spaces.
+- **Documentation Maintenance**: Keep `AGENTS.md` concise without inline specification tables or schema examples. Whenever widgets or configuration options change, update [docs/widgets.md](docs/widgets.md) and [docs/configuration.md](docs/configuration.md) accordingly.
 
 ## Architecture & Codebase Layout
 
@@ -31,171 +30,9 @@ Refer to the [tdd](.agents/skills/tdd/SKILL.md), [git_commit](.agents/skills/git
 - [widgets/](widgets/): 14 core widget categories (26 widget identifiers) implementing the `Widget` interface.
 - [tui/](tui/): Bubble Tea TUI interactive configuration menu with live statusline previews and multi-line editor.
 
-## Supported Widgets
+## Detailed References
 
-`agystatusline` supports **14 core widget categories** across **26 widget identifiers**:
+Read these documents on demand rather than keeping them inline:
 
-| #   | Core Category        | Widget Identifiers (`type`)                                                                                                          | Default Key / Label                                                                                                                                                                                                                                                                                                     | Example Output                                                                                                            | Description & Color Dynamics                                                                                                                                                                            |
-| --- | -------------------- | ------------------------------------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 1   | **Agent State**      | `agent-state`                                                                                                                        | -                                                                                                                                                                                                                                                                                                                       | `● READY`, `◆ THINKING`, `⚙ WORKING`, `🔧 TOOL`                                                                           | Displays current agent status. Colors: idle (`brightGreen`), thinking (`brightYellow`), working (`brightCyan`), tool_use (`brightMagenta`). Accepts an optional `hint` shown in parentheses while busy. |
-| 2   | **Model**            | `model`                                                                                                                              | -                                                                                                                                                                                                                                                                                                                       | `Gemini 2.5 Pro (High)`                                                                                                   | Displays the active model name (`DisplayName` or `ID` fallback). Color: `brightMagenta`.                                                                                                                |
-| 3   | **Context Bar**      | `context-bar`                                                                                                                        | `ctx`                                                                                                                                                                                                                                                                                                                   | `ctx ███············ 20.0%`                                                                                               | Visual progress bar of context window usage. Color dynamically shifts: `>=90%` (`brightRed`), `>=60%` (`brightYellow`), default (`brightWhite`).                                                        |
-| 4   | **Artifacts**        | `artifacts`                                                                                                                          | `artifacts`                                                                                                                                                                                                                                                                                                             | `artifacts 3`                                                                                                             | Displays count of generated session artifacts. Color: `brightWhite`.                                                                                                                                    |
-| 5   | **Subagents**        | `subagents`                                                                                                                          | `subagents`                                                                                                                                                                                                                                                                                                             | `subagents 2`                                                                                                             | Displays count of active subagents. Color: `brightWhite`.                                                                                                                                               |
-| 6   | **Tasks**            | `tasks`                                                                                                                              | `tasks`                                                                                                                                                                                                                                                                                                                 | `tasks 1`                                                                                                                 | Displays count of background tasks. Color: `brightWhite`.                                                                                                                                               |
-| 7   | **Sandbox**          | `sandbox`                                                                                                                            | `sandbox`                                                                                                                                                                                                                                                                                                               | `sandbox on` / `sandbox off`                                                                                              | Displays sandbox execution status. Colors: enabled (`brightGreen`), disabled (`brightBlack`).                                                                                                           |
-| 8   | **Git Repository**   | `git-repo`                                                                                                                           | -                                                                                                                                                                                                                                                                                                                       | `agystatusline` / `(no git)`                                                                                              | Displays Git repository root directory name. Supports custom prefix symbol. Color: `white` or custom.                                                                                                   |
-| 9   | **Git Branch**       | `git-branch`                                                                                                                         | `⎇ `                                                                                                                                                                                                                                                                                                                    | `⎇ main*` / `⎇ (1a2b3c4)` / `⎇ (v1.2.0)` / `⎇ no git`                                                                     | Displays Git branch name (or detached HEAD commit hash / tag in parentheses) with dirty marker `*`. Supports custom prefix symbol. Colors: dirty (`brightRed`), clean (`brightBlue`).                   |
-| 10  | **Git Ahead/Behind** | `git-ahead-behind`                                                                                                                   | -                                                                                                                                                                                                                                                                                                                       | `↑2 ↓1` / `≡` / `(no upstream)` / `(no git)`                                                                              | Displays Git remote tracking branch ahead/behind status. Color: `brightCyan`.                                                                                                                           |
-| 11  | **Git Changes**      | `git-changes`                                                                                                                        | -                                                                                                                                                                                                                                                                                                                       | `(+42,-10)` / `(no git)`                                                                                                  | Displays Git repository insertions and deletions. Color: `yellow`.                                                                                                                                      |
-| 12  | **Quota (Text)**     | `quota`<br>`quota-all`<br>`quota-5h`<br>`quota-7d`<br>`quota-argon-7d`<br>`quota-3p-5h`<br>`quota-3p-7d`                             | `quota`: (explicit key)<br>`quota-all`: (all buckets)<br>`quota-5h`: `gemini-5h` ("Gemini 5h")<br>`quota-7d`: `gemini-weekly` ("Gemini 7d")<br>`quota-argon-7d`: `gemini-argon-wtu-weekly` ("Argon 7d")<br>`quota-3p-5h`: `3p-5h` ("Claude 5h")<br>`quota-3p-7d`: `3p-weekly` ("Claude 7d")                             | `Gemini 5h 50.19% (2h 28m)`<br>`Gemini 7d 90.91% (6d 13h)`<br>`Argon 7d 100.00% (6d 23h)`<br>`Claude 5h 100.00% (4h 59m)` | Displays quota percentage and reset countdown (`quota-all` expands to all buckets). Colors: `>=50%` (`brightGreen`), `>=20%` (`brightYellow`), `<20%` (`brightRed`).                                    |
-| 13  | **Quota Bar**        | `quota-bar`<br>`quota-bar-all`<br>`quota-bar-5h`<br>`quota-bar-7d`<br>`quota-bar-argon-7d`<br>`quota-bar-3p-5h`<br>`quota-bar-3p-7d` | `quota-bar`: (explicit key)<br>`quota-bar-all`: (all buckets)<br>`quota-bar-5h`: `gemini-5h` ("Gemini 5h")<br>`quota-bar-7d`: `gemini-weekly` ("Gemini 7d")<br>`quota-bar-argon-7d`: `gemini-argon-wtu-weekly` ("Argon 7d")<br>`quota-bar-3p-5h`: `3p-5h` ("Claude 5h")<br>`quota-bar-3p-7d`: `3p-weekly` ("Claude 7d") | `Gemini 5h █████····· 50.2% (2h 28m)`<br>`Gemini 7d █████████· 90.9% (6d 13h)`<br>`Argon 7d ██████████ 100.0% (6d 23h)`   | Graphical progress bar of quota with percentage and reset countdown (`quota-bar-all` expands to all buckets). Colors: `>=50%` (`brightGreen`), `>=20%` (`brightYellow`), `<20%` (`brightRed`).          |
-| 14  | **Custom Text**      | `custom-text` (alias: `custom`)                                                                                                      | -                                                                                                                                                                                                                                                                                                                       | User-defined static text                                                                                                  | Renders custom string specified via `text` property or colon shorthand (e.g. `custom-text:PROD`). Color: `white` or custom.                                                                             |
-
-## TOML Configuration Schema & Examples
-
-The configuration file is stored in TOML format at `~/.config/agystatusline/settings.toml` (or custom path via `--config <path>`).
-
-### Top-Level Structure
-
-```toml
-# Array of lines, where each line is an array of widget items
-lines = [
-  [
-    "agent-state",
-    "model",
-    "context-bar",
-    "artifacts",
-    "subagents",
-    "tasks",
-    "sandbox"
-  ],
-  [
-    "git-branch",
-    "git-changes"
-  ],
-  [
-    "quota-bar-5h",
-    "quota-bar-7d"
-  ]
-]
-
-# Powerline styling configuration
-[powerline]
-enabled = false
-theme = "nord-aurora"
-separator = "\uE0B0"
-start_caps = ""
-end_caps = ""
-
-# General display and runtime behavior
-[general]
-color_level = 1
-git_cache_ttl = 5
-separator = " · "
-padding = ""
-minimalist = false
-
-# Telemetry / state payload persistence (optional)
-[payload_dump]
-enabled = false
-path = "~/.local/share/agystatusline/payload.json"
-
-# Quota ordering, exclusion, and custom label mappings (optional)
-[quota]
-order = ["gemini-5h", "gemini-weekly", "gemini-argon-wtu-weekly", "3p-5h", "3p-weekly"]
-exclude = []
-
-[quota.labels]
-gemini-5h = "Gemini 5h"
-gemini-weekly = "Gemini 7d"
-gemini-argon-wtu-weekly = "Argon 7d"
-3p-5h = "Claude 5h"
-3p-weekly = "Claude 7d"
-```
-
-### Configuration Sections
-
-#### `[powerline]`
-
-- **`enabled`** (`bool`, default: `false`): Enables Powerline background coloring and glyph separators.
-- **`theme`** (`string`, default: `"nord-aurora"`): Color theme name. Supported themes:
-  - `"nord"`, `"nord-aurora"`, `"monokai"`, `"solarized"`, `"minimal"`, `"dracula"`, `"catppuccin"`, `"gruvbox"`, `"onedark"`, `"tokyonight"`
-- **`separator`** (`string`, default: `"\uE0B0"`): Glyphs placed between widgets (e.g., Arrow `\uE0B0`, Round `\uE0B4`, Flame `\uE0C0`, Hexagon `\uE0C6`, Slanted `\uE0C8`).
-- **`start_caps`** (`string`, default: `""`): Leading glyph at the beginning of each statusline line (e.g., `\uE0B2`, `\uE0B6`).
-- **`end_caps`** (`string`, default: `""`): Trailing glyph at the end of each statusline line (e.g., `\uE0B0`, `\uE0B4`).
-
-#### `[general]`
-
-- **`color_level`** (`int`, default: `1`): Terminal color mode:
-  - `1`: ANSI 16 colors (Standard)
-  - `2`: ANSI 256 colors
-  - `3`: Truecolor (24-bit RGB)
-- **`git_cache_ttl`** (`int`, default: `5`): Cache time-to-live in seconds for git command queries.
-- **`separator`** (`string`, default: `" · "`): Widget separator string in standard mode (Powerline disabled).
-- **`padding`** (`string`, default: `""`): Optional padding text added around widgets.
-- **`minimalist`** (`bool`, default: `false`): When `true`, suppresses widget titles/labels and displays only values.
-
-#### `[payload_dump]`
-
-- **`enabled`** (`bool`, default: `false`): When `true`, saves the verbatim JSON state payload streamed on stdin to the file path specified in `path`.
-- **`path`** (`string`, default: `"~/.local/share/agystatusline/payload.json"`): Destination file path for persisting the telemetry JSON (falls back to default path if empty or omitted). Uses atomic replace and sets `0600` file permissions.
-
-#### `[quota]` & `[quota.labels]`
-
-- **`order`** (`[]string`, default: `["gemini-5h", "gemini-weekly", "gemini-argon-wtu-weekly", "3p-5h", "3p-weekly"]`): Display order of quota buckets when rendering `quota-all` or `quota-bar-all`. When specified in `settings.toml`, overrides the default order list; any remaining non-excluded keys present in telemetry are appended in alphabetical order.
-- **`exclude`** (`[]string`, default: `[]`): Quota keys to exclude when rendering `quota-all` or `quota-bar-all` (e.g. `["3p-5h", "3p-weekly"]`).
-- **`[quota.labels].<quota-key>`** (`string`): Overrides the display label for the given telemetry quota key across all quota and quota-bar widgets (unless overridden per-widget via `text`). Built-in defaults:
-  - `gemini-5h` = `"Gemini 5h"`
-  - `gemini-weekly` = `"Gemini 7d"`
-  - `gemini-argon-wtu-weekly` = `"Argon 7d"`
-  - `3p-5h` = `"Claude 5h"`
-  - `3p-weekly` = `"Claude 7d"`
-
-### Widget Item Syntax
-
-Widgets inside `lines` can be defined using either **shorthand strings** or **inline tables**:
-
-1. **Shorthand String Syntax**:
-   - Plain identifier: `"model"`, `"agent-state"`, `"context-bar"`, `"artifacts"`, `"subagents"`, `"tasks"`, `"sandbox"`, `"git-repo"`, `"git-branch"`, `"git-ahead-behind"`, `"git-changes"`
-   - Pre-bound / all-buckets quota: `"quota-all"`, `"quota-5h"`, `"quota-7d"`, `"quota-argon-7d"`, `"quota-3p-5h"`, `"quota-3p-7d"`, `"quota-bar-all"`, `"quota-bar-5h"`, `"quota-bar-7d"`, `"quota-bar-argon-7d"`, `"quota-bar-3p-5h"`, `"quota-bar-3p-7d"`
-   - Parameter shorthand with `:`:
-     - `"quota:gemini-5h"` (sets `key`)
-     - `"quota-bar:gemini-weekly"` (sets `key`)
-     - `"custom-text:PROD"` or `"custom:PROD"` (sets `text`)
-     - `"git-repo:📦 "` (sets `symbol`)
-     - `"git-branch:🌿 "` (sets `symbol`)
-     - `"git-ahead-behind:⇅ "` (sets `symbol`)
-
-2. **Inline Table Syntax**:
-   Allows fine-grained customization of individual widgets:
-   - `{ type = "quota-5h", color = "brightCyan" }`
-   - `{ type = "quota", key = "rpc", text = "RPC", color = "brightGreen", raw = true }`
-   - `{ type = "git-repo", symbol = "📦 ", color = "brightBlue" }`
-   - `{ type = "git-branch", symbol = "⎇ ", color = "brightMagenta" }`
-   - `{ type = "git-ahead-behind", symbol = "⇅ ", color = "brightCyan" }`
-   - `{ type = "custom-text", text = "PROD", color = "brightRed", raw = false }`
-   - `{ type = "agent-state", hint = "esc to cancel" }` (shows `⚙ WORKING (esc to cancel)` while the agent is busy)
-
-   **Supported Table Properties**:
-   - `type` (`string`, required): Widget identifier name.
-   - `key` (`string`, optional): Quota lookup key in telemetry (e.g., `"gemini-5h"`, `"gemini-weekly"`, `"3p-5h"`, `"3p-weekly"`).
-   - `text` (`string`, optional): Custom label or text content.
-   - `symbol` (`string`, optional): Custom icon/symbol prefix (e.g. for `git-repo`, `git-branch`, `git-ahead-behind`).
-   - `color` (`string`, optional): Widget color override. Supported formats:
-     - Named color: `black`, `red`, `green`, `yellow`, `blue`, `magenta`, `cyan`, `white`, `brightBlack`, `brightRed`, `brightGreen`, `brightYellow`, `brightBlue`, `brightMagenta`, `brightCyan`, `brightWhite`
-     - ANSI 256: `ansi256:<0-255>` (e.g., `ansi256:208`)
-     - Truecolor Hex: `hex:<RRGGBB>` (e.g., `hex:FF5733`)
-     - Gradient: `gradient:hex:FF0000,hex:0000FF` or `gradient:red,blue`
-   - `raw` (`bool`, optional): When `true`, suppresses the widget title label and outputs only the raw value.
-   - `hint` (`string`, optional): Text appended in parentheses while the widget has an active state. Currently rendered by `agent-state` for any state other than `idle`, for example to advertise the interrupt key: `{ type = "agent-state", hint = "esc to cancel" }`. Unknown busy states also show it.
-
-## Key Features & UI/UX Designs
-
-- **Interactive TUI Configuration**: Built with Bubble Tea. Features a live preview of the statusline at the very top of the menu layout (without border styling to mimic the real terminal display).
-- **Multi-Line Editing (Edit Lines)**: Allows users to add, delete, and configure multiple statusline lines and manage their widgets through dedicated TUI menus.
-- **Powerline Submenus**: Transition to dedicated submenus when selecting a Powerline theme or Powerline separator.
-- **Color Level Support**: Support configuring the color output levels (ANSI 16, ANSI 256, or Truecolor) via settings and TUI.
-- **Custom Caps**: Custom prefix/suffix caps (`StartCaps` and `EndCaps`) can be configured for the statusline.
-- **Padding & Separator Alignment**: Non-ASCII separators automatically append a half-width space for visual alignment. Separator-level space padding is minimized; instead, widgets prepend/append spaces for clean spacing.
-- **ANSI-Aware & East Asian Width Truncation**: Prevents layout corruption or color bleeding by utilizing ANSI-aware string length measurement and slice operations.
+- [docs/widgets.md](docs/widgets.md): Supported widgets (14 categories / 26 identifiers), default keys/labels, example outputs, and dynamic color rules. Read when adding or modifying widgets.
+- [docs/configuration.md](docs/configuration.md): TOML configuration schema, section options, and widget item syntax (shorthand strings & inline tables). Read when changing settings schema, TOML parsing, or TUI config options.
