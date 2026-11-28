@@ -6,8 +6,8 @@ This file guides AI agents and developers on how to work with the `agystatusline
 
 - **Run all unit tests**: `go test -race -shuffle=on ./...`
 - **Build the executable binary**: `go build -o agystatusline`
-- **Run local manual integration tests**: `cat tests/data/payload_sample.json | ./agystatusline`
-- **Run interactive configuration menu (TUI)**: `./agystatusline` (without piping data)
+- **Run local manual integration tests**: `cat tests/data/payload_sample.json | go run .`
+- **Run interactive configuration menu (TUI)**: `go run .` (without piping data)
 - **Format codebase**: `go fmt ./...`
 - **Fix deprecated APIs**: `go fix ./...`
 
@@ -18,7 +18,7 @@ Refer to the [tdd](.agents/skills/tdd/SKILL.md), [git_commit](.agents/skills/git
 - **TDD Workflow**: Strictly follow the Red -> Green -> Refactor -> Verify -> Commit loop.
 - **Standard Test File Organization**: Follow standard Go conventions (`foo.go` -> `foo_test.go`). Do not create arbitrary custom test files (e.g., `stress_*.go`, `adversarial_*.go`) just for grouping test cases.
 - **Test Quality Principles**: Always use table-driven tests (`tests := []struct{...}`) for parameterized scenarios, restrict each test/subtest to a single concern, and ensure all tests strictly assert expected outputs (no dummy tests). If conditional branching (`if`) is needed in a test runner to decide whether to assert something or switch assertions, split the test cases instead of branching. All test assertions within a table must execute unconditionally without optional skips or callback closures (`verify func`).
-- **Code Verification**: Before committing or finishing any code modifications, always view and execute the checks in [code_verification](.agents/skills/code_verification/SKILL.md) (`nix fmt`, `golangci-lint`, `go test -race`, `go build`).
+- **Code Verification**: Before committing or finishing any code modifications, always view and execute the checks in [code_verification](.agents/skills/code_verification/SKILL.md) (`nix fmt`, `go test -race`, `golangci-lint`, and `nix flake check --no-build` when applicable).
 - **Commit Messages**: Use Conventional Commits and explain **why** a change was made rather than "what" was changed.
 - **Placeholder Domains in Tests & Docs**: Always use RFC-compliant reserved domains (such as `example.com`, `example.org`, or `example.net` according to RFC 2606) for test cases, sample codes, and documentation instead of arbitrary real-world domains.
 
